@@ -59,8 +59,8 @@ class APIClient {
           window.removeEventListener('message', messageHandler);
           
           try {
-            // The callback now receives the authorization code, not access token
-            const code = event.data.accessToken; // This is actually the auth code
+            // The callback now receives the authorization code
+            const code = event.data.code;
             
             // Exchange code for token via our Edge Function
             const response = await fetch(`${this.baseURL}/google-auth`, {

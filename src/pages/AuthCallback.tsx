@@ -2,16 +2,16 @@ import { useEffect } from 'react';
 
 const AuthCallback = () => {
   useEffect(() => {
-    // Extract the access token from URL parameters
+    // Extract the authorization code from URL parameters
     const urlParams = new URLSearchParams(window.location.search);
-    const accessToken = urlParams.get('access_token');
+    const code = urlParams.get('code');
     const error = urlParams.get('error');
 
-    if (accessToken) {
-      // Send success message to parent window
+    if (code) {
+      // Send authorization code to parent window
       window.opener?.postMessage({
         type: 'GOOGLE_AUTH_SUCCESS',
-        accessToken: accessToken
+        code: code
       }, window.location.origin);
     } else if (error) {
       // Send error message to parent window
