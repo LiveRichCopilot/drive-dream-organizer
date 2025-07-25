@@ -15,79 +15,33 @@ import {
   Search,
   Grid3X3,
   List,
-  Filter
+  Filter,
+  Download,
+  Edit2,
+  LogOut
 } from "lucide-react";
 import heroImage from "@/assets/hero-video-bg.jpg";
+import { useGoogleDrive } from "@/hooks/useGoogleDrive";
 
 type ViewMode = "grid" | "list";
 
-interface VideoFile {
-  id: string;
-  name: string;
-  duration: string;
-  size: string;
-  dateCreated: string;
-  thumbnail: string;
-  format: string;
-}
-
 const VideoOrganizerApp = () => {
-  const [isConnected, setIsConnected] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const {
+    isConnected,
+    isLoading,
+    videos,
+    progress,
+    connect,
+    downloadVideo,
+    renameVideo,
+    organizeVideos,
+    disconnect,
+  } = useGoogleDrive();
+  
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Mock video data
-  const mockVideos: VideoFile[] = [
-    {
-      id: "1",
-      name: "Project_Demo_2024.mp4",
-      duration: "15:42",
-      size: "2.4 GB",
-      dateCreated: "2024-01-15",
-      thumbnail: "/api/placeholder/300/200",
-      format: "MP4"
-    },
-    {
-      id: "2", 
-      name: "Meeting_Recording.mov",
-      duration: "45:18",
-      size: "5.2 GB", 
-      dateCreated: "2024-01-14",
-      thumbnail: "/api/placeholder/300/200",
-      format: "MOV"
-    },
-    {
-      id: "3",
-      name: "Tutorial_Screen_Capture.avi",
-      duration: "28:33",
-      size: "1.8 GB",
-      dateCreated: "2024-01-13", 
-      thumbnail: "/api/placeholder/300/200",
-      format: "AVI"
-    }
-  ];
-
-  const handleConnect = () => {
-    setIsLoading(true);
-    setProgress(0);
-    
-    // Simulate connection progress
-    const interval = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setIsLoading(false);
-          setIsConnected(true);
-          return 100;
-        }
-        return prev + 10;
-      });
-    }, 200);
-  };
-
-  const filteredVideos = mockVideos.filter(video =>
+  const filteredVideos = videos.filter(video =>
     video.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -133,7 +87,7 @@ const VideoOrganizerApp = () => {
               ) : (
                 <div className="space-y-6">
                   <Button 
-                    onClick={handleConnect}
+                    onClick={connect}
                     variant="outline"
                     className="glass text-white border-white/20 hover:bg-white/10 bg-transparent"
                   >
@@ -184,10 +138,10 @@ const VideoOrganizerApp = () => {
           <div className="flex items-center gap-4">
             <Badge variant="outline" className="glass border-primary/30">
               <FolderOpen className="h-4 w-4 mr-2" />
-              Connected
+              Connected ({videos.length} videos)
             </Badge>
-            <Button variant="outline" size="sm">
-              <Settings className="h-4 w-4" />
+            <Button variant="outline" size="sm" onClick={disconnect}>
+              <LogOut className="h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -222,9 +176,9 @@ const VideoOrganizerApp = () => {
             <Button variant="outline" size="sm">
               <Filter className="h-4 w-4" />
             </Button>
-            <Button variant="secondary" size="sm">
-              <Upload className="h-4 w-4 mr-2" />
-              Organize Videos
+            <Button variant="secondary" size="sm" onClick={organizeVideos}>
+              <Calendar className="h-4 w-4 mr-2" />
+              Organize by Date
             </Button>
           </div>
         </div>
@@ -236,8 +190,26 @@ const VideoOrganizerApp = () => {
           {filteredVideos.map((video) => (
             <Card key={video.id} className="glass-card group cursor-pointer">
               <div className="aspect-video bg-muted rounded-xl mb-4 relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-glass flex items-center justify-center">
-                  <Play className="h-12 w-12 text-primary opacity-70 group-hover:opacity-100 transition-opacity" />
+                {video.thumbnail && video.thumbnail !== '/api/placeholder/300/200' ? (
+                  <img 
+                    src={video.thumbnail} 
+                    alt={video.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-gradient-glass flex items-center justify-center">
+                    <Video className="h-12 w-12 text-primary opacity-70" />
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="secondary" onClick={() => window.open(video.webViewLink, '_blank')}>
+                      <Play className="h-4 w-4" />
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => downloadVideo(video.id, video.name)}>
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
                 <Badge className="absolute top-2 right-2 bg-background/80">
                   {video.format}
@@ -267,8 +239,16 @@ const VideoOrganizerApp = () => {
           {filteredVideos.map((video) => (
             <Card key={video.id} className="glass-card">
               <div className="flex items-center gap-4 p-6">
-                <div className="w-24 h-16 bg-muted rounded-lg flex items-center justify-center">
-                  <Play className="h-6 w-6 text-primary" />
+                <div className="w-24 h-16 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
+                  {video.thumbnail && video.thumbnail !== '/api/placeholder/300/200' ? (
+                    <img 
+                      src={video.thumbnail} 
+                      alt={video.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <Video className="h-6 w-6 text-primary" />
+                  )}
                 </div>
                 <div className="flex-1">
                   <h3 className="font-semibold mb-1">{video.name}</h3>
@@ -276,14 +256,19 @@ const VideoOrganizerApp = () => {
                     <span>{video.duration}</span>
                     <span>{video.size}</span>
                     <span>{video.dateCreated}</span>
-                    <Badge variant="outline" className="ml-auto">
+                    <Badge variant="outline">
                       {video.format}
                     </Badge>
                   </div>
                 </div>
-                <Button variant="ghost" size="sm">
-                  <Play className="h-4 w-4" />
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => window.open(video.webViewLink, '_blank')}>
+                    <Play className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => downloadVideo(video.id, video.name)}>
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </Card>
           ))}
