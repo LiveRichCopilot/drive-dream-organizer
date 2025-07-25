@@ -39,6 +39,7 @@ class APIClient {
       const scope = 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file';
       const responseType = 'code';
       const redirectUri = `${window.location.origin}/auth/callback`;
+      console.log('Using redirect URI:', redirectUri); // Debug log
       
       const authUrl = `https://accounts.google.com/oauth2/auth?` +
         `client_id=${clientId}&` +
