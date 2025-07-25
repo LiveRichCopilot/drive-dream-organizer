@@ -10,15 +10,15 @@ All colors MUST be HSL.
   :root {
     /* Dark Velvet Base */
     --background: 240 12% 6%;
-    --foreground: 180 100% 90%;
+    --foreground: 0 0% 100%;
 
     /* Glass Cards */
     --card: 240 12% 8%;
-    --card-foreground: 180 100% 95%;
+    --card-foreground: 0 0% 100%;
 
     /* Popover */
     --popover: 240 15% 10%;
-    --popover-foreground: 180 100% 95%;
+    --popover-foreground: 0 0% 100%;
 
     /* Turquoise Primary */
     --primary: 174 100% 50%;
