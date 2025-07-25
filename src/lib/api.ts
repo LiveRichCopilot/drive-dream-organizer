@@ -34,38 +34,49 @@ class APIClient {
   }
 
   async authenticate(): Promise<void> {
-    // First get the client ID from our backend
-    const configResponse = await fetch(`${this.baseURL}/google-auth`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88`,
-      },
-    });
-    
-    if (!configResponse.ok) {
-      throw new Error('Failed to get Google client configuration');
-    }
-    
-    const { client_id } = await configResponse.json();
-    
-    return new Promise((resolve, reject) => {
-      const clientId = client_id;
-      const scope = 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file';
-      const responseType = 'code';
-      const redirectUri = `${window.location.origin}/auth/callback`;
-      console.log('Using redirect URI:', redirectUri); // Debug log
-      console.log('Using client ID:', clientId); // Debug log
+    try {
+      // First get the client ID from our backend
+      const configResponse = await fetch(`${this.baseURL}/google-auth`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88`,
+        },
+      });
       
-      const authUrl = `https://accounts.google.com/oauth2/auth?` +
-        `client_id=${clientId}&` +
-        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-        `response_type=${responseType}&` +
-        `scope=${encodeURIComponent(scope)}&` +
-        `access_type=offline&` +
-        `prompt=select_account&` +  // This forces account selection
-        `include_granted_scopes=true`;
+      if (!configResponse.ok) {
+        const errorText = await configResponse.text();
+        throw new Error(`Failed to get Google client configuration: ${errorText}`);
+      }
+      
+      const { client_id } = await configResponse.json();
+      
+      if (!client_id) {
+        throw new Error('Google Client ID not configured. Please check your Supabase secrets.');
+      }
+      
+      return new Promise((resolve, reject) => {
+        const clientId = client_id;
+        const scope = 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file';
+        const responseType = 'code';
+        const redirectUri = `${window.location.origin}/auth/callback`;
+        console.log('Using redirect URI:', redirectUri);
+        console.log('Using client ID:', clientId);
+        
+        const authUrl = `https://accounts.google.com/oauth2/auth?` +
+          `client_id=${clientId}&` +
+          `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+          `response_type=${responseType}&` +
+          `scope=${encodeURIComponent(scope)}&` +
+          `access_type=offline&` +
+          `prompt=select_account&` +  // This forces account selection
+          `include_granted_scopes=true`;
 
-      const popup = window.open(authUrl, 'google-auth', 'width=500,height=600');
+        const popup = window.open(authUrl, 'google-auth', 'width=500,height=600');
+        
+        if (!popup) {
+          reject(new Error('Failed to open authentication popup. Please allow popups for this site.'));
+          return;
+        }
       
       const messageHandler = async (event: MessageEvent) => {
         if (event.origin !== window.location.origin) return;
@@ -88,8 +99,9 @@ class APIClient {
             });
             
             if (!response.ok) {
-              const errorData = await response.json();
-              throw new Error(errorData.error || 'Failed to exchange code for token');
+              const errorData = await response.json().catch(() => ({}));
+              const errorMessage = errorData.error || `Authentication failed (${response.status})`;
+              throw new Error(errorMessage);
             }
             
             const data = await response.json();
@@ -115,7 +127,11 @@ class APIClient {
           reject(new Error('Authentication popup was closed'));
         }
       }, 1000);
-    });
+      });
+    } catch (error) {
+      console.error('Authentication error:', error);
+      throw error instanceof Error ? error : new Error('Authentication failed');
+    }
   }
 
   async listVideoFiles(): Promise<VideoFile[]> {

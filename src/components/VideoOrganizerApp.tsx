@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import heroImage from "@/assets/hero-video-bg.jpg";
 import { useGoogleDrive } from "@/hooks/useGoogleDrive";
+import GoogleDriveFolderInput from "@/components/GoogleDriveFolderInput";
 
 type ViewMode = "grid" | "list";
 
@@ -40,6 +41,7 @@ const VideoOrganizerApp = () => {
   
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [searchQuery, setSearchQuery] = useState("");
+  const [showFolderInput, setShowFolderInput] = useState(false);
 
   const filteredVideos = videos.filter(video =>
     video.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -86,14 +88,37 @@ const VideoOrganizerApp = () => {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  <Button 
-                    onClick={connect}
-                    variant="outline"
-                    className="glass text-white border-white/20 hover:bg-white/10 bg-transparent"
-                  >
-                    <FolderOpen className="mr-3 h-6 w-6" />
-                    Connect Google Drive
-                  </Button>
+                  <div className="space-y-4">
+                    <Button 
+                      onClick={connect}
+                      variant="outline"
+                      className="glass text-white border-white/20 hover:bg-white/10 bg-transparent"
+                    >
+                      <FolderOpen className="mr-3 h-6 w-6" />
+                      Connect Google Drive
+                    </Button>
+                    
+                    <Button 
+                      onClick={() => setShowFolderInput(!showFolderInput)}
+                      variant="ghost"
+                      className="text-white/70 hover:text-white"
+                      size="sm"
+                    >
+                      <Settings className="mr-2 h-4 w-4" />
+                      {showFolderInput ? "Hide" : "Show"} Advanced Options
+                    </Button>
+                  </div>
+                  
+                  {showFolderInput && (
+                    <div className="mt-6">
+                      <GoogleDriveFolderInput 
+                        onFolderSelected={(folderId) => {
+                          console.log('Folder selected:', folderId);
+                          // You can store this folderId in state for future use
+                        }}
+                      />
+                    </div>
+                  )}
                   
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
                     <div className="glass-card text-center p-4">

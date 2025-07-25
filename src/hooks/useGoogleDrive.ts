@@ -33,9 +33,24 @@ export const useGoogleDrive = () => {
       await loadVideos();
     } catch (error) {
       console.error('Connection failed:', error);
+      
+      // Provide more specific error messages
+      let errorMessage = "Failed to connect to Google Drive";
+      if (error instanceof Error) {
+        if (error.message.includes("popup")) {
+          errorMessage = "Please allow popups and try again";
+        } else if (error.message.includes("Client ID")) {
+          errorMessage = "Google authentication is not properly configured";
+        } else if (error.message.includes("closed")) {
+          errorMessage = "Authentication was cancelled";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       toast({
         title: "Connection Failed",
-        description: error instanceof Error ? error.message : "Failed to connect to Google Drive",
+        description: errorMessage,
         variant: "destructive",
       });
       setProgress(0);
