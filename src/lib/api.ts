@@ -35,7 +35,7 @@ class APIClient {
 
   async authenticate(): Promise<void> {
     return new Promise((resolve, reject) => {
-      const clientId = '1016569929536-p16jh5kdbf7m2p48q6enh7p36tvhiefm.apps.googleusercontent.com';
+      const clientId = '1070421026009-ihbdicu5n4b198qi8uoav1b284fefdcd.apps.googleusercontent.com';
       const scope = 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file';
       const responseType = 'code';
       const redirectUri = `${window.location.origin}/auth/callback`;
