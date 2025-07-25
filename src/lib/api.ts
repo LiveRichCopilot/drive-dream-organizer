@@ -88,7 +88,8 @@ class APIClient {
 
         // Listen for the access token from the popup
         const messageHandler = (event: MessageEvent) => {
-          if (event.origin !== window.location.origin) return;
+          if (event.origin !== 'https://live-rich-video-organizer-94co.vercel.app' && 
+              event.origin !== window.location.origin) return;
           
           if (event.data.type === 'GOOGLE_AUTH_SUCCESS') {
             clearInterval(checkClosed);
