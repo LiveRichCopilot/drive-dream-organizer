@@ -20,25 +20,25 @@ All colors MUST be HSL.
     --popover: 240 15% 10%;
     --popover-foreground: 0 0% 100%;
 
-    /* Turquoise Primary */
-    --primary: 174 100% 50%;
-    --primary-foreground: 240 12% 6%;
+    /* Minimal Monochrome */
+    --primary: 0 0% 100%;
+    --primary-foreground: 0 0% 0%;
 
-    /* Green Secondary */
-    --secondary: 150 100% 50%;
-    --secondary-foreground: 240 12% 6%;
+    /* Subtle Gray Secondary */
+    --secondary: 0 0% 20%;
+    --secondary-foreground: 0 0% 100%;
 
     /* Muted Glass */
     --muted: 240 12% 12%;
-    --muted-foreground: 180 50% 70%;
+    --muted-foreground: 0 0% 70%;
 
-    /* Turquoise Blue Accent */
-    --accent: 188 100% 50%;
-    --accent-foreground: 240 12% 6%;
+    /* Minimal Accent */
+    --accent: 0 0% 30%;
+    --accent-foreground: 0 0% 100%;
 
-    /* Pink Destructive */
-    --destructive: 350 100% 70%;
-    --destructive-foreground: 240 12% 6%;
+    /* Minimal Destructive */
+    --destructive: 0 100% 50%;
+    --destructive-foreground: 0 0% 100%;
 
     /* Glass Borders */
     --border: 240 20% 20%;
@@ -47,10 +47,10 @@ All colors MUST be HSL.
 
     --radius: 1rem;
 
-    /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(174 100% 50%), hsl(188 100% 50%));
-    --gradient-secondary: linear-gradient(135deg, hsl(150 100% 50%), hsl(174 100% 50%));
-    --gradient-pink: linear-gradient(135deg, hsl(320 100% 70%), hsl(350 100% 70%));
+    /* Minimal Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(0 0% 100%), hsl(0 0% 90%));
+    --gradient-secondary: linear-gradient(135deg, hsl(0 0% 25%), hsl(0 0% 15%));
+    --gradient-pink: linear-gradient(135deg, hsl(0 100% 60%), hsl(0 100% 50%));
     --gradient-glass: linear-gradient(135deg, hsl(240 20% 20% / 0.3), hsl(240 20% 30% / 0.1));
 
     /* Apple Glass Effects */
