@@ -41,21 +41,29 @@ class APIClient {
   private async request(endpoint: string, options: RequestInit = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
     
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(this.accessToken && { 'Authorization': `Bearer ${this.accessToken}` }),
-        ...options.headers,
-      },
-    });
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(this.accessToken && { 'Authorization': `Bearer ${this.accessToken}` }),
+          ...options.headers,
+        },
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`API request failed: ${response.status} ${errorText}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API request failed: ${response.status} ${errorText}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error(`Request to ${url} failed:`, error);
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        throw new Error('Unable to connect to backend. This might be a CORS issue - the backend needs to allow requests from this domain.');
+      }
+      throw error;
     }
-
-    return response.json();
   }
 
   async authenticate(): Promise<string> {
