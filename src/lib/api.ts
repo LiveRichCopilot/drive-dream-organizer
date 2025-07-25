@@ -71,6 +71,8 @@ class APIClient {
           `prompt=select_account&` +  // This forces account selection
           `include_granted_scopes=true`;
 
+        console.log('Full auth URL:', authUrl);
+        
         const popup = window.open(authUrl, 'google-auth', 'width=500,height=600');
         
         if (!popup) {
