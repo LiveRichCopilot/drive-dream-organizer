@@ -134,7 +134,8 @@ const VideoOrganizerApp = () => {
                 <div className="space-y-6">
                   <Button 
                     onClick={handleConnect}
-                    className="glass text-white border-white/20 hover:bg-white/10"
+                    variant="outline"
+                    className="glass text-white border-white/20 hover:bg-white/10 bg-transparent"
                   >
                     <FolderOpen className="mr-3 h-6 w-6" />
                     Connect Google Drive
