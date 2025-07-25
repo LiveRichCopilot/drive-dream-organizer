@@ -109,24 +109,24 @@ const VideoOrganizerApp = () => {
 
         {/* Hero Section */}
         <div className="relative z-10 min-h-screen flex items-center justify-center p-8">
-          <div className="text-center max-w-3xl mx-auto">
-            <div className="glass-card max-w-lg mx-auto">
-              <div className="mb-6">
-                <h1 className="text-3xl font-medium mb-4 text-foreground">
+          <div className="text-center max-w-4xl mx-auto">
+            <div className="glass-card max-w-2xl mx-auto">
+              <div className="mb-8">
+                <h1 className="text-6xl font-bold mb-6 bg-gradient-primary bg-clip-text text-transparent">
                   LiveRich Video Organizer
                 </h1>
-                <p className="text-base text-muted-foreground mb-6">
-                  Organize your Google Drive videos with AI-powered sorting
+                <p className="text-xl text-muted-foreground mb-8">
+                  Seamlessly organize, analyze, and manage your Google Drive videos with AI-powered chronological sorting and beautiful glassmorphism interface.
                 </p>
               </div>
 
               {isLoading ? (
-                <div className="space-y-4">
-                  <div className="text-sm font-medium text-foreground">
+                <div className="space-y-6">
+                  <div className="text-lg font-medium text-primary">
                     Connecting to Google Drive...
                   </div>
-                  <Progress value={progress} className="h-2" />
-                  <div className="text-xs text-muted-foreground">
+                  <Progress value={progress} className="h-3" />
+                  <div className="text-sm text-muted-foreground">
                     {progress}% Complete
                   </div>
                 </div>
@@ -134,13 +134,37 @@ const VideoOrganizerApp = () => {
                 <div className="space-y-6">
                   <Button 
                     onClick={handleConnect}
-                    variant="outline"
-                    size="default"
-                    className="text-sm px-6 py-2 h-10"
+                    variant="glow"
+                    size="lg"
+                    className="text-lg px-12"
                   >
-                    <FolderOpen className="mr-2 h-4 w-4" />
+                    <FolderOpen className="mr-3 h-6 w-6" />
                     Connect Google Drive
                   </Button>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+                    <div className="glass-card text-center p-4">
+                      <Video className="h-8 w-8 mx-auto mb-3 text-primary" />
+                      <h3 className="font-semibold mb-2">Smart Organization</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Automatically sort videos by creation date and metadata
+                      </p>
+                    </div>
+                    <div className="glass-card text-center p-4">
+                      <Calendar className="h-8 w-8 mx-auto mb-3 text-secondary" />
+                      <h3 className="font-semibold mb-2">Timeline Generation</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Create Premiere Pro timelines with proper sequencing
+                      </p>
+                    </div>
+                    <div className="glass-card text-center p-4">
+                      <Settings className="h-8 w-8 mx-auto mb-3 text-accent" />
+                      <h3 className="font-semibold mb-2">Metadata Extraction</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Extract duration, resolution, and timestamp data
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
