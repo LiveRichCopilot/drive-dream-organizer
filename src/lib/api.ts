@@ -46,7 +46,8 @@ class APIClient {
         `response_type=${responseType}&` +
         `scope=${encodeURIComponent(scope)}&` +
         `access_type=offline&` +
-        `prompt=consent`;
+        `prompt=select_account&` +  // This forces account selection
+        `include_granted_scopes=true`;
 
       const popup = window.open(authUrl, 'google-auth', 'width=500,height=600');
       
@@ -57,18 +58,22 @@ class APIClient {
           window.removeEventListener('message', messageHandler);
           
           try {
-            // Exchange code for token
+            // The callback now receives the authorization code, not access token
+            const code = event.data.accessToken; // This is actually the auth code
+            
+            // Exchange code for token via our Edge Function
             const response = await fetch(`${this.baseURL}/google-auth`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88`,
               },
-              body: JSON.stringify({ code: event.data.accessToken }),
+              body: JSON.stringify({ code }),
             });
             
             if (!response.ok) {
-              throw new Error('Failed to exchange code for token');
+              const errorData = await response.json();
+              throw new Error(errorData.error || 'Failed to exchange code for token');
             }
             
             const data = await response.json();
