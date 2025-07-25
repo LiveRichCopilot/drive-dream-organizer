@@ -53,19 +53,19 @@ All colors MUST be HSL.
     --gradient-pink: linear-gradient(135deg, hsl(320 100% 70%), hsl(350 100% 70%));
     --gradient-glass: linear-gradient(135deg, hsl(240 20% 20% / 0.3), hsl(240 20% 30% / 0.1));
 
-    /* Glass Effects */
-    --glass-bg: hsl(240 20% 15% / 0.3);
-    --glass-border: hsl(180 100% 90% / 0.1);
-    --glass-shadow: 0 8px 32px hsl(240 100% 20% / 0.3);
+    /* Apple Glass Effects */
+    --glass-bg: hsl(240 20% 15% / 0.2);
+    --glass-border: hsl(240 20% 50% / 0.15);
+    --glass-shadow: 0 8px 32px hsl(240 100% 5% / 0.15);
 
     /* Animations */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-bounce: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
-    /* Shadows and Glows */
-    --glow-primary: 0 0 20px hsl(174 100% 50% / 0.5);
-    --glow-secondary: 0 0 20px hsl(150 100% 50% / 0.5);
-    --glow-accent: 0 0 20px hsl(188 100% 50% / 0.5);
+    /* Clean Glass Shadows */
+    --shadow-subtle: 0 4px 16px hsl(240 100% 5% / 0.2);
+    --shadow-medium: 0 8px 24px hsl(240 100% 5% / 0.3);
+    --shadow-large: 0 16px 32px hsl(240 100% 5% / 0.4);
     
     --sidebar-background: 240 12% 8%;
     --sidebar-foreground: 180 100% 90%;
@@ -112,8 +112,8 @@ All colors MUST be HSL.
   }
 
   .glass-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--glass-shadow), var(--glow-primary);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-medium);
   }
 
   /* Gradient utilities */
@@ -133,17 +133,17 @@ All colors MUST be HSL.
     background: var(--gradient-glass);
   }
 
-  /* Glow effects */
-  .glow-primary {
-    box-shadow: var(--glow-primary);
+  /* Clean shadow utilities */
+  .shadow-subtle {
+    box-shadow: var(--shadow-subtle);
   }
 
-  .glow-secondary {
-    box-shadow: var(--glow-secondary);
+  .shadow-medium {
+    box-shadow: var(--shadow-medium);
   }
 
-  .glow-accent {
-    box-shadow: var(--glow-accent);
+  .shadow-large {
+    box-shadow: var(--shadow-large);
   }
 
   /* Custom scrollbar */
