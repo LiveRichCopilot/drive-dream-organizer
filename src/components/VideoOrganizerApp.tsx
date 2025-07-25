@@ -112,10 +112,10 @@ const VideoOrganizerApp = () => {
           <div className="text-center max-w-4xl mx-auto">
             <div className="glass-card max-w-2xl mx-auto">
               <div className="mb-8">
-                <h1 className="text-6xl font-bold mb-6 bg-gradient-primary bg-clip-text text-transparent">
+                <h1 className="text-4xl font-semibold mb-4 text-white">
                   LiveRich Video Organizer
                 </h1>
-                <p className="text-xl text-muted-foreground mb-8">
+                <p className="text-xl text-white/80 mb-8">
                   Seamlessly organize, analyze, and manage your Google Drive videos with AI-powered chronological sorting and beautiful glassmorphism interface.
                 </p>
               </div>
@@ -134,9 +134,7 @@ const VideoOrganizerApp = () => {
                 <div className="space-y-6">
                   <Button 
                     onClick={handleConnect}
-                    variant="glow"
-                    size="lg"
-                    className="text-lg px-12"
+                    className="glass text-white border-white/20 hover:bg-white/10"
                   >
                     <FolderOpen className="mr-3 h-6 w-6" />
                     Connect Google Drive
