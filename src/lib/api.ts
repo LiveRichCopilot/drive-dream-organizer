@@ -34,12 +34,27 @@ class APIClient {
   }
 
   async authenticate(): Promise<void> {
+    // First get the client ID from our backend
+    const configResponse = await fetch(`${this.baseURL}/google-auth`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88`,
+      },
+    });
+    
+    if (!configResponse.ok) {
+      throw new Error('Failed to get Google client configuration');
+    }
+    
+    const { client_id } = await configResponse.json();
+    
     return new Promise((resolve, reject) => {
-      const clientId = '1070421026009-ihbdicu5n4b198qi8uoav1b284fefdcd.apps.googleusercontent.com';
+      const clientId = client_id;
       const scope = 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file';
       const responseType = 'code';
       const redirectUri = `${window.location.origin}/auth/callback`;
       console.log('Using redirect URI:', redirectUri); // Debug log
+      console.log('Using client ID:', clientId); // Debug log
       
       const authUrl = `https://accounts.google.com/oauth2/auth?` +
         `client_id=${clientId}&` +

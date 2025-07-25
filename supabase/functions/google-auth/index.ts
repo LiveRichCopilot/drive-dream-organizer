@@ -10,6 +10,16 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  if (req.method === 'GET') {
+    // Return the client ID for OAuth URL construction
+    return new Response(
+      JSON.stringify({ 
+        client_id: Deno.env.get('GOOGLE_CLIENT_ID') || '' 
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+  }
+
   try {
     const { code } = await req.json()
     
