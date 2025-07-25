@@ -1,19 +1,10 @@
-import { toast } from "@/hooks/use-toast";
-
-const API_BASE_URL = 'https://liverich-backend-1083445308449.us-central1.run.app';
-
 export interface DriveFile {
   id: string;
   name: string;
-  mimeType: string;
-  size: string;
+  size: number;
   createdTime: string;
-  modifiedTime: string;
-  webViewLink: string;
   thumbnailLink?: string;
   videoMediaMetadata?: {
-    width: number;
-    height: number;
     durationMillis: string;
   };
 }
@@ -21,216 +12,156 @@ export interface DriveFile {
 export interface VideoFile {
   id: string;
   name: string;
-  duration: string;
-  size: string;
-  dateCreated: string;
+  size: number;
+  sizeFormatted: string;
+  createdTime: string;
+  thumbnailLink?: string;
+  duration: number;
+  durationFormatted: string;
   thumbnail: string;
   format: string;
+  dateCreated: string;
   webViewLink: string;
-  downloadUrl?: string;
 }
 
 class APIClient {
   private accessToken: string | null = null;
+  private baseURL = 'https://iffvjtfrqaesoehbwtgi.supabase.co/functions/v1';
 
   constructor() {
-    // Check for stored access token
+    // Check for existing token in localStorage
     this.accessToken = localStorage.getItem('google_access_token');
   }
 
-  private async request(endpoint: string, options: RequestInit = {}) {
-    const url = `${API_BASE_URL}${endpoint}`;
-    
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          'Content-Type': 'application/json',
-          ...(this.accessToken && { 'Authorization': `Bearer ${this.accessToken}` }),
-          ...options.headers,
-        },
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`API request failed: ${response.status} ${errorText}`);
-      }
-
-      return response.json();
-    } catch (error) {
-      console.error(`Request to ${url} failed:`, error);
-      if (error instanceof TypeError && error.message === 'Failed to fetch') {
-        throw new Error('Unable to connect to backend. This might be a CORS issue - the backend needs to allow requests from this domain.');
-      }
-      throw error;
-    }
-  }
-
-  async authenticate(): Promise<string> {
-    try {
-      const response = await this.request('/auth/google');
-      const { authUrl } = response;
+  async authenticate(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const clientId = '1016569929536-p16jh5kdbf7m2p48q6enh7p36tvhiefm.apps.googleusercontent.com';
+      const scope = 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file';
+      const responseType = 'code';
+      const redirectUri = `${window.location.origin}/auth/callback`;
       
-      // Open popup for Google OAuth
-      return new Promise((resolve, reject) => {
-        const popup = window.open(
-          authUrl,
-          'google-auth',
-          'width=500,height=600,scrollbars=yes,resizable=yes'
-        );
+      const authUrl = `https://accounts.google.com/oauth2/auth?` +
+        `client_id=${clientId}&` +
+        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+        `response_type=${responseType}&` +
+        `scope=${encodeURIComponent(scope)}&` +
+        `access_type=offline&` +
+        `prompt=consent`;
 
-        const checkClosed = setInterval(() => {
-          if (popup?.closed) {
-            clearInterval(checkClosed);
-            reject(new Error('Authentication was cancelled'));
-          }
-        }, 1000);
-
-        // Listen for the access token from the popup
-        const messageHandler = (event: MessageEvent) => {
-          if (event.origin !== 'https://live-rich-video-organizer-94co.vercel.app' && 
-              event.origin !== window.location.origin) return;
+      const popup = window.open(authUrl, 'google-auth', 'width=500,height=600');
+      
+      const messageHandler = async (event: MessageEvent) => {
+        if (event.origin !== window.location.origin) return;
+        
+        if (event.data.type === 'GOOGLE_AUTH_SUCCESS') {
+          window.removeEventListener('message', messageHandler);
           
-          if (event.data.type === 'GOOGLE_AUTH_SUCCESS') {
-            clearInterval(checkClosed);
-            window.removeEventListener('message', messageHandler);
-            popup?.close();
+          try {
+            // Exchange code for token
+            const response = await fetch(`${this.baseURL}/google-auth`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88`,
+              },
+              body: JSON.stringify({ code: event.data.accessToken }),
+            });
             
-            this.accessToken = event.data.accessToken;
+            if (!response.ok) {
+              throw new Error('Failed to exchange code for token');
+            }
+            
+            const data = await response.json();
+            this.accessToken = data.access_token;
             localStorage.setItem('google_access_token', this.accessToken!);
-            resolve(this.accessToken!);
-          } else if (event.data.type === 'GOOGLE_AUTH_ERROR') {
-            clearInterval(checkClosed);
-            window.removeEventListener('message', messageHandler);
-            popup?.close();
-            reject(new Error(event.data.error));
+            resolve();
+          } catch (error) {
+            reject(error);
           }
-        };
+        } else if (event.data.type === 'GOOGLE_AUTH_ERROR') {
+          window.removeEventListener('message', messageHandler);
+          reject(new Error(event.data.error));
+        }
+      };
 
-        window.addEventListener('message', messageHandler);
-      });
-    } catch (error) {
-      console.error('Authentication failed:', error);
-      throw error;
-    }
+      window.addEventListener('message', messageHandler);
+      
+      // Handle popup closed without completion
+      const checkClosed = setInterval(() => {
+        if (popup?.closed) {
+          clearInterval(checkClosed);
+          window.removeEventListener('message', messageHandler);
+          reject(new Error('Authentication popup was closed'));
+        }
+      }, 1000);
+    });
   }
 
   async listVideoFiles(): Promise<VideoFile[]> {
-    try {
-      const response = await this.request('/files/videos');
-      const files: DriveFile[] = response.files;
-      
-      return files.map(file => this.transformDriveFileToVideoFile(file));
-    } catch (error) {
-      console.error('Failed to list video files:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load videos from Google Drive",
-        variant: "destructive",
-      });
-      return [];
+    const response = await fetch(`${this.baseURL}/google-drive-list`, {
+      headers: {
+        'Authorization': `Bearer ${this.accessToken}`,
+        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88',
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch video files');
     }
+    
+    const data = await response.json();
+    return data.files;
   }
 
   async downloadFile(fileId: string, fileName: string): Promise<string> {
-    try {
-      const response = await this.request(`/files/${fileId}/download`);
-      return response.downloadUrl;
-    } catch (error) {
-      console.error('Failed to get download URL:', error);
-      throw error;
+    const response = await fetch(`${this.baseURL}/google-drive-download`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.accessToken}`,
+        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88',
+      },
+      body: JSON.stringify({ fileId }),
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to get download URL');
     }
+    
+    const data = await response.json();
+    return data.downloadUrl;
   }
 
   async renameFile(fileId: string, newName: string): Promise<void> {
-    try {
-      await this.request(`/files/${fileId}/rename`, {
-        method: 'PATCH',
-        body: JSON.stringify({ name: newName }),
-      });
-      
-      toast({
-        title: "Success",
-        description: `File renamed to "${newName}"`,
-      });
-    } catch (error) {
-      console.error('Failed to rename file:', error);
-      toast({
-        title: "Error",
-        description: "Failed to rename file",
-        variant: "destructive",
-      });
-      throw error;
+    const response = await fetch(`${this.baseURL}/google-drive-rename`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.accessToken}`,
+        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88',
+      },
+      body: JSON.stringify({ fileId, newName }),
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to rename file');
     }
   }
 
   async organizeVideosByDate(fileIds: string[]): Promise<void> {
-    try {
-      await this.request('/files/organize-by-date', {
-        method: 'POST',
-        body: JSON.stringify({ fileIds }),
-      });
-      
-      toast({
-        title: "Success",
-        description: "Videos organized chronologically",
-      });
-    } catch (error) {
-      console.error('Failed to organize videos:', error);
-      toast({
-        title: "Error",
-        description: "Failed to organize videos",
-        variant: "destructive",
-      });
-      throw error;
-    }
-  }
-
-  private transformDriveFileToVideoFile(file: DriveFile): VideoFile {
-    const formatMap: Record<string, string> = {
-      'video/mp4': 'MP4',
-      'video/quicktime': 'MOV',
-      'video/x-msvideo': 'AVI',
-      'video/webm': 'WEBM',
-    };
-
-    const format = formatMap[file.mimeType] || 'VIDEO';
-    const sizeInBytes = parseInt(file.size);
-    const sizeFormatted = this.formatFileSize(sizeInBytes);
+    const response = await fetch(`${this.baseURL}/google-drive-organize`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.accessToken}`,
+        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88',
+      },
+      body: JSON.stringify({ fileIds }),
+    });
     
-    const duration = file.videoMediaMetadata?.durationMillis 
-      ? this.formatDuration(parseInt(file.videoMediaMetadata.durationMillis))
-      : 'Unknown';
-
-    return {
-      id: file.id,
-      name: file.name,
-      duration,
-      size: sizeFormatted,
-      dateCreated: new Date(file.createdTime).toLocaleDateString(),
-      thumbnail: file.thumbnailLink || '/api/placeholder/300/200',
-      format,
-      webViewLink: file.webViewLink,
-    };
-  }
-
-  private formatFileSize(bytes: number): string {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  }
-
-  private formatDuration(milliseconds: number): string {
-    const seconds = Math.floor(milliseconds / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    
-    if (hours > 0) {
-      return `${hours}:${(minutes % 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
+    if (!response.ok) {
+      throw new Error('Failed to organize files');
     }
-    return `${minutes}:${(seconds % 60).toString().padStart(2, '0')}`;
   }
 
   isAuthenticated(): boolean {
