@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import heroImage from "@/assets/hero-video-bg.jpg";
 import { useGoogleDrive } from "@/hooks/useGoogleDrive";
+import { apiClient } from "@/lib/api";
 import GoogleDriveFolderInput from "@/components/GoogleDriveFolderInput";
 import VideoProcessor from "./VideoProcessor";
 import ProcessingResults from "./ProcessingResults";
@@ -181,7 +182,8 @@ const VideoOrganizerApp = () => {
                 onFolderSelected={(folderId) => {
                   console.log('Folder selected:', folderId);
                   setSelectedFolderId(folderId);
-                  loadVideos();
+                  // Load videos immediately with the specific folder ID
+                  loadVideos(folderId);
                 }}
               />
             </div>

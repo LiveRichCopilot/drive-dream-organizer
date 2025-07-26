@@ -59,15 +59,16 @@ export const useGoogleDrive = (folderId?: string) => {
     }
   }, []);
 
-  const loadVideos = useCallback(async () => {
+  const loadVideos = useCallback(async (specificFolderId?: string) => {
     if (!isConnected) return;
     
     setIsLoading(true);
     try {
-      console.log('Loading videos with folderId:', folderId);
-      const videoFiles = await apiClient.listVideoFiles(folderId);
+      const targetFolderId = specificFolderId !== undefined ? specificFolderId : folderId;
+      console.log('Loading videos with folderId:', targetFolderId);
+      const videoFiles = await apiClient.listVideoFiles(targetFolderId);
       setVideos(videoFiles);
-      console.log(`Loaded ${videoFiles.length} videos from ${folderId ? 'folder' : 'main drive'}`);
+      console.log(`Loaded ${videoFiles.length} videos from ${targetFolderId ? 'folder' : 'main drive'}`);
     } catch (error) {
       console.error('Failed to load videos:', error);
     } finally {
