@@ -234,15 +234,23 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
         // Extract real metadata to get original shooting date
         console.log(`Extracting metadata for ${video.name}...`);
         let originalDate = new Date(video.createdTime); // Fallback to Google's date
+        let actualMetadata = null;
         
         try {
           const metadata = await apiClient.extractVideoMetadata(video.id);
           console.log(`Metadata for ${video.name}:`, metadata);
+          actualMetadata = metadata;
           
           // Use the extracted original date if available
           if (metadata.originalDate) {
             originalDate = new Date(metadata.originalDate);
             console.log(`Using original date for ${video.name}: ${originalDate.toISOString()}`);
+          } else if (metadata.createdTime) {
+            originalDate = new Date(metadata.createdTime);
+            console.log(`Using metadata createdTime for ${video.name}: ${originalDate.toISOString()}`);
+          } else if (metadata.modifiedTime) {
+            originalDate = new Date(metadata.modifiedTime);
+            console.log(`Using metadata modifiedTime for ${video.name}: ${originalDate.toISOString()}`);
           } else {
             console.log(`No original date found for ${video.name}, using Google Drive date`);
           }
@@ -258,8 +266,8 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
           originalDate: originalDate,
           localPath: `/downloads/${video.name}`,
           metadata: {
-            duration: video.duration || 0,
-            resolution: `1920x1080`, // Default resolution - would be extracted from actual file
+            duration: actualMetadata?.videoMetadata?.durationMillis ? parseInt(actualMetadata.videoMetadata.durationMillis) : (video.duration || 0),
+            resolution: actualMetadata?.videoMetadata?.resolution || `1920x1080`,
             fps: 30, // Default, would be extracted from actual file
             codec: 'h264',
             bitrate: 5000,
