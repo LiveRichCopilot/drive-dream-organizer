@@ -98,13 +98,13 @@ serve(async (req) => {
       format: getVideoFormat(fileData.name),
       sizeFormatted: formatFileSize(parseInt(fileData.size || '0')),
       
-      // For organization purposes - use real shooting date if found, otherwise use a default old date
-      dateCreated: formatDate(realShootingDate || '2020-01-01T00:00:00.000Z'),
-      yearMonth: getYearMonth(realShootingDate || '2020-01-01T00:00:00.000Z'),
-      year: getYear(realShootingDate || '2020-01-01T00:00:00.000Z'),
+      // For organization purposes - use real shooting date if found
+      dateCreated: formatDate(realShootingDate || fileData.createdTime),
+      yearMonth: getYearMonth(realShootingDate || fileData.createdTime),
+      year: getYear(realShootingDate || fileData.createdTime),
       
-      // Original creation date - prioritize extracted date, fallback to old date if extraction fails
-      originalDate: realShootingDate || '2020-01-01T00:00:00.000Z',
+      // Original creation date - prioritize extracted date
+      originalDate: realShootingDate || fileData.modifiedTime || fileData.createdTime,
     }
 
     return new Response(
@@ -215,10 +215,13 @@ async function extractRealShootingDate(fileId: string, accessToken: string, file
       return null
     }
     
-    // Try different metadata extraction methods
+    // Try different metadata extraction methods in order of reliability
     const extractedDate = 
       extractQuickTimeCreationDate(fileContent) ||
       extractMP4CreationDate(fileContent) ||
+      extractExifData(fileContent) ||
+      extractXMPMetadata(fileContent) ||
+      extractAVIMetadata(fileContent) ||
       extractTextMetadata(fileContent)
     
     if (extractedDate) {
@@ -415,6 +418,116 @@ function extractTextMetadata(data: Uint8Array): string | null {
     return null
   } catch (error) {
     console.error('Error extracting text metadata:', error)
+    return null
+  }
+}
+
+// Additional metadata extraction functions
+
+function extractExifData(data: Uint8Array): string | null {
+  try {
+    // Look for EXIF data in video files (some cameras embed this)
+    const exifMarker = [0xFF, 0xE1] // EXIF marker
+    const exifIndex = findBytesPattern(data, exifMarker)
+    
+    if (exifIndex !== -1) {
+      // Look for DateTime tag (0x0132) in EXIF data
+      const dateTimeTag = [0x01, 0x32]
+      const tagIndex = findBytesPattern(data.slice(exifIndex, exifIndex + 2000), dateTimeTag)
+      
+      if (tagIndex !== -1) {
+        const segment = data.slice(exifIndex + tagIndex + 8, exifIndex + tagIndex + 28)
+        const text = new TextDecoder('utf-8', { fatal: false }).decode(segment)
+        
+        // EXIF DateTime format: "YYYY:MM:DD HH:MM:SS"
+        const match = text.match(/(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/)
+        if (match) {
+          const [, year, month, day, hour, minute, second] = match
+          const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 
+                               parseInt(hour), parseInt(minute), parseInt(second))
+          
+          if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && 
+              date.getFullYear() <= new Date().getFullYear() + 1) {
+            console.log(`Found EXIF date: ${date.toISOString()}`)
+            return date.toISOString()
+          }
+        }
+      }
+    }
+    
+    return null
+  } catch (error) {
+    console.error('Error extracting EXIF data:', error)
+    return null
+  }
+}
+
+function extractXMPMetadata(data: Uint8Array): string | null {
+  try {
+    // Look for XMP metadata which can contain creation dates
+    const text = new TextDecoder('utf-8', { fatal: false }).decode(data)
+    
+    const xmpPatterns = [
+      /xmp:CreateDate="([^"]+)"/i,
+      /xmp:ModifyDate="([^"]+)"/i,
+      /photoshop:DateCreated="([^"]+)"/i,
+      /CreateDate="([^"]+)"/i,
+      /<CreateDate>([^<]+)<\/CreateDate>/i,
+      /<DateTimeOriginal>([^<]+)<\/DateTimeOriginal>/i,
+    ]
+    
+    for (const pattern of xmpPatterns) {
+      const match = text.match(pattern)
+      if (match) {
+        const dateStr = match[1]
+        const date = new Date(dateStr)
+        
+        if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && 
+            date.getFullYear() <= new Date().getFullYear() + 1) {
+          console.log(`Found XMP date: ${date.toISOString()}`)
+          return date.toISOString()
+        }
+      }
+    }
+    
+    return null
+  } catch (error) {
+    console.error('Error extracting XMP metadata:', error)
+    return null
+  }
+}
+
+function extractAVIMetadata(data: Uint8Array): string | null {
+  try {
+    // Look for AVI header and stream info
+    const aviHeader = [0x52, 0x49, 0x46, 0x46] // "RIFF"
+    const aviIndex = findBytesPattern(data, aviHeader)
+    
+    if (aviIndex !== -1) {
+      // Look for IDIT (creation date) chunk in AVI
+      const iditChunk = [0x49, 0x44, 0x49, 0x54] // "IDIT"
+      const iditIndex = findBytesPattern(data.slice(aviIndex, aviIndex + 5000), iditChunk)
+      
+      if (iditIndex !== -1) {
+        const segment = data.slice(aviIndex + iditIndex + 8, aviIndex + iditIndex + 50)
+        const text = new TextDecoder('utf-8', { fatal: false }).decode(segment)
+        
+        // AVI date format can vary
+        const dateMatch = text.match(/(\d{4}-\d{2}-\d{2})|(\w{3}\s+\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}\s+\d{4})/)
+        if (dateMatch) {
+          const date = new Date(dateMatch[0])
+          if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && 
+              date.getFullYear() <= new Date().getFullYear() + 1) {
+            console.log(`Found AVI date: ${date.toISOString()}`)
+            return date.toISOString()
+          }
+        }
+      }
+    }
+    
+    return null
+  } catch (error) {
+    console.error('Error extracting AVI metadata:', error)
     return null
   }
 }
