@@ -99,13 +99,13 @@ serve(async (req) => {
       format: getVideoFormat(fileData.name),
       sizeFormatted: formatFileSize(parseInt(fileData.size || '0')),
       
-      // For organization purposes - use real shooting date if found
-      dateCreated: formatDate(realShootingDate || fileData.createdTime),
-      yearMonth: getYearMonth(realShootingDate || fileData.createdTime),
-      year: getYear(realShootingDate || fileData.createdTime),
+      // For organization purposes - ONLY use real shooting date from original footage
+      dateCreated: realShootingDate ? formatDate(realShootingDate) : null,
+      yearMonth: realShootingDate ? getYearMonth(realShootingDate) : null,
+      year: realShootingDate ? getYear(realShootingDate) : null,
       
-      // Original creation date - prioritize extracted date
-      originalDate: realShootingDate || fileData.modifiedTime || fileData.createdTime,
+      // Original creation date - ONLY from extracted metadata, never fallback to upload dates
+      originalDate: realShootingDate,
     }
 
     const endTime = Date.now()
