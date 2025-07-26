@@ -762,33 +762,74 @@ function extractiPhoneMetadata(data: Uint8Array): string | null {
   try {
     console.log('Searching for iPhone-specific metadata...')
     
-    // Look for Apple-specific metadata atoms
+    // iPhone videos primarily use QuickTime format - look for creation date in udta atom
+    const udtaPattern = [0x75, 0x64, 0x74, 0x61] // "udta" - user data atom
+    const udtaIndex = findBytesPattern(data, udtaPattern)
+    
+    if (udtaIndex !== -1) {
+      console.log('Found udta atom, searching for creation date...')
+      // Search for creation date in udta atom (up to 2KB after udta)
+      const searchArea = data.slice(udtaIndex, Math.min(udtaIndex + 2048, data.length))
+      const text = new TextDecoder('utf-8', { fatal: false }).decode(searchArea)
+      
+      // iPhone stores creation date in multiple possible formats
+      const iPhonePatterns = [
+        // ISO format with timezone
+        /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[\+\-]\d{2}:\d{2})/g,
+        // ISO format UTC
+        /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)/g,
+        // Simple ISO format
+        /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/g,
+        // Apple's CoreMedia format
+        /(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/g,
+      ]
+      
+      for (const pattern of iPhonePatterns) {
+        let match
+        while ((match = pattern.exec(text)) !== null) {
+          const dateStr = match[1]
+          const date = new Date(dateStr)
+          
+          // Validate date is reasonable (not the upload date from 2025)
+          if (!isNaN(date.getTime()) && 
+              date.getFullYear() >= 2000 && 
+              date.getFullYear() <= 2024 && // Exclude 2025 dates (upload dates)
+              date.getTime() < Date.now()) {
+            console.log(`Found iPhone creation date: ${date.toISOString()}`)
+            return date.toISOString()
+          }
+        }
+      }
+    }
+    
+    // Also check for Apple-specific metadata atoms
     const appleAtoms = [
       [0x6D, 0x65, 0x74, 0x61], // "meta" - iTunes metadata
-      [0x68, 0x76, 0x63, 0x43], // "hvcC" - HEVC configuration
-      [0x68, 0x76, 0x63, 0x31], // "hvc1" - HEVC sample entry
+      [0x40, 0x64, 0x61, 0x79], // "@day" - creation day
+      [0x40, 0x58, 0x59, 0x5A], // "@XYZ" - location data (often has timestamp)
     ]
     
     for (const atom of appleAtoms) {
       const atomIndex = findBytesPattern(data, atom)
       if (atomIndex !== -1) {
-        // Look for Apple's creation date format
-        const searchArea = data.slice(atomIndex, Math.min(atomIndex + 1000, data.length))
+        const searchArea = data.slice(atomIndex, Math.min(atomIndex + 500, data.length))
         const text = new TextDecoder('utf-8', { fatal: false }).decode(searchArea)
         
-        // Apple stores dates in various formats in metadata
-        const applePatterns = [
-          /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[\+\-]\d{2}:\d{2})/,
-          /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)/,
+        // Look for any date patterns in Apple metadata
+        const patterns = [
+          /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/g,
+          /(\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2})/g,
         ]
         
-        for (const pattern of applePatterns) {
-          const match = text.match(pattern)
-          if (match) {
+        for (const pattern of patterns) {
+          let match
+          while ((match = pattern.exec(text)) !== null) {
             const date = new Date(match[1])
-            if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && 
-                date.getFullYear() <= 2030) {
-              console.log(`Found iPhone date: ${date.toISOString()}`)
+            if (!isNaN(date.getTime()) && 
+                date.getFullYear() >= 2000 && 
+                date.getFullYear() <= 2024 &&
+                date.getTime() < Date.now()) {
+              console.log(`Found Apple metadata date: ${date.toISOString()}`)
               return date.toISOString()
             }
           }
