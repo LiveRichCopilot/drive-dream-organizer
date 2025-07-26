@@ -98,13 +98,13 @@ serve(async (req) => {
       format: getVideoFormat(fileData.name),
       sizeFormatted: formatFileSize(parseInt(fileData.size || '0')),
       
-      // For organization purposes - use real shooting date if found
-      dateCreated: formatDate(realShootingDate || fileData.createdTime),
-      yearMonth: getYearMonth(realShootingDate || fileData.createdTime),
-      year: getYear(realShootingDate || fileData.createdTime),
+      // For organization purposes - use real shooting date if found, otherwise use a default old date
+      dateCreated: formatDate(realShootingDate || '2020-01-01T00:00:00.000Z'),
+      yearMonth: getYearMonth(realShootingDate || '2020-01-01T00:00:00.000Z'),
+      year: getYear(realShootingDate || '2020-01-01T00:00:00.000Z'),
       
-      // Original creation date - prioritize extracted date
-      originalDate: realShootingDate || fileData.modifiedTime || fileData.createdTime,
+      // Original creation date - prioritize extracted date, fallback to old date if extraction fails
+      originalDate: realShootingDate || '2020-01-01T00:00:00.000Z',
     }
 
     return new Response(
