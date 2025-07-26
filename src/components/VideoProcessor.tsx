@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Download, Play, Pause, RotateCcw, FileText, Clock, HardDrive } from 'lucide-react';
-import { VideoFile } from '@/lib/api';
+import { VideoFile, apiClient } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 
 interface ProcessingState {
@@ -233,12 +233,31 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
           downloadedSize: formatBytes(downloadedSize)
         }));
 
+        // Extract real metadata to get original shooting date
+        console.log(`Extracting metadata for ${video.name}...`);
+        let originalDate = new Date(video.createdTime); // Fallback to Google's date
+        
+        try {
+          const metadata = await apiClient.extractVideoMetadata(video.id);
+          console.log(`Metadata for ${video.name}:`, metadata);
+          
+          // Use the extracted original date if available
+          if (metadata.originalDate) {
+            originalDate = new Date(metadata.originalDate);
+            console.log(`Using original date for ${video.name}: ${originalDate.toISOString()}`);
+          } else {
+            console.log(`No original date found for ${video.name}, using Google Drive date`);
+          }
+        } catch (error) {
+          console.error(`Failed to extract metadata for ${video.name}:`, error);
+        }
+
         // Add to results with chronological sorting preparation
         results.downloadedVideos.push({
           id: video.id,
           originalName: video.name,
           newName: video.name,
-          originalDate: new Date(video.createdTime),
+          originalDate: originalDate,
           localPath: `/downloads/${video.name}`,
           metadata: {
             duration: video.duration || 0,

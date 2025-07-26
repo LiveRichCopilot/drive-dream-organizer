@@ -293,6 +293,10 @@ class APIClient {
     return !!this.accessToken;
   }
 
+  getAccessToken(): string | null {
+    return this.accessToken;
+  }
+
   logout(): void {
     this.accessToken = null;
     localStorage.removeItem('google_access_token');
