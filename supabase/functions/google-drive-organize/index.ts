@@ -37,9 +37,12 @@ serve(async (req) => {
     
     for (const fileId of fileIds) {
       try {
-        // Get file metadata
+        // Get file metadata including enhanced video metadata
+        console.log(`Getting metadata for file ${fileId}...`)
+        
+        // First get basic file info
         const fileResponse = await fetch(
-          `https://www.googleapis.com/drive/v3/files/${fileId}?fields=createdTime,name`,
+          `https://www.googleapis.com/drive/v3/files/${fileId}?fields=name`,
           {
             headers: {
               'Authorization': `Bearer ${accessToken}`,
@@ -47,11 +50,43 @@ serve(async (req) => {
           }
         )
         
-        if (!fileResponse.ok) continue
+        if (!fileResponse.ok) {
+          console.log(`Failed to get basic info for ${fileId}`)
+          continue
+        }
         
         const fileData = await fileResponse.json()
-        const createdDate = new Date(fileData.createdTime)
-        const folderName = `Videos_${createdDate.getFullYear()}_${String(createdDate.getMonth() + 1).padStart(2, '0')}`
+        console.log(`Processing file: ${fileData.name}`)
+        
+        // Extract real metadata to get original shooting date (same logic as VideoProcessor)
+        const metadataResponse = await fetch(
+          'https://iffvjtfrqaesoehbwtgi.supabase.co/functions/v1/video-metadata-extractor',
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ fileId })
+          }
+        )
+        
+        let originalDate = null
+        if (metadataResponse.ok) {
+          const metadata = await metadataResponse.json()
+          if (metadata.originalDate) {
+            originalDate = new Date(metadata.originalDate)
+            console.log(`✓ Found original date for ${fileData.name}: ${originalDate.toISOString()}`)
+          }
+        }
+        
+        // Skip files without extractable original dates
+        if (!originalDate) {
+          console.log(`✗ No original date found for ${fileData.name} - skipping organization`)
+          continue
+        }
+        
+        const folderName = `Videos_${originalDate.getFullYear()}_${String(originalDate.getMonth() + 1).padStart(2, '0')}`
         
         // Check if folder exists in the source directory
         const searchQuery = sourceFolderId 
