@@ -330,65 +330,133 @@ async function downloadVideoMetadata(fileId: string, accessToken: string, fileSi
 
 function extractQuickTimeCreationDate(data: Uint8Array): string | null {
   try {
-    console.log('Starting QuickTime metadata extraction...')
+    console.log('Starting QuickTime/MOV metadata extraction...')
     
-    // Enhanced search for iPhone/QuickTime atoms with more comprehensive patterns
-    const atoms = [
-      { name: 'mvhd', bytes: [0x6D, 0x76, 0x68, 0x64], offsets: [8, 12, 16, 20, 24] }, // movie header
-      { name: 'mdhd', bytes: [0x6D, 0x64, 0x68, 0x64], offsets: [12, 16, 20, 24, 28] }, // media header  
-      { name: 'tkhd', bytes: [0x74, 0x6B, 0x68, 0x64], offsets: [8, 12, 16, 20, 24] }, // track header
-      { name: 'udta', bytes: [0x75, 0x64, 0x74, 0x61], offsets: [8, 12, 16, 20] }, // user data
-      { name: 'uuid', bytes: [0x75, 0x75, 0x69, 0x64], offsets: [16, 20, 24, 28] }, // UUID boxes
-      // iPhone-specific patterns
-      { name: 'meta', bytes: [0x6D, 0x65, 0x74, 0x61], offsets: [8, 12, 16, 20, 24] }, // metadata box
-      { name: 'ilst', bytes: [0x69, 0x6C, 0x73, 0x74], offsets: [8, 12, 16, 20] }, // iTunes-style metadata
-    ]
+    // Look for QuickTime file type box first to confirm this is a MOV file
+    const ftypIndex = findBytesPattern(data, [0x66, 0x74, 0x79, 0x70]) // "ftyp"
+    if (ftypIndex === -1) {
+      console.log('No QuickTime ftyp box found')
+      return null
+    }
     
-    for (const atom of atoms) {
-      const atomIndex = findBytesPattern(data, atom.bytes)
+    // Look for movie header atom (mvhd) - this contains the creation time
+    const mvhdIndex = findBytesPattern(data, [0x6D, 0x76, 0x68, 0x64]) // "mvhd"
+    if (mvhdIndex === -1) {
+      console.log('No mvhd atom found')
+      return null
+    }
+    
+    console.log(`Found mvhd atom at index ${mvhdIndex}`)
+    
+    try {
+      // mvhd structure: 
+      // 4 bytes: atom size
+      // 4 bytes: "mvhd" 
+      // 1 byte: version
+      // 3 bytes: flags
+      // 4 bytes: creation time (if version 0) or 8 bytes (if version 1)
       
-      if (atomIndex !== -1 && atomIndex + 32 < data.length) {
-        console.log(`Found ${atom.name} atom at index ${atomIndex}`)
+      if (mvhdIndex + 20 > data.length) {
+        console.log('mvhd atom too close to end of data')
+        return null
+      }
+      
+      // Check version byte (position 8 after start of mvhd)
+      const version = data[mvhdIndex + 8]
+      console.log(`mvhd version: ${version}`)
+      
+      let creationTime: number
+      
+      if (version === 0) {
+        // Version 0: 32-bit creation time at offset 12
+        if (mvhdIndex + 16 > data.length) return null
+        creationTime = new DataView(data.buffer, data.byteOffset + mvhdIndex + 12, 4).getUint32(0, false)
+        console.log(`Found 32-bit creation time: ${creationTime}`)
+      } else if (version === 1) {
+        // Version 1: 64-bit creation time at offset 16  
+        if (mvhdIndex + 24 > data.length) return null
+        const creationTime64 = new DataView(data.buffer, data.byteOffset + mvhdIndex + 16, 8).getBigUint64(0, false)
+        creationTime = Number(creationTime64)
+        console.log(`Found 64-bit creation time: ${creationTime}`)
+      } else {
+        console.log(`Unsupported mvhd version: ${version}`)
+        return null
+      }
+      
+      // Convert from QuickTime epoch (1904-01-01) to Unix epoch (1970-01-01)
+      // QuickTime epoch is 2082844800 seconds before Unix epoch
+      const unixTime = creationTime - 2082844800
+      console.log(`Converted to Unix time: ${unixTime}`)
+      
+      // Validate timestamp is in reasonable range (2000-2030)
+      if (unixTime > 946684800 && unixTime < 4102444800) {
+        const date = new Date(unixTime * 1000)
         
-        // Try different offsets for creation time
-        for (const offset of atom.offsets) {
-          if (atomIndex + offset + 8 <= data.length) {
-            try {
-              // Try both 32-bit and 64-bit timestamps
-              const qtTime32 = new DataView(data.buffer, atomIndex + offset, 4).getUint32(0, false)
-              const qtTime64 = new DataView(data.buffer, atomIndex + offset, 8).getBigUint64(0, false)
-              
-              // Convert from QuickTime epoch (1904) to Unix epoch (1970)
-              const timestamps = [
-                qtTime32 - 2082844800,
-                Number(qtTime64 - 2082844800n),
-                qtTime32 - 2082844800 - (7 * 24 * 60 * 60), // Try timezone adjustments
-                qtTime32 - 2082844800 + (7 * 24 * 60 * 60)
-              ]
-              
-              for (const unixTime of timestamps) {
-                if (unixTime > 946684800 && unixTime < 4102444800) { // Valid range: 2000-2100
-                  const date = new Date(unixTime * 1000)
-                  
-                  // More reasonable date validation - allow any date from 2000-2030
-                  if (date.getFullYear() >= 2000 && 
-                      date.getFullYear() <= 2030 &&
-                      date.getTime() > 0 &&
-                      date.getMonth() >= 0 && date.getMonth() <= 11) {
-                    console.log(`Found QuickTime date from ${atom.name}: ${date.toISOString()}`)
-                    return date.toISOString()
-                  }
-                }
-              }
-            } catch (e) {
-              // Continue to next offset
+        // Additional validation
+        if (!isNaN(date.getTime()) && 
+            date.getFullYear() >= 2000 && 
+            date.getFullYear() <= 2030) {
+          console.log(`Successfully extracted QuickTime creation date: ${date.toISOString()}`)
+          return date.toISOString()
+        } else {
+          console.log(`Date validation failed: ${date.toISOString()}, year: ${date.getFullYear()}`)
+        }
+      } else {
+        console.log(`Unix timestamp out of valid range: ${unixTime}`)
+      }
+      
+    } catch (error) {
+      console.error('Error parsing mvhd atom:', error)
+    }
+    
+    // Fallback: Look for media header atoms (mdhd) which also contain creation times
+    const mdhdPattern = [0x6D, 0x64, 0x68, 0x64] // "mdhd"
+    let searchStart = 0
+    
+    while (searchStart < data.length - 24) {
+      const mdhdIndex = findBytesPattern(data.slice(searchStart), mdhdPattern)
+      if (mdhdIndex === -1) break
+      
+      const absoluteIndex = searchStart + mdhdIndex
+      console.log(`Found mdhd atom at index ${absoluteIndex}`)
+      
+      try {
+        if (absoluteIndex + 24 <= data.length) {
+          const version = data[absoluteIndex + 8]
+          let creationTime: number
+          
+          if (version === 0 && absoluteIndex + 16 <= data.length) {
+            creationTime = new DataView(data.buffer, data.byteOffset + absoluteIndex + 12, 4).getUint32(0, false)
+          } else if (version === 1 && absoluteIndex + 24 <= data.length) {
+            const creationTime64 = new DataView(data.buffer, data.byteOffset + absoluteIndex + 16, 8).getBigUint64(0, false)
+            creationTime = Number(creationTime64)
+          } else {
+            searchStart = absoluteIndex + 4
+            continue
+          }
+          
+          const unixTime = creationTime - 2082844800
+          
+          if (unixTime > 946684800 && unixTime < 4102444800) {
+            const date = new Date(unixTime * 1000)
+            if (!isNaN(date.getTime()) && 
+                date.getFullYear() >= 2000 && 
+                date.getFullYear() <= 2030) {
+              console.log(`Successfully extracted mdhd creation date: ${date.toISOString()}`)
+              return date.toISOString()
             }
           }
         }
+      } catch (error) {
+        console.error('Error parsing mdhd atom:', error)
       }
+      
+      searchStart = absoluteIndex + 4
     }
     
+    console.log('No valid creation time found in QuickTime atoms')
     return null
+    
   } catch (error) {
     console.error('Error extracting QuickTime creation date:', error)
     return null
