@@ -143,7 +143,8 @@ serve(async (req) => {
 
     console.log('Total videos found:', allVideoFiles.length)
     
-    // Transform the files to match our VideoFile interface
+    // Transform the files to match our VideoFile interface  
+    // IMPORTANT: Do NOT use Google Drive upload dates - they show upload time, not shooting time
     const videoFiles = allVideoFiles?.map((file: any) => ({
       id: file.id,
       name: file.name,
@@ -157,7 +158,7 @@ serve(async (req) => {
         formatDuration(Math.round(parseInt(file.videoMediaMetadata.durationMillis) / 1000)) : 'Unknown',
       thumbnail: file.thumbnailLink || '/placeholder.svg',
       format: getVideoFormat(file.name),
-      dateCreated: new Date(file.createdTime).toLocaleDateString(),
+      dateCreated: 'Processing...', // Will be replaced with actual metadata date during processing
       webViewLink: `https://drive.google.com/file/d/${file.id}/view`
     })) || []
 
