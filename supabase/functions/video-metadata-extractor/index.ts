@@ -236,30 +236,34 @@ async function extractRealShootingDate(fileId: string, accessToken: string, file
 
 function extractDateFromFilename(fileName: string): string | null {
   const patterns = [
-    // Common camera naming patterns
+    // Common camera naming patterns with more variations
     /IMG_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})/,  // IMG_YYYYMMDD_HHMMSS
     /VID_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})/,  // VID_YYYYMMDD_HHMMSS
+    /(\d{4})-(\d{2})-(\d{2})T(\d{2})-(\d{2})-(\d{2})/,  // YYYY-MM-DDTHH-MM-SS
     /(\d{4})-(\d{2})-(\d{2}).*?(\d{2})-(\d{2})-(\d{2})/, // YYYY-MM-DD_HH-MM-SS
     /(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})/,      // YYYYMMDD_HHMMSS
     /(\d{4})-(\d{2})-(\d{2})/,                          // YYYY-MM-DD
     /(\d{4})(\d{2})(\d{2})/,                           // YYYYMMDD
+    // iPhone/iOS patterns
+    /IMG_(\d{4})\.MOV/,                                 // IMG_NNNN.MOV (iPhone)
+    /(\d{4})-(\d{2})-(\d{2}) (\d{2})\.(\d{2})\.(\d{2})/, // YYYY-MM-DD HH.MM.SS
   ]
   
   for (const pattern of patterns) {
     const match = fileName.match(pattern)
     if (match) {
       const year = parseInt(match[1])
-      const month = parseInt(match[2])
-      const day = parseInt(match[3])
+      const month = parseInt(match[2]) || 1
+      const day = parseInt(match[3]) || 1
       
-      // Validate year range (exclude obvious wrong dates)
-      if (year >= 2000 && year <= new Date().getFullYear() && year !== 2025) {
+      // More lenient year validation - remove 2025 exclusion
+      if (year >= 2000 && year <= new Date().getFullYear() + 1) {
         const hour = match[4] ? parseInt(match[4]) : 12
         const minute = match[5] ? parseInt(match[5]) : 0
         const second = match[6] ? parseInt(match[6]) : 0
         
         const date = new Date(year, month - 1, day, hour, minute, second)
-        if (!isNaN(date.getTime())) {
+        if (!isNaN(date.getTime()) && date.getFullYear() === year) {
           return date.toISOString()
         }
       }
@@ -297,20 +301,41 @@ async function downloadVideoMetadata(fileId: string, accessToken: string): Promi
 
 function extractQuickTimeCreationDate(data: Uint8Array): string | null {
   try {
-    // Look for 'mvhd' (movie header) atom
-    const mvhdIndex = findBytesPattern(data, [0x6D, 0x76, 0x68, 0x64]) // 'mvhd'
+    // Look for multiple QuickTime atoms
+    const atoms = [
+      [0x6D, 0x76, 0x68, 0x64], // 'mvhd' - movie header
+      [0x6D, 0x64, 0x68, 0x64], // 'mdhd' - media header  
+      [0x74, 0x6B, 0x68, 0x64], // 'tkhd' - track header
+    ]
     
-    if (mvhdIndex !== -1 && mvhdIndex + 20 < data.length) {
-      // Skip version/flags (4 bytes) and read creation time (4 bytes)
-      const timeOffset = mvhdIndex + 8
-      const qtTime = new DataView(data.buffer, timeOffset, 4).getUint32(0, false)
+    for (const atom of atoms) {
+      const atomIndex = findBytesPattern(data, atom)
       
-      // Convert from QuickTime epoch (1904) to Unix epoch (1970)
-      const unixTime = qtTime - 2082844800
-      const date = new Date(unixTime * 1000)
-      
-      if (date.getFullYear() >= 2000 && date.getFullYear() <= new Date().getFullYear() && date.getFullYear() !== 2025) {
-        return date.toISOString()
+      if (atomIndex !== -1 && atomIndex + 20 < data.length) {
+        // Try different offsets for creation time
+        const offsets = [8, 12, 16, 20]
+        
+        for (const offset of offsets) {
+          if (atomIndex + offset + 4 <= data.length) {
+            try {
+              const qtTime = new DataView(data.buffer, atomIndex + offset, 4).getUint32(0, false)
+              
+              // Convert from QuickTime epoch (1904) to Unix epoch (1970)
+              const unixTime = qtTime - 2082844800
+              const date = new Date(unixTime * 1000)
+              
+              // More realistic date validation
+              if (date.getFullYear() >= 2000 && 
+                  date.getFullYear() <= new Date().getFullYear() + 1 &&
+                  date.getTime() > 0) {
+                console.log(`Found QuickTime date: ${date.toISOString()}`)
+                return date.toISOString()
+              }
+            } catch (e) {
+              // Continue to next offset
+            }
+          }
+        }
       }
     }
     
@@ -319,7 +344,6 @@ function extractQuickTimeCreationDate(data: Uint8Array): string | null {
     console.error('Error extracting QuickTime creation date:', error)
     return null
   }
-
 }
 
 function extractMP4CreationDate(data: Uint8Array): string | null {
@@ -343,8 +367,7 @@ function extractMP4CreationDate(data: Uint8Array): string | null {
           const date = new Date(isoMatch[1])
           if (!isNaN(date.getTime()) && 
               date.getFullYear() >= 2000 && 
-              date.getFullYear() <= new Date().getFullYear() &&
-              date.getFullYear() !== 2025) {
+              date.getFullYear() <= new Date().getFullYear() + 1) {
             return date.toISOString()
           }
         }
@@ -378,8 +401,7 @@ function extractTextMetadata(data: Uint8Array): string | null {
         const date = new Date(dateStr)
         if (!isNaN(date.getTime()) && 
             date.getFullYear() >= 2000 && 
-            date.getFullYear() <= new Date().getFullYear() &&
-            date.getFullYear() !== 2025) {
+            date.getFullYear() <= new Date().getFullYear() + 1) {
           foundDates.push(date)
         }
       }
