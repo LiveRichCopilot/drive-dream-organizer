@@ -739,56 +739,55 @@ function tryGenericTimestampExtraction(data: Uint8Array): string | null {
     console.error('❌ Generic extraction error:', error)
     return null
   }
-}
+  
+  // Fallback: Look for media header atoms (mdhd) which also contain creation times
+  const mdhdPattern = [0x6D, 0x64, 0x68, 0x64] // "mdhd"
+  let searchStart = 0
+  
+  while (searchStart < data.length - 24) {
+    const mdhdIndex = findBytesPattern(data.slice(searchStart), mdhdPattern)
+    if (mdhdIndex === -1) break
     
-    // Fallback: Look for media header atoms (mdhd) which also contain creation times
-    const mdhdPattern = [0x6D, 0x64, 0x68, 0x64] // "mdhd"
-    let searchStart = 0
+    const absoluteIndex = searchStart + mdhdIndex
+    console.log(`Found mdhd atom at index ${absoluteIndex}`)
     
-    while (searchStart < data.length - 24) {
-      const mdhdIndex = findBytesPattern(data.slice(searchStart), mdhdPattern)
-      if (mdhdIndex === -1) break
-      
-      const absoluteIndex = searchStart + mdhdIndex
-      console.log(`Found mdhd atom at index ${absoluteIndex}`)
-      
-      try {
-        if (absoluteIndex + 24 <= data.length) {
-          const version = data[absoluteIndex + 8]
-          let creationTime: number
-          
-          if (version === 0 && absoluteIndex + 16 <= data.length) {
-            creationTime = new DataView(data.buffer, data.byteOffset + absoluteIndex + 12, 4).getUint32(0, false)
-          } else if (version === 1 && absoluteIndex + 24 <= data.length) {
-            const creationTime64 = new DataView(data.buffer, data.byteOffset + absoluteIndex + 16, 8).getBigUint64(0, false)
-            creationTime = Number(creationTime64)
-          } else {
-            searchStart = absoluteIndex + 4
-            continue
-          }
-          
-          const unixTime = creationTime - 2082844800
-          
-          if (unixTime > 946684800 && unixTime < 4102444800) {
-            const date = new Date(unixTime * 1000)
-            if (!isNaN(date.getTime()) && 
-                date.getFullYear() >= 2000 && 
-                date.getFullYear() <= 2030) {
-              console.log(`Successfully extracted mdhd creation date: ${date.toISOString()}`)
-              return date.toISOString()
-            }
+    try {
+      if (absoluteIndex + 24 <= data.length) {
+        const version = data[absoluteIndex + 8]
+        let creationTime: number
+        
+        if (version === 0 && absoluteIndex + 16 <= data.length) {
+          creationTime = new DataView(data.buffer, data.byteOffset + absoluteIndex + 12, 4).getUint32(0, false)
+        } else if (version === 1 && absoluteIndex + 24 <= data.length) {
+          const creationTime64 = new DataView(data.buffer, data.byteOffset + absoluteIndex + 16, 8).getBigUint64(0, false)
+          creationTime = Number(creationTime64)
+        } else {
+          searchStart = absoluteIndex + 4
+          continue
+        }
+        
+        const unixTime = creationTime - 2082844800
+        
+        if (unixTime > 946684800 && unixTime < 4102444800) {
+          const date = new Date(unixTime * 1000)
+          if (!isNaN(date.getTime()) && 
+              date.getFullYear() >= 2000 && 
+              date.getFullYear() <= 2030) {
+            console.log(`Successfully extracted mdhd creation date: ${date.toISOString()}`)
+            return date.toISOString()
           }
         }
-      } catch (error) {
-        console.error('Error parsing mdhd atom:', error)
       }
-      
-      searchStart = absoluteIndex + 4
+    } catch (error) {
+      console.error('Error parsing mdhd atom:', error)
     }
     
-    console.log('No valid creation time found in QuickTime atoms')
-    return null
-    
+    searchStart = absoluteIndex + 4
+  }
+  
+  console.log('No valid creation time found in QuickTime atoms')
+  return null
+  
   } catch (error) {
     console.error('Error extracting QuickTime creation date:', error)
     return null
