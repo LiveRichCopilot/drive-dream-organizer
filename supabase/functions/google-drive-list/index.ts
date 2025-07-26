@@ -34,6 +34,25 @@ serve(async (req) => {
     console.log('Searching for videos with query:', query)
     console.log('Folder ID:', folderId)
 
+    // Also try to get folder info to verify access
+    if (folderId) {
+      try {
+        const folderResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}?fields=id,name,mimeType`, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        })
+        if (folderResponse.ok) {
+          const folderData = await folderResponse.json()
+          console.log('Folder info:', folderData)
+        } else {
+          console.log('Could not access folder info:', folderResponse.status)
+        }
+      } catch (error) {
+        console.log('Error getting folder info:', error)
+      }
+    }
+
     // List video files from Google Drive
     const driveUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,size,createdTime,thumbnailLink,videoMediaMetadata)&pageSize=100`
     console.log('Full Drive API URL:', driveUrl)
