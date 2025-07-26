@@ -853,3 +853,4 @@ function extractH264H265Metadata(data: Uint8Array): string | null {
     console.error('Error extracting H.264/H.265 metadata:', error)
     return null
   }
+}
