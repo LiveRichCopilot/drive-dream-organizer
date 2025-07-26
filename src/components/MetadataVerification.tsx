@@ -71,14 +71,27 @@ const MetadataVerification: React.FC<MetadataVerificationProps> = ({
           });
           console.log(`❌ FAILED: ${video.name} has no extractable original date`);
         }
-      } catch (error) {
-        newResults.push({
-          video,
-          status: 'error',
-          error: error instanceof Error ? error.message : 'Unknown error'
-        });
-        console.log(`💥 ERROR: ${video.name} metadata extraction failed:`, error);
-      }
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          
+          // Check if it's an authentication error and stop the process
+          if (errorMessage.includes('authentication expired') || errorMessage.includes('re-authenticate')) {
+            toast({
+              title: "Authentication Required",
+              description: errorMessage,
+              variant: "destructive"
+            });
+            setIsVerifying(false);
+            return; // Stop the verification process
+          }
+          
+          newResults.push({
+            video,
+            status: 'error',
+            error: errorMessage
+          });
+          console.log(`💥 ERROR: ${video.name} metadata extraction failed:`, error);
+        }
       
       // Update results progressively
       setResults(prev => {

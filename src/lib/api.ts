@@ -218,7 +218,15 @@ class APIClient {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to extract metadata');
+      const errorText = await response.text();
+      console.error('Metadata extraction error:', response.status, errorText);
+      
+      // Check if it's an authentication error
+      if (response.status === 401 || errorText.includes('401') || errorText.includes('Invalid Credentials') || errorText.includes('UNAUTHENTICATED')) {
+        throw new Error('Google Drive authentication expired. Please re-authenticate by clicking "Authenticate with Google Drive" button.');
+      }
+      
+      throw new Error(`Failed to extract metadata: ${errorText}`);
     }
 
     return response.json();
