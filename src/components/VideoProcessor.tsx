@@ -4,13 +4,14 @@ import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Download, Play, Pause, RotateCcw, FileText, Clock, HardDrive } from 'lucide-react';
+import { Download, Play, Pause, RotateCcw, FileText, Clock, HardDrive, Search } from 'lucide-react';
 import { VideoFile, apiClient } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { VideoPreview } from './VideoPreview';
+import MetadataVerification from './MetadataVerification';
 
 interface ProcessingState {
-  status: 'idle' | 'downloading' | 'extracting' | 'organizing' | 'generating' | 'preview' | 'uploading' | 'completed' | 'error';
+  status: 'idle' | 'verification' | 'downloading' | 'extracting' | 'organizing' | 'generating' | 'preview' | 'uploading' | 'completed' | 'error';
   currentStep: number;
   totalSteps: number;
   currentFile?: string;
@@ -86,6 +87,8 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
 
   const [isPaused, setIsPaused] = useState(false);
   const [previewResults, setPreviewResults] = useState<ProcessingResults | null>(null);
+  const [verifiedVideos, setVerifiedVideos] = useState<VideoFile[]>([]);
+  const [rejectedVideos, setRejectedVideos] = useState<VideoFile[]>([]);
   const [settings, setSettings] = useState({
     extractMetadata: true,
     organizeByDate: true,
@@ -97,6 +100,7 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
   });
 
   const steps = [
+    'Verifying metadata',
     'Downloading videos',
     'Extracting metadata', 
     'Organizing files',
@@ -105,9 +109,38 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
     'Uploading to Google Drive'
   ];
 
+  const showMetadataVerification = () => {
+    setProcessingState(prev => ({
+      ...prev,
+      status: 'verification'
+    }));
+  };
+
+  const handleVerificationComplete = (verified: VideoFile[], rejected: VideoFile[]) => {
+    setVerifiedVideos(verified);
+    setRejectedVideos(rejected);
+    setProcessingState(prev => ({
+      ...prev,
+      status: 'idle'
+    }));
+    
+    toast({
+      title: "Verification Complete",
+      description: `${verified.length} videos ready for processing. ${rejected.length} videos will be skipped.`,
+    });
+  };
+
+  const backToProcessing = () => {
+    setProcessingState(prev => ({
+      ...prev,
+      status: 'idle'
+    }));
+  };
+
   const startProcessing = useCallback(async () => {
+    const videosToProcess = verifiedVideos.length > 0 ? verifiedVideos : videos;
     console.log('Starting processing with folderId:', folderId);
-    console.log('Processing videos:', videos.length);
+    console.log('Processing videos:', videosToProcess.length);
     
     const startTime = Date.now();
     setProcessingState(prev => ({
@@ -164,7 +197,7 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
       
       toast({
         title: "Processing Complete!",
-        description: `Successfully processed ${videos.length} videos. Review the timeline before uploading.`,
+        description: `Successfully processed ${videosToProcess.length} videos. Review the timeline before uploading.`,
       });
 
     } catch (error) {
@@ -180,9 +213,11 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
         variant: "destructive",
       });
     }
-  }, [videos, settings, onProcessingComplete, folderId]);
+  }, [videos, verifiedVideos, settings, onProcessingComplete, folderId]);
 
   const downloadVideos = async (results: ProcessingResults) => {
+    const videosToProcess = verifiedVideos.length > 0 ? verifiedVideos : videos;
+    
     setProcessingState(prev => ({
       ...prev,
       status: 'downloading',
@@ -190,16 +225,16 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
     }));
 
     let downloadedSize = 0;
-    const totalSize = videos.reduce((sum, v) => sum + parseInt(String(v.size || '0')), 0);
+    const totalSize = videosToProcess.reduce((sum, v) => sum + parseInt(String(v.size || '0')), 0);
     
     // Process videos in batches to avoid memory issues
     const batchSize = 10; // Process 10 videos at a time
-    const totalBatches = Math.ceil(videos.length / batchSize);
+    const totalBatches = Math.ceil(videosToProcess.length / batchSize);
     
     for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
       const startIndex = batchIndex * batchSize;
-      const endIndex = Math.min(startIndex + batchSize, videos.length);
-      const batch = videos.slice(startIndex, endIndex);
+      const endIndex = Math.min(startIndex + batchSize, videosToProcess.length);
+      const batch = videosToProcess.slice(startIndex, endIndex);
       
       console.log(`Processing batch ${batchIndex + 1}/${totalBatches}: videos ${startIndex + 1}-${endIndex}`);
       
@@ -214,8 +249,8 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
         setProcessingState(prev => ({
           ...prev,
           currentFile: `Batch ${batchIndex + 1}/${totalBatches}: ${video.name}`,
-          progress: (globalIndex / videos.length) * 20, // 20% of total progress
-          timeRemaining: estimateTimeRemaining(globalIndex + 1, videos.length * 6, prev.startTime)
+          progress: (globalIndex / videosToProcess.length) * 20, // 20% of total progress
+          timeRemaining: estimateTimeRemaining(globalIndex + 1, videosToProcess.length * 6, prev.startTime)
         }));
 
         // Simulate download time based on file size (more realistic but faster for large batches)
@@ -590,6 +625,17 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
     setPreviewResults(null);
   };
 
+  // Show metadata verification when in verification mode
+  if (processingState.status === 'verification') {
+    return (
+      <MetadataVerification
+        videos={videos}
+        onVerificationComplete={handleVerificationComplete}
+        onBack={backToProcessing}
+      />
+    );
+  }
+
   // Show preview when processing is complete
   if (processingState.status === 'preview' && previewResults) {
     return (
@@ -617,14 +663,25 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
         {/* Processing Controls */}
         <div className="flex gap-2">
           {processingState.status === 'idle' && (
-            <Button 
-              onClick={startProcessing} 
-              className="flex-1 glass text-white border-white/20 hover:bg-white/10 bg-white/5"
-              variant="outline"
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Start Processing
-            </Button>
+            <>
+              <Button 
+                onClick={showMetadataVerification} 
+                className="flex-1 glass text-white border-white/20 hover:bg-white/10 bg-white/5"
+                variant="outline"
+              >
+                <Search className="mr-2 h-4 w-4" />
+                Verify Metadata First
+              </Button>
+              <Button 
+                onClick={startProcessing} 
+                className="flex-1 glass text-white border-white/20 hover:bg-white/10 bg-white/5"
+                variant="outline"
+                disabled={verifiedVideos.length > 0 && verifiedVideos.length === 0}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                {verifiedVideos.length > 0 ? `Process ${verifiedVideos.length} Verified Videos` : 'Start Processing'}
+              </Button>
+            </>
           )}
           
           {(processingState.status === 'downloading' || processingState.status === 'extracting' || 
@@ -720,14 +777,28 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
             <div className="space-y-4">
               <h4 className="font-medium">Processing Options</h4>
               
+              {/* Verification Status */}
+              {verifiedVideos.length > 0 && (
+                <div className="p-3 bg-green-50/10 border border-green-200/20 rounded-lg">
+                  <div className="text-sm font-medium text-green-300 mb-1">Metadata Verification Complete</div>
+                  <div className="text-lg font-semibold text-green-100">
+                    {verifiedVideos.length} videos ready for processing
+                  </div>
+                  <div className="text-xs text-green-300/80 mt-1">
+                    {rejectedVideos.length} videos were rejected due to missing metadata
+                  </div>
+                </div>
+              )}
+
               {/* Estimated Time */}
               <div className="p-3 bg-blue-50/10 border border-blue-200/20 rounded-lg">
                 <div className="text-sm font-medium text-blue-300 mb-1">Estimated Processing Time</div>
                 <div className="text-lg font-semibold text-blue-100">
-                  {Math.ceil((videos.length * 0.5) + (videos.reduce((sum, v) => sum + parseInt(String(v.size || '0')), 0) / 1024 / 1024 / 100))} minutes
+                  {Math.ceil(((verifiedVideos.length > 0 ? verifiedVideos.length : videos.length) * 0.5) + 
+                    ((verifiedVideos.length > 0 ? verifiedVideos : videos).reduce((sum, v) => sum + parseInt(String(v.size || '0')), 0) / 1024 / 1024 / 100))} minutes
                 </div>
                 <div className="text-xs text-blue-300/80 mt-1">
-                  Based on {videos.length} videos ({formatBytes(videos.reduce((sum, v) => sum + parseInt(String(v.size || '0')), 0))})
+                  Based on {verifiedVideos.length > 0 ? verifiedVideos.length : videos.length} videos ({formatBytes((verifiedVideos.length > 0 ? verifiedVideos : videos).reduce((sum, v) => sum + parseInt(String(v.size || '0')), 0))})
                 </div>
               </div>
               
