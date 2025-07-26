@@ -609,6 +609,25 @@ function extractQuickTimeCreationDate(data: Uint8Array): string | null {
 function extractiPhoneMetadata(data: Uint8Array): string | null {
   try {
     console.log('🍎 Starting iPhone metadata extraction...')
+    console.log(`📊 File size: ${data.length} bytes`)
+    
+    // First, let's see what atoms/signatures are actually in this file
+    const fileHeader = data.slice(0, 100)
+    const headerText = new TextDecoder('utf-8', { fatal: false }).decode(fileHeader)
+    console.log(`📁 File header preview: ${headerText.replace(/[^\x20-\x7E]/g, '.')}`)
+    
+    // Look for common QuickTime/MOV signatures to confirm file type
+    const signatures = ['ftyp', 'moov', 'mdat', 'udta', 'mvhd']
+    const foundSignatures = []
+    
+    for (const sig of signatures) {
+      const sigBytes = new TextEncoder().encode(sig)
+      const index = findBytesPattern(data.slice(0, Math.min(5000, data.length)), Array.from(sigBytes))
+      if (index !== -1) {
+        foundSignatures.push(`${sig}@${index}`)
+      }
+    }
+    console.log(`🔍 Found QuickTime atoms: [${foundSignatures.join(', ')}]`)
     
     // iPhone MOV files typically store creation date in multiple locations:
     // 1. QuickTime creation time (mvhd atom)
