@@ -21,7 +21,7 @@ serve(async (req) => {
       )
     }
 
-    const { fileIds } = await req.json()
+    const { fileIds, sourceFolderId } = await req.json()
     
     if (!fileIds || !Array.isArray(fileIds)) {
       return new Response(
@@ -29,6 +29,8 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    console.log(`Organizing ${fileIds.length} videos from source folder: ${sourceFolderId || 'root'}`)
 
     // Create folders by date and organize files
     const organizationResults = []
@@ -51,9 +53,13 @@ serve(async (req) => {
         const createdDate = new Date(fileData.createdTime)
         const folderName = `Videos_${createdDate.getFullYear()}_${String(createdDate.getMonth() + 1).padStart(2, '0')}`
         
-        // Check if folder exists
+        // Check if folder exists in the source directory
+        const searchQuery = sourceFolderId 
+          ? `name='${folderName}' and mimeType='application/vnd.google-apps.folder' and '${sourceFolderId}' in parents`
+          : `name='${folderName}' and mimeType='application/vnd.google-apps.folder'`
+        
         const searchResponse = await fetch(
-          `https://www.googleapis.com/drive/v3/files?q=name='${folderName}' and mimeType='application/vnd.google-apps.folder'`,
+          `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(searchQuery)}`,
           {
             headers: {
               'Authorization': `Bearer ${accessToken}`,
@@ -66,8 +72,9 @@ serve(async (req) => {
         
         if (searchData.files && searchData.files.length > 0) {
           folderId = searchData.files[0].id
+          console.log(`Found existing folder ${folderName} in source directory: ${folderId}`)
         } else {
-          // Create folder
+          // Create folder in the same directory as the source videos
           const createResponse = await fetch(
             'https://www.googleapis.com/drive/v3/files',
             {
@@ -79,6 +86,7 @@ serve(async (req) => {
               body: JSON.stringify({
                 name: folderName,
                 mimeType: 'application/vnd.google-apps.folder',
+                parents: sourceFolderId ? [sourceFolderId] : undefined
               }),
             }
           )
@@ -86,6 +94,7 @@ serve(async (req) => {
           if (createResponse.ok) {
             const createData = await createResponse.json()
             folderId = createData.id
+            console.log(`Created new folder ${folderName} in source directory: ${folderId}`)
           }
         }
         

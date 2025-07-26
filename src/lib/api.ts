@@ -190,7 +190,7 @@ class APIClient {
     }
   }
 
-  async organizeVideosByDate(fileIds: string[]): Promise<void> {
+  async organizeVideosByDate(fileIds: string[], sourceFolderId?: string): Promise<void> {
     const response = await fetch(`${this.baseURL}/google-drive-organize`, {
       method: 'POST',
       headers: {
@@ -198,7 +198,7 @@ class APIClient {
         'Authorization': `Bearer ${this.accessToken}`,
         'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88',
       },
-      body: JSON.stringify({ fileIds }),
+      body: JSON.stringify({ fileIds, sourceFolderId }),
     });
     
     if (!response.ok) {

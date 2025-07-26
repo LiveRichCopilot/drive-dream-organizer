@@ -120,14 +120,14 @@ export const useGoogleDrive = (folderId?: string) => {
 
     try {
       const fileIds = videos.map(video => video.id);
-      await apiClient.organizeVideosByDate(fileIds);
+      await apiClient.organizeVideosByDate(fileIds, folderId);
       
       // Reload videos to see the new organization
       await loadVideos();
     } catch (error) {
       console.error('Organization failed:', error);
     }
-  }, [videos, loadVideos]);
+  }, [videos, loadVideos, folderId]);
 
   const disconnect = useCallback(() => {
     apiClient.logout();
