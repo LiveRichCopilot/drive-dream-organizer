@@ -5,12 +5,57 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Check if ExifTool is available and install if needed
+async function ensureExifTool(): Promise<boolean> {
+  try {
+    const process = new Deno.Command("exiftool", {
+      args: ["-ver"],
+      stdout: "piped",
+      stderr: "piped"
+    })
+    
+    const { code } = await process.output()
+    if (code === 0) {
+      console.log("✅ ExifTool is available")
+      return true
+    }
+  } catch (error) {
+    console.log("ExifTool not found, attempting installation...")
+  }
+
+  try {
+    // Try to install ExifTool via apt (Debian/Ubuntu based systems)
+    console.log("Installing ExifTool...")
+    const installProcess = new Deno.Command("apt-get", {
+      args: ["update", "&&", "apt-get", "install", "-y", "exiftool"],
+      stdout: "piped",
+      stderr: "piped"
+    })
+    
+    const { code: installCode } = await installProcess.output()
+    if (installCode === 0) {
+      console.log("✅ ExifTool installed successfully")
+      return true
+    }
+  } catch (error) {
+    console.error("Failed to install ExifTool:", error)
+  }
+
+  console.log("❌ ExifTool is not available and could not be installed")
+  return false
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
+    // Ensure ExifTool is available
+    const exifToolAvailable = await ensureExifTool()
+    if (!exifToolAvailable) {
+      console.warn("⚠️ ExifTool not available, will use fallback metadata extraction")
+    }
     const authHeader = req.headers.get('authorization')
     const accessToken = authHeader?.replace('Bearer ', '')
     
@@ -60,7 +105,7 @@ serve(async (req) => {
     console.log('File metadata retrieved:', fileData)
 
     // Try to extract the real shooting date from video file metadata (with optimization)
-    const realShootingDate = await extractRealShootingDate(fileId, accessToken, fileData.name, parseInt(fileData.size || '0'))
+    const realShootingDate = await extractRealShootingDate(fileId, accessToken, fileData.name, parseInt(fileData.size || '0'), exifToolAvailable)
 
     // Extract enhanced metadata
     const metadata = {
@@ -115,6 +160,7 @@ serve(async (req) => {
     const endTime = Date.now()
     console.log(`Metadata extraction completed in ${endTime - startTime}ms for ${fileData.name}`)
     console.log(`Final date used: ${metadata.originalDate} (extracted: ${realShootingDate ? 'YES' : 'NO'})`)
+    console.log(`ExifTool available: ${exifToolAvailable ? 'YES' : 'NO'}`)
 
     return new Response(
       JSON.stringify(metadata),
@@ -213,15 +259,10 @@ function getYear(dateString: string): string {
   return date.getFullYear().toString()
 }
 
-async function extractRealShootingDate(fileId: string, accessToken: string, fileName: string, fileSize: number): Promise<string | null> {
+async function extractRealShootingDate(fileId: string, accessToken: string, fileName: string, fileSize: number, exifToolAvailable: boolean = false): Promise<string | null> {
   try {
-    console.log(`=== METADATA EXTRACTION START for ${fileName} ===`)
+    console.log(`=== EXIFTOOL METADATA EXTRACTION START for ${fileName} ===`)
     console.log(`File size: ${Math.floor(fileSize / 1024 / 1024)}MB, Format: ${getVideoFormat(fileName)}`)
-    
-    // For iPhone/iOS videos (IMG_*.MOV files), try a different approach first
-    if (fileName.match(/^IMG_\d+\.MOV$/i)) {
-      console.log('🍎 Detected iPhone video file - using iOS-specific extraction')
-    }
     
     // Try filename pattern extraction first (fastest method)
     console.log('Step 1: Checking filename for date patterns...')
@@ -230,118 +271,56 @@ async function extractRealShootingDate(fileId: string, accessToken: string, file
       console.log(`✓ SUCCESS: Found date in filename: ${filenameDate}`)
       return filenameDate
     }
-    console.log('✗ No date found in filename, proceeding to file content analysis...')
+    console.log('✗ No date found in filename, proceeding to metadata extraction...')
     
-    // Download file content to extract metadata
-    console.log('Step 2: Downloading file content for metadata extraction...')
-    const fileContent = await downloadVideoMetadata(fileId, accessToken, fileSize)
-    if (!fileContent) {
-      console.log('✗ FAILURE: Could not download file content - this should not happen unless file is corrupted or access is denied')
-      return null
-    }
-    console.log(`✓ Downloaded ${Math.floor(fileContent.length / 1024)}KB for analysis`)
-    
-    // Try different metadata extraction methods in order of reliability
-    console.log('Step 3: Attempting metadata extraction methods...')
-    
-    console.log('  3a: QuickTime/MOV extraction...')
-    const quickTimeDate = extractQuickTimeCreationDate(fileContent)
-    if (quickTimeDate) {
-      console.log(`✓ SUCCESS via QuickTime: ${quickTimeDate}`)
-      return validateAndReturnDate(quickTimeDate, 'QuickTime')
-    }
-    
-    console.log('  3b: MP4 extraction...')
-    const mp4Date = extractMP4CreationDate(fileContent)
-    if (mp4Date) {
-      console.log(`✓ SUCCESS via MP4: ${mp4Date}`)
-      return validateAndReturnDate(mp4Date, 'MP4')
-    }
-    
-    console.log('  3c: EXIF data extraction...')
-    const exifDate = extractExifData(fileContent)
-    if (exifDate) {
-      console.log(`✓ SUCCESS via EXIF: ${exifDate}`)
-      return validateAndReturnDate(exifDate, 'EXIF')
-    }
-    
-    console.log('  3d: XMP metadata extraction...')
-    const xmpDate = extractXMPMetadata(fileContent)
-    if (xmpDate) {
-      console.log(`✓ SUCCESS via XMP: ${xmpDate}`)
-      return validateAndReturnDate(xmpDate, 'XMP')
-    }
-    
-    console.log('  3e: AVI metadata extraction...')
-    const aviDate = extractAVIMetadata(fileContent)
-    if (aviDate) {
-      console.log(`✓ SUCCESS via AVI: ${aviDate}`)
-      return validateAndReturnDate(aviDate, 'AVI')
-    }
-    
-    console.log('  3f: Canon-specific extraction...')
-    const canonDate = extractCanonMetadata(fileContent)
-    if (canonDate) {
-      console.log(`✓ SUCCESS via Canon: ${canonDate}`)
-      return validateAndReturnDate(canonDate, 'Canon')
-    }
-    
-    console.log('  3g: Sony-specific extraction...')
-    const sonyDate = extractSonyMetadata(fileContent)
-    if (sonyDate) {
-      console.log(`✓ SUCCESS via Sony: ${sonyDate}`)
-      return validateAndReturnDate(sonyDate, 'Sony')
-    }
-    
-     console.log('  3h: iPhone-specific extraction...')
-    try {
-      const iPhoneDate = extractiPhoneMetadata(fileContent)
-      if (iPhoneDate) {
-        console.log(`✓ SUCCESS via iPhone: ${iPhoneDate}`)
-        return validateAndReturnDate(iPhoneDate, 'iPhone')
+    // Try ExifTool first if available
+    if (exifToolAvailable) {
+      console.log('Step 2: Downloading file for ExifTool analysis...')
+      const tempFilePath = await downloadFileForExifTool(fileId, accessToken, fileName, fileSize)
+      if (tempFilePath) {
+        console.log('Step 3: Running ExifTool extraction...')
+        const exifToolResult = await runExifTool(tempFilePath)
+        
+        // Clean up temp file
+        try {
+          await Deno.remove(tempFilePath)
+        } catch (error) {
+          console.warn('Could not clean up temp file:', error)
+        }
+        
+        if (exifToolResult) {
+          console.log(`✓ SUCCESS via ExifTool: ${exifToolResult}`)
+          return validateAndReturnDate(exifToolResult, 'ExifTool')
+        }
+        
+        console.log('✗ ExifTool extraction failed, falling back to binary analysis...')
       }
-    } catch (error) {
-      console.error('❌ Error in iPhone metadata extraction:', error)
+    } else {
+      console.log('Step 2: ExifTool not available, using binary analysis...')
     }
     
-    console.log('  3i: Android-specific extraction...')
-    const androidDate = extractAndroidMetadata(fileContent)
-    if (androidDate) {
-      console.log(`✓ SUCCESS via Android: ${androidDate}`)
-      return validateAndReturnDate(androidDate, 'Android')
-    }
-    
-    console.log('  3j: ProRes metadata extraction...')
-    const proResDate = extractProResMetadata(fileContent)
-    if (proResDate) {
-      console.log(`✓ SUCCESS via ProRes: ${proResDate}`)
-      return validateAndReturnDate(proResDate, 'ProRes')
-    }
-    
-    console.log('  3k: H264/H265 metadata extraction...')
-    const h264Date = extractH264H265Metadata(fileContent)
-    if (h264Date) {
-      console.log(`✓ SUCCESS via H264/H265: ${h264Date}`)
-      return validateAndReturnDate(h264Date, 'H264/H265')
-    }
-    
-    console.log('  3l: Text metadata extraction (last resort)...')
-    const textDate = extractTextMetadata(fileContent)
-    if (textDate) {
-      console.log(`✓ SUCCESS via Text: ${textDate}`)
-      return validateAndReturnDate(textDate, 'Text')
+    // Fallback to simple binary analysis for critical formats
+    const fileContent = await downloadVideoMetadata(fileId, accessToken, fileSize)
+    if (fileContent) {
+      // Try QuickTime first (most reliable for MOV files)
+      const quickTimeDate = extractQuickTimeCreationDate(fileContent)
+      if (quickTimeDate) {
+        console.log(`✓ SUCCESS via QuickTime fallback: ${quickTimeDate}`)
+        return validateAndReturnDate(quickTimeDate, 'QuickTime')
+      }
+      
+      // Try MP4 metadata
+      const mp4Date = extractMP4CreationDate(fileContent)
+      if (mp4Date) {
+        console.log(`✓ SUCCESS via MP4 fallback: ${mp4Date}`)
+        return validateAndReturnDate(mp4Date, 'MP4')
+      }
     }
     
     console.log('✗ COMPLETE FAILURE: All extraction methods failed')
-    console.log('This indicates either:')
-    console.log('  - File is corrupted or has no embedded metadata')
-    console.log('  - Camera/device did not write standard metadata')
-    console.log('  - File format is not supported by current extraction methods')
-    console.log('  - Metadata is in an unusual location/format not covered by extractors')
     return null
   } catch (error) {
     console.error('✗ EXTRACTION ERROR:', error)
-    console.error('This indicates a coding error in the extraction logic')
     return null
   }
 }
@@ -413,6 +392,146 @@ function extractDateFromFilename(fileName: string): string | null {
   }
   
   return null
+}
+
+async function downloadFileForExifTool(fileId: string, accessToken: string, fileName: string, fileSize: number): Promise<string | null> {
+  try {
+    // For ExifTool, we need the full file unless it's too large
+    const maxSize = 50 * 1024 * 1024; // 50MB limit for full file download
+    
+    if (fileSize > maxSize) {
+      console.log(`File too large (${Math.floor(fileSize / 1024 / 1024)}MB), ExifTool may not work with partial downloads`)
+      return null
+    }
+    
+    console.log(`📥 Downloading full file (${Math.floor(fileSize / 1024 / 1024)}MB) for ExifTool analysis`)
+    
+    const response = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      }
+    )
+    
+    if (!response.ok) {
+      console.log(`❌ Failed to download file: ${response.status} ${response.statusText}`)
+      return null
+    }
+    
+    // Create temporary file
+    const tempFilePath = `/tmp/${fileId}_${fileName.replace(/[^a-zA-Z0-9.-]/g, '_')}`
+    const fileData = await response.arrayBuffer()
+    await Deno.writeFile(tempFilePath, new Uint8Array(fileData))
+    
+    console.log(`✅ File saved to ${tempFilePath} for ExifTool analysis`)
+    return tempFilePath
+  } catch (error) {
+    console.error('Error downloading file for ExifTool:', error)
+    return null
+  }
+}
+
+async function runExifTool(filePath: string): Promise<string | null> {
+  try {
+    console.log(`🔧 Running ExifTool on ${filePath}`)
+    
+    // Run ExifTool to extract creation date metadata
+    const process = new Deno.Command("exiftool", {
+      args: [
+        "-CreateDate",
+        "-DateTimeOriginal", 
+        "-CreationDate",
+        "-MediaCreateDate",
+        "-TrackCreateDate",
+        "-ModifyDate",
+        "-FileModifyDate",
+        "-json",
+        filePath
+      ],
+      stdout: "piped",
+      stderr: "piped"
+    })
+    
+    const { code, stdout, stderr } = await process.output()
+    
+    if (code !== 0) {
+      const errorText = new TextDecoder().decode(stderr)
+      console.log(`ExifTool failed with code ${code}: ${errorText}`)
+      return null
+    }
+    
+    const output = new TextDecoder().decode(stdout)
+    console.log('ExifTool output:', output)
+    
+    try {
+      const data = JSON.parse(output)
+      if (Array.isArray(data) && data.length > 0) {
+        const metadata = data[0]
+        
+        // Try different date fields in order of preference
+        const dateFields = [
+          'DateTimeOriginal',
+          'CreateDate', 
+          'CreationDate',
+          'MediaCreateDate',
+          'TrackCreateDate',
+          'ModifyDate'
+        ]
+        
+        for (const field of dateFields) {
+          if (metadata[field]) {
+            const dateStr = metadata[field]
+            console.log(`Found ${field}: ${dateStr}`)
+            
+            // Convert ExifTool date format to ISO
+            const isoDate = convertExifDateToISO(dateStr)
+            if (isoDate) {
+              console.log(`Converted to ISO: ${isoDate}`)
+              return isoDate
+            }
+          }
+        }
+      }
+    } catch (parseError) {
+      console.error('Error parsing ExifTool JSON output:', parseError)
+    }
+    
+    return null
+  } catch (error) {
+    console.error('Error running ExifTool:', error)
+    return null
+  }
+}
+
+function convertExifDateToISO(exifDate: string): string | null {
+  try {
+    // ExifTool dates can be in various formats:
+    // "2023:07:15 14:30:25"
+    // "2023-07-15 14:30:25"
+    // "2023:07:15T14:30:25"
+    
+    // Normalize the format
+    let normalized = exifDate
+      .replace(/:/g, '-', 2) // Replace first two colons with dashes (date part)
+      .replace(/(\d{4}-\d{2}-\d{2}) /, '$1T') // Add T between date and time
+    
+    // Handle timezone if missing
+    if (!normalized.includes('+') && !normalized.includes('Z')) {
+      normalized += 'Z' // Assume UTC if no timezone
+    }
+    
+    const date = new Date(normalized)
+    if (!isNaN(date.getTime())) {
+      return date.toISOString()
+    }
+    
+    return null
+  } catch (error) {
+    console.error('Error converting ExifTool date:', error)
+    return null
+  }
 }
 
 async function downloadVideoMetadata(fileId: string, accessToken: string, fileSize: number): Promise<Uint8Array | null> {
