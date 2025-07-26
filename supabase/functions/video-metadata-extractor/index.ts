@@ -54,6 +54,9 @@ serve(async (req) => {
     const fileData = await fileResponse.json()
     console.log('File metadata retrieved:', fileData)
 
+    // Try to extract the real shooting date from video file metadata
+    const realShootingDate = await extractRealShootingDate(fileId, accessToken, fileData.name)
+
     // Extract enhanced metadata
     const metadata = {
       id: fileData.id,
@@ -95,29 +98,13 @@ serve(async (req) => {
       format: getVideoFormat(fileData.name),
       sizeFormatted: formatFileSize(parseInt(fileData.size || '0')),
       
-      // For organization purposes
-      dateCreated: formatDate(fileData.createdTime),
-      yearMonth: getYearMonth(fileData.createdTime),
-      year: getYear(fileData.createdTime),
+      // For organization purposes - use real shooting date if found
+      dateCreated: formatDate(realShootingDate || fileData.createdTime),
+      yearMonth: getYearMonth(realShootingDate || fileData.createdTime),
+      year: getYear(realShootingDate || fileData.createdTime),
       
-      // Original creation date attempts
-      originalDate: await extractOriginalDate(fileData, accessToken),
-    }
-
-    // Try to get EXIF data if available (for videos that preserve it)
-    if (fileData.videoMediaMetadata) {
-      try {
-        const exifData = await getEXIFData(fileId, accessToken)
-        if (exifData) {
-          metadata.exifData = exifData
-          // Override with EXIF creation date if available
-          if (exifData.dateTimeOriginal) {
-            metadata.originalDate = exifData.dateTimeOriginal
-          }
-        }
-      } catch (error) {
-        console.log('Could not extract EXIF data:', error)
-      }
+      // Original creation date - prioritize extracted date
+      originalDate: realShootingDate || fileData.modifiedTime || fileData.createdTime,
     }
 
     return new Response(
@@ -210,100 +197,215 @@ function getYear(dateString: string): string {
   return date.getFullYear().toString()
 }
 
-async function extractOriginalDate(fileData: any, accessToken: string): Promise<string | null> {
-  // Try multiple strategies to get the original creation date
-  
-  // 1. Use video metadata time if available
-  if (fileData.videoMediaMetadata?.durationMillis) {
-    // Some videos store creation time in metadata
-    // This would need actual video file analysis
+async function extractRealShootingDate(fileId: string, accessToken: string, fileName: string): Promise<string | null> {
+  try {
+    console.log(`Attempting to extract real shooting date for ${fileName}`)
+    
+    // Try filename pattern extraction first (fastest method)
+    const filenameDate = extractDateFromFilename(fileName)
+    if (filenameDate) {
+      console.log(`Found date in filename: ${filenameDate}`)
+      return filenameDate
+    }
+    
+    // Download file content to extract metadata
+    const fileContent = await downloadVideoMetadata(fileId, accessToken)
+    if (!fileContent) {
+      console.log('Could not download file content for metadata extraction')
+      return null
+    }
+    
+    // Try different metadata extraction methods
+    const extractedDate = 
+      extractQuickTimeCreationDate(fileContent) ||
+      extractMP4CreationDate(fileContent) ||
+      extractTextMetadata(fileContent)
+    
+    if (extractedDate) {
+      console.log(`Successfully extracted shooting date: ${extractedDate}`)
+      return extractedDate
+    }
+    
+    console.log('No real shooting date found in video metadata')
+    return null
+  } catch (error) {
+    console.error('Error extracting real shooting date:', error)
+    return null
   }
-  
-  // 2. Try to infer from filename patterns
-  const filename = fileData.name
-  const datePatterns = [
-    /(\d{4})-(\d{2})-(\d{2})/,  // YYYY-MM-DD
-    /(\d{4})(\d{2})(\d{2})/,    // YYYYMMDD
-    /IMG_(\d{4})(\d{2})(\d{2})/, // IMG_YYYYMMDD
-    /VID_(\d{4})(\d{2})(\d{2})/, // VID_YYYYMMDD
+}
+
+function extractDateFromFilename(fileName: string): string | null {
+  const patterns = [
+    // Common camera naming patterns
+    /IMG_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})/,  // IMG_YYYYMMDD_HHMMSS
+    /VID_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})/,  // VID_YYYYMMDD_HHMMSS
+    /(\d{4})-(\d{2})-(\d{2}).*?(\d{2})-(\d{2})-(\d{2})/, // YYYY-MM-DD_HH-MM-SS
+    /(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})/,      // YYYYMMDD_HHMMSS
+    /(\d{4})-(\d{2})-(\d{2})/,                          // YYYY-MM-DD
+    /(\d{4})(\d{2})(\d{2})/,                           // YYYYMMDD
   ]
   
-  for (const pattern of datePatterns) {
-    const match = filename.match(pattern)
+  for (const pattern of patterns) {
+    const match = fileName.match(pattern)
     if (match) {
-      const year = match[1]
-      const month = match[2]
-      const day = match[3]
-      const inferredDate = new Date(`${year}-${month}-${day}`)
-      if (!isNaN(inferredDate.getTime())) {
-        return inferredDate.toISOString()
+      const year = parseInt(match[1])
+      const month = parseInt(match[2])
+      const day = parseInt(match[3])
+      
+      // Validate year range (exclude obvious wrong dates)
+      if (year >= 2000 && year <= new Date().getFullYear() && year !== 2025) {
+        const hour = match[4] ? parseInt(match[4]) : 12
+        const minute = match[5] ? parseInt(match[5]) : 0
+        const second = match[6] ? parseInt(match[6]) : 0
+        
+        const date = new Date(year, month - 1, day, hour, minute, second)
+        if (!isNaN(date.getTime())) {
+          return date.toISOString()
+        }
       }
     }
   }
   
-  // 3. Fall back to Google Drive creation time
-  return fileData.createdTime
+  return null
 }
 
-async function getEXIFData(fileId: string, accessToken: string): Promise<any | null> {
+async function downloadVideoMetadata(fileId: string, accessToken: string): Promise<Uint8Array | null> {
   try {
-    // Download a small portion of the video file to extract metadata
-    const fileResponse = await fetch(
+    // Download first 10MB which should contain all metadata
+    const response = await fetch(
       `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
       {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'Range': 'bytes=0-1048576' // First 1MB should contain metadata
+          'Range': 'bytes=0-10485760' // 10MB
         }
       }
     )
-
-    if (!fileResponse.ok) {
-      console.log('Could not download file for EXIF extraction')
+    
+    if (!response.ok) {
+      console.log('Failed to download video content for metadata extraction')
       return null
     }
+    
+    const arrayBuffer = await response.arrayBuffer()
+    return new Uint8Array(arrayBuffer)
+  } catch (error) {
+    console.error('Error downloading video metadata:', error)
+    return null
+  }
+}
 
-    const arrayBuffer = await fileResponse.arrayBuffer()
-    const uint8Array = new Uint8Array(arrayBuffer)
+function extractQuickTimeCreationDate(data: Uint8Array): string | null {
+  try {
+    // Look for 'mvhd' (movie header) atom
+    const mvhdIndex = findBytesPattern(data, [0x6D, 0x76, 0x68, 0x64]) // 'mvhd'
     
-    // Look for creation date in video metadata using basic parsing
-    const metadataString = new TextDecoder('utf-8', { fatal: false }).decode(uint8Array)
+    if (mvhdIndex !== -1 && mvhdIndex + 20 < data.length) {
+      // Skip version/flags (4 bytes) and read creation time (4 bytes)
+      const timeOffset = mvhdIndex + 8
+      const qtTime = new DataView(data.buffer, timeOffset, 4).getUint32(0, false)
+      
+      // Convert from QuickTime epoch (1904) to Unix epoch (1970)
+      const unixTime = qtTime - 2082844800
+      const date = new Date(unixTime * 1000)
+      
+      if (date.getFullYear() >= 2000 && date.getFullYear() <= new Date().getFullYear() && date.getFullYear() !== 2025) {
+        return date.toISOString()
+      }
+    }
     
-    // Look for common metadata timestamps in the file
+    return null
+  } catch (error) {
+    console.error('Error extracting QuickTime creation date:', error)
+    return null
+  }
+}
+
+function extractMP4CreationDate(data: Uint8Array): string | null {
+  try {
+    // Look for MP4 atoms containing creation time
+    const patterns = ['creation_time', 'created', 'date']
+    
+    for (const pattern of patterns) {
+      const patternBytes = new TextEncoder().encode(pattern)
+      const index = findBytesPattern(data, Array.from(patternBytes))
+      
+      if (index !== -1) {
+        // Search for ISO date format after the pattern
+        const searchStart = index + pattern.length
+        const searchEnd = Math.min(searchStart + 200, data.length)
+        const segment = data.slice(searchStart, searchEnd)
+        const text = new TextDecoder('utf-8', { fatal: false }).decode(segment)
+        
+        const isoMatch = text.match(/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/i)
+        if (isoMatch) {
+          const date = new Date(isoMatch[1])
+          if (!isNaN(date.getTime()) && 
+              date.getFullYear() >= 2000 && 
+              date.getFullYear() <= new Date().getFullYear() &&
+              date.getFullYear() !== 2025) {
+            return date.toISOString()
+          }
+        }
+      }
+    }
+    
+    return null
+  } catch (error) {
+    console.error('Error extracting MP4 creation date:', error)
+    return null
+  }
+}
+
+function extractTextMetadata(data: Uint8Array): string | null {
+  try {
+    // Convert to text and search for various timestamp patterns
+    const text = new TextDecoder('utf-8', { fatal: false }).decode(data)
+    
     const patterns = [
-      // ISO date patterns that might be in metadata
-      /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/g,
-      // Apple/QuickTime creation time patterns
-      /creation_time\s*:\s*(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/gi,
-      // MP4 metadata patterns
-      /©day.*?(\d{4}-\d{2}-\d{2})/gi,
+      /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/gi,
+      /creation.*?(\d{4}-\d{2}-\d{2})/gi,
+      /timestamp.*?(\d{4}-\d{2}-\d{2})/gi,
     ]
     
     const foundDates: Date[] = []
     
     for (const pattern of patterns) {
       let match
-      while ((match = pattern.exec(metadataString)) !== null) {
+      while ((match = pattern.exec(text)) !== null) {
         const dateStr = match[1]
         const date = new Date(dateStr)
-        if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && date.getFullYear() <= new Date().getFullYear()) {
+        if (!isNaN(date.getTime()) && 
+            date.getFullYear() >= 2000 && 
+            date.getFullYear() <= new Date().getFullYear() &&
+            date.getFullYear() !== 2025) {
           foundDates.push(date)
         }
       }
     }
     
-    // Return the earliest reasonable date found
     if (foundDates.length > 0) {
-      const earliestDate = foundDates.sort((a, b) => a.getTime() - b.getTime())[0]
-      console.log(`Found EXIF creation date: ${earliestDate.toISOString()}`)
-      return {
-        dateTimeOriginal: earliestDate.toISOString()
-      }
+      const sortedDates = foundDates.sort((a, b) => a.getTime() - b.getTime())
+      return sortedDates[0].toISOString()
     }
     
-    console.log('No EXIF creation date found in video metadata')
     return null
   } catch (error) {
-    console.error('EXIF extraction failed:', error)
+    console.error('Error extracting text metadata:', error)
     return null
   }
+}
+
+function findBytesPattern(data: Uint8Array, pattern: number[]): number {
+  for (let i = 0; i <= data.length - pattern.length; i++) {
+    let found = true
+    for (let j = 0; j < pattern.length; j++) {
+      if (data[i + j] !== pattern[j]) {
+        found = false
+        break
+      }
+    }
+    if (found) return i
+  }
+  return -1
+}
