@@ -53,10 +53,10 @@ All colors MUST be HSL.
     --gradient-pink: linear-gradient(135deg, hsl(320 100% 70%), hsl(350 100% 70%));
     --gradient-glass: linear-gradient(135deg, hsl(240 20% 20% / 0.3), hsl(240 20% 30% / 0.1));
 
-    /* Apple Glass Effects */
-    --glass-bg: hsl(240 20% 15% / 0.2);
-    --glass-border: hsl(240 20% 50% / 0.15);
-    --glass-shadow: 0 8px 32px hsl(240 100% 5% / 0.15);
+    /* Apple Glass Effects - Dark Gray/Black Glass */
+    --glass-bg: hsl(0 0% 8% / 0.4);
+    --glass-border: hsl(0 0% 30% / 0.2);
+    --glass-shadow: 0 8px 32px hsl(0 0% 0% / 0.3);
 
     /* Animations */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
