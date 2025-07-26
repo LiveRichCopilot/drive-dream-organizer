@@ -64,6 +64,7 @@ export const useGoogleDrive = (folderId?: string) => {
     
     setIsLoading(true);
     try {
+      // Use specificFolderId if provided, otherwise use the hook's folderId state
       const targetFolderId = specificFolderId !== undefined ? specificFolderId : folderId;
       console.log('Loading videos with folderId:', targetFolderId);
       const videoFiles = await apiClient.listVideoFiles(targetFolderId);
@@ -71,6 +72,8 @@ export const useGoogleDrive = (folderId?: string) => {
       console.log(`Loaded ${videoFiles.length} videos from ${targetFolderId ? 'folder' : 'main drive'}`);
     } catch (error) {
       console.error('Failed to load videos:', error);
+      // Clear videos on error
+      setVideos([]);
     } finally {
       setIsLoading(false);
     }
@@ -130,6 +133,7 @@ export const useGoogleDrive = (folderId?: string) => {
     apiClient.logout();
     setIsConnected(false);
     setVideos([]);
+    setProgress(0);
     toast({
       title: "Disconnected",
       description: "Disconnected from Google Drive",
