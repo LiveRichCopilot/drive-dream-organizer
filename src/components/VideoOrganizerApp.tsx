@@ -217,8 +217,7 @@ const VideoOrganizerApp = () => {
             {processingResults && (
               <ProcessingResults 
                 results={processingResults}
-                sourceFolderId={selectedFolderId}
-                onClose={() => {
+                onStartNew={() => {
                   setProcessingResults(null);
                   setShowProcessor(true);
                 }}
