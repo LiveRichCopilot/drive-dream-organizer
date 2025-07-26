@@ -26,6 +26,8 @@ import { useGoogleDrive } from "@/hooks/useGoogleDrive";
 import GoogleDriveFolderInput from "@/components/GoogleDriveFolderInput";
 import VideoProcessor from "./VideoProcessor";
 import ProcessingResults from "./ProcessingResults";
+import BackgroundTaskManager from "./BackgroundTaskManager";
+import { useBackgroundTasks } from "@/hooks/useBackgroundTasks";
 
 type ViewMode = "grid" | "list";
 
@@ -33,6 +35,8 @@ const VideoOrganizerApp = () => {
   const [selectedFolderId, setSelectedFolderId] = useState<string | undefined>();
   const [showProcessor, setShowProcessor] = useState(false);
   const [processingResults, setProcessingResults] = useState<any>(null);
+  
+  const backgroundTasks = useBackgroundTasks();
   
   const {
     isConnected,
@@ -363,6 +367,15 @@ const VideoOrganizerApp = () => {
           </Button>
         </div>
       )}
+      
+      {/* Background Task Manager */}
+      <BackgroundTaskManager 
+        tasks={backgroundTasks.tasks}
+        onPauseTask={backgroundTasks.pauseTask}
+        onResumeTask={backgroundTasks.resumeTask}
+        onCancelTask={backgroundTasks.cancelTask}
+        onRetryTask={backgroundTasks.retryTask}
+      />
     </div>
   );
 };

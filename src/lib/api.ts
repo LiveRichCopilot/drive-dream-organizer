@@ -206,6 +206,64 @@ class APIClient {
     }
   }
 
+  async extractVideoMetadata(fileId: string): Promise<any> {
+    const response = await fetch(`${this.baseURL}/video-metadata-extractor`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.accessToken}`,
+        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88',
+      },
+      body: JSON.stringify({ fileId }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to extract metadata');
+    }
+
+    return response.json();
+  }
+
+  async generateProjectFiles(videos: any[], settings: any): Promise<any> {
+    const response = await fetch(`${this.baseURL}/project-file-generator`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88',
+      },
+      body: JSON.stringify({ videos, settings }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to generate project files');
+    }
+
+    return response.json();
+  }
+
+  async batchProcessVideos(videoIds: string[], onProgress?: (progress: number) => void): Promise<any[]> {
+    const results = [];
+    const total = videoIds.length;
+
+    for (let i = 0; i < total; i++) {
+      const videoId = videoIds[i];
+      
+      try {
+        const metadata = await this.extractVideoMetadata(videoId);
+        results.push(metadata);
+        
+        if (onProgress) {
+          onProgress((i + 1) / total * 100);
+        }
+      } catch (error) {
+        console.error(`Failed to process video ${videoId}:`, error);
+        results.push({ id: videoId, error: error.message });
+      }
+    }
+
+    return results;
+  }
+
   isAuthenticated(): boolean {
     return !!this.accessToken;
   }
