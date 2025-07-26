@@ -30,7 +30,8 @@ serve(async (req) => {
       )
     }
 
-    console.log('Extracting metadata for file:', fileId)
+    console.log('Starting metadata extraction for file:', fileId)
+    const startTime = Date.now()
 
     // Get file metadata from Google Drive API
     const fileResponse = await fetch(
@@ -54,8 +55,8 @@ serve(async (req) => {
     const fileData = await fileResponse.json()
     console.log('File metadata retrieved:', fileData)
 
-    // Try to extract the real shooting date from video file metadata
-    const realShootingDate = await extractRealShootingDate(fileId, accessToken, fileData.name)
+    // Try to extract the real shooting date from video file metadata (with optimization)
+    const realShootingDate = await extractRealShootingDate(fileId, accessToken, fileData.name, parseInt(fileData.size || '0'))
 
     // Extract enhanced metadata
     const metadata = {
@@ -106,6 +107,10 @@ serve(async (req) => {
       // Original creation date - prioritize extracted date
       originalDate: realShootingDate || fileData.modifiedTime || fileData.createdTime,
     }
+
+    const endTime = Date.now()
+    console.log(`Metadata extraction completed in ${endTime - startTime}ms for ${fileData.name}`)
+    console.log(`Final date used: ${metadata.originalDate} (extracted: ${realShootingDate ? 'YES' : 'NO'})`)
 
     return new Response(
       JSON.stringify(metadata),
@@ -197,7 +202,7 @@ function getYear(dateString: string): string {
   return date.getFullYear().toString()
 }
 
-async function extractRealShootingDate(fileId: string, accessToken: string, fileName: string): Promise<string | null> {
+async function extractRealShootingDate(fileId: string, accessToken: string, fileName: string, fileSize: number): Promise<string | null> {
   try {
     console.log(`Attempting to extract real shooting date for ${fileName}`)
     
@@ -209,7 +214,7 @@ async function extractRealShootingDate(fileId: string, accessToken: string, file
     }
     
     // Download file content to extract metadata
-    const fileContent = await downloadVideoMetadata(fileId, accessToken)
+    const fileContent = await downloadVideoMetadata(fileId, accessToken, fileSize)
     if (!fileContent) {
       console.log('Could not download file content for metadata extraction')
       return null
@@ -282,15 +287,22 @@ function extractDateFromFilename(fileName: string): string | null {
   return null
 }
 
-async function downloadVideoMetadata(fileId: string, accessToken: string): Promise<Uint8Array | null> {
+async function downloadVideoMetadata(fileId: string, accessToken: string, fileSize: number): Promise<Uint8Array | null> {
   try {
-    // Download first 10MB which should contain all metadata
+    // Optimize download size based on file size to prevent worker limits
+    const maxDownloadSize = Math.min(
+      fileSize > 100 * 1024 * 1024 ? 5 * 1024 * 1024 : 10 * 1024 * 1024, // 5MB for large files, 10MB for smaller
+      Math.floor(fileSize * 0.1) // Don't download more than 10% of file
+    )
+    
+    console.log(`Downloading first ${Math.floor(maxDownloadSize / 1024 / 1024)}MB of ${Math.floor(fileSize / 1024 / 1024)}MB file for metadata extraction`)
+    
     const response = await fetch(
       `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
       {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'Range': 'bytes=0-10485760' // 10MB
+          'Range': `bytes=0-${maxDownloadSize - 1}`
         }
       }
     )
@@ -301,6 +313,7 @@ async function downloadVideoMetadata(fileId: string, accessToken: string): Promi
     }
     
     const arrayBuffer = await response.arrayBuffer()
+    console.log(`Successfully downloaded ${arrayBuffer.byteLength} bytes for metadata extraction`)
     return new Uint8Array(arrayBuffer)
   } catch (error) {
     console.error('Error downloading video metadata:', error)
