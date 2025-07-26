@@ -32,6 +32,7 @@ interface ProcessingResults {
   organizationStructure: FolderStructure;
   projectFiles: ProjectFile[];
   totalTime: string;
+  uploadResult?: any;
 }
 
 interface ProcessedVideo {
@@ -72,7 +73,7 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
   const [processingState, setProcessingState] = useState<ProcessingState>({
     status: 'idle',
     currentStep: 0,
-    totalSteps: 5,
+    totalSteps: 6,
     progress: 0,
     downloadedCount: 0,
     processedCount: 0,
@@ -87,7 +88,8 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
     renameWithTimestamp: true,
     generateCapCut: true,
     generatePremiere: false,
-    folderStructure: 'year-month' as 'year-month' | 'year' | 'flat'
+    folderStructure: 'year-month' as 'year-month' | 'year' | 'flat',
+    destinationFolderName: 'Organized_Videos_' + new Date().toISOString().slice(0, 10)
   });
 
   const steps = [
@@ -95,7 +97,8 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
     'Extracting metadata', 
     'Organizing files',
     'Renaming files',
-    'Generating projects'
+    'Generating projects',
+    'Uploading to Google Drive'
   ];
 
   const startProcessing = useCallback(async () => {
@@ -140,6 +143,11 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
       
       // Step 5: Generate project files
       await generateProjectFiles(results);
+
+      // Step 6: Upload organized videos back to Google Drive
+      if (settings.destinationFolderName) {
+        await uploadToGoogleDrive(results);
+      }
 
       const endTime = Date.now();
       results.totalTime = formatDuration(endTime - startTime);
@@ -197,8 +205,10 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
         timeRemaining: estimateTimeRemaining(i, videos.length, Date.now())
       }));
 
-      // Simulate download process
-      await simulateVideoDownload(video);
+      // Simulate download time based on file size (more realistic)
+      const sizeInMB = parseInt(String(video.size || '0')) / (1024 * 1024);
+      const downloadTime = Math.max(2000, sizeInMB * 50); // At least 2 seconds, 50ms per MB
+      await new Promise(resolve => setTimeout(resolve, downloadTime));
       
       downloadedSize += parseInt(String(video.size || '0'));
       
@@ -234,7 +244,7 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
       currentStep: 2
     }));
 
-    // Simulate metadata extraction
+    // Simulate metadata extraction (realistic timing)
     for (let i = 0; i < results.downloadedVideos.length; i++) {
       if (isPaused) await waitForResume();
       
@@ -247,8 +257,9 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
         processedCount: i + 1
       }));
 
-      // Simulate processing time
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Realistic processing time - 500ms to 2s per video depending on size
+      const processingTime = Math.max(500, parseInt(String(video.metadata.fileSize)) / (1024 * 1024) * 100);
+      await new Promise(resolve => setTimeout(resolve, processingTime));
     }
   };
 
@@ -347,10 +358,47 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
       });
     }
 
+    // Simulate project generation time
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
     setProcessingState(prev => ({
       ...prev,
-      progress: 100
+      progress: 90
     }));
+  };
+
+  const uploadToGoogleDrive = async (results: ProcessingResults) => {
+    setProcessingState(prev => ({
+      ...prev,
+      status: 'organizing',
+      currentStep: 6,
+      currentFile: 'Uploading to Google Drive...'
+    }));
+
+    try {
+      // Import the API client method
+      const { apiClient } = await import('@/lib/api');
+      
+      const uploadResult = await apiClient.uploadOrganizedVideos(
+        results.downloadedVideos,
+        settings.destinationFolderName,
+        results.organizationStructure
+      );
+
+      // Update results with upload information
+      results.uploadResult = uploadResult;
+
+      setProcessingState(prev => ({
+        ...prev,
+        progress: 98
+      }));
+
+      console.log('Upload completed:', uploadResult);
+
+    } catch (error) {
+      console.error('Failed to upload to Google Drive:', error);
+      // Continue processing even if upload fails
+    }
   };
 
   const simulateVideoDownload = async (video: VideoFile) => {
@@ -386,7 +434,7 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
     setProcessingState({
       status: 'idle',
       currentStep: 0,
-      totalSteps: 5,
+      totalSteps: 6,
       progress: 0,
       downloadedCount: 0,
       processedCount: 0,
@@ -411,7 +459,11 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
         {/* Processing Controls */}
         <div className="flex gap-2">
           {processingState.status === 'idle' && (
-            <Button onClick={startProcessing} className="flex-1">
+            <Button 
+              onClick={startProcessing} 
+              className="flex-1 glass text-white border-white/20 hover:bg-white/10 bg-white/5"
+              variant="outline"
+            >
               <Download className="mr-2 h-4 w-4" />
               Start Processing
             </Button>
@@ -421,12 +473,20 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
             processingState.status === 'organizing' || processingState.status === 'generating') && (
             <>
               {!isPaused ? (
-                <Button onClick={pauseProcessing} variant="outline">
+                <Button 
+                  onClick={pauseProcessing} 
+                  variant="outline"
+                  className="glass text-white border-white/20 hover:bg-white/10 bg-white/5"
+                >
                   <Pause className="mr-2 h-4 w-4" />
                   Pause
                 </Button>
               ) : (
-                <Button onClick={resumeProcessing} variant="outline">
+                <Button 
+                  onClick={resumeProcessing} 
+                  variant="outline"
+                  className="glass text-white border-white/20 hover:bg-white/10 bg-white/5"
+                >
                   <Play className="mr-2 h-4 w-4" />
                   Resume
                 </Button>
@@ -435,7 +495,11 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
           )}
           
           {(processingState.status === 'completed' || processingState.status === 'error') && (
-            <Button onClick={resetProcessing} variant="outline">
+            <Button 
+              onClick={resetProcessing} 
+              variant="outline"
+              className="glass text-white border-white/20 hover:bg-white/10 bg-white/5"
+            >
               <RotateCcw className="mr-2 h-4 w-4" />
               Reset
             </Button>
@@ -497,13 +561,29 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
             <Separator />
             <div className="space-y-4">
               <h4 className="font-medium">Processing Options</h4>
+              
+              {/* Destination Folder Name */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Destination Folder Name</label>
+                <input
+                  type="text"
+                  value={settings.destinationFolderName}
+                  onChange={(e) => setSettings(prev => ({...prev, destinationFolderName: e.target.value}))}
+                  className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-md text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/20"
+                  placeholder="Enter folder name for organized videos"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Videos will be uploaded to this new folder in your Google Drive
+                </p>
+              </div>
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <label className="flex items-center space-x-2">
                   <input
                     type="checkbox"
                     checked={settings.extractMetadata}
                     onChange={(e) => setSettings(prev => ({...prev, extractMetadata: e.target.checked}))}
-                    className="rounded border-gray-300"
+                    className="rounded border-white/30 bg-white/10 text-cyan-400 focus:ring-cyan-400/50"
                   />
                   <span className="text-sm">Extract original metadata</span>
                 </label>
@@ -512,7 +592,7 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
                     type="checkbox"
                     checked={settings.organizeByDate}
                     onChange={(e) => setSettings(prev => ({...prev, organizeByDate: e.target.checked}))}
-                    className="rounded border-gray-300"
+                    className="rounded border-white/30 bg-white/10 text-cyan-400 focus:ring-cyan-400/50"
                   />
                   <span className="text-sm">Organize by date</span>
                 </label>
@@ -521,7 +601,7 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
                     type="checkbox"
                     checked={settings.renameWithTimestamp}
                     onChange={(e) => setSettings(prev => ({...prev, renameWithTimestamp: e.target.checked}))}
-                    className="rounded border-gray-300"
+                    className="rounded border-white/30 bg-white/10 text-cyan-400 focus:ring-cyan-400/50"
                   />
                   <span className="text-sm">Rename with timestamps</span>
                 </label>
@@ -530,9 +610,18 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
                     type="checkbox"
                     checked={settings.generateCapCut}
                     onChange={(e) => setSettings(prev => ({...prev, generateCapCut: e.target.checked}))}
-                    className="rounded border-gray-300"
+                    className="rounded border-white/30 bg-white/10 text-cyan-400 focus:ring-cyan-400/50"
                   />
                   <span className="text-sm">Generate CapCut project</span>
+                </label>
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={settings.generatePremiere}
+                    onChange={(e) => setSettings(prev => ({...prev, generatePremiere: e.target.checked}))}
+                    className="rounded border-white/30 bg-white/10 text-cyan-400 focus:ring-cyan-400/50"
+                  />
+                  <span className="text-sm">Generate Premiere project</span>
                 </label>
               </div>
             </div>

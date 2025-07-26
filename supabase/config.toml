@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.project-file-generator]
 verify_jwt = false
+
+[functions.google-drive-upload]
+verify_jwt = false
