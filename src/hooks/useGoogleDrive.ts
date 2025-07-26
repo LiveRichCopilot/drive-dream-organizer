@@ -64,8 +64,10 @@ export const useGoogleDrive = (folderId?: string) => {
     
     setIsLoading(true);
     try {
+      console.log('Loading videos with folderId:', folderId);
       const videoFiles = await apiClient.listVideoFiles(folderId);
       setVideos(videoFiles);
+      console.log(`Loaded ${videoFiles.length} videos from ${folderId ? 'folder' : 'main drive'}`);
     } catch (error) {
       console.error('Failed to load videos:', error);
     } finally {

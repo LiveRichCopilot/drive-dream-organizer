@@ -23,6 +23,7 @@ interface ProcessingState {
 
 interface VideoProcessorProps {
   videos: VideoFile[];
+  folderId?: string;
   onProcessingComplete: (results: ProcessingResults) => void;
 }
 
@@ -67,7 +68,7 @@ interface ProjectFile {
   videoCount: number;
 }
 
-const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, onProcessingComplete }) => {
+const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onProcessingComplete }) => {
   const [processingState, setProcessingState] = useState<ProcessingState>({
     status: 'idle',
     currentStep: 0,
@@ -98,6 +99,9 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, onProcessingCom
   ];
 
   const startProcessing = useCallback(async () => {
+    console.log('Starting processing with folderId:', folderId);
+    console.log('Processing videos:', videos.length);
+    
     setProcessingState(prev => ({
       ...prev,
       status: 'downloading',
@@ -167,7 +171,7 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, onProcessingCom
         variant: "destructive",
       });
     }
-  }, [videos, settings, onProcessingComplete]);
+  }, [videos, settings, onProcessingComplete, folderId]);
 
   const downloadVideos = async (results: ProcessingResults) => {
     setProcessingState(prev => ({

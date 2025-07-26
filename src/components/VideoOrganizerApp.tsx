@@ -206,6 +206,7 @@ const VideoOrganizerApp = () => {
             {showProcessor && !processingResults && (
               <VideoProcessor 
                 videos={filteredVideos}
+                folderId={selectedFolderId}
                 onProcessingComplete={(results) => {
                   setProcessingResults(results);
                   setShowProcessor(false);
