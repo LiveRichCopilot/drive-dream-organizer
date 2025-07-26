@@ -608,37 +608,165 @@ function extractQuickTimeCreationDate(data: Uint8Array): string | null {
 // Based on ExifTool patterns for comprehensive iPhone video analysis
 function extractiPhoneMetadata(data: Uint8Array): string | null {
   try {
-    console.log('🍎 Starting iPhone metadata extraction (simplified for debugging)...')
+    console.log('🍎 Starting iPhone metadata extraction...')
     
-    // TEMPORARY SIMPLIFIED VERSION to avoid crashes
-    // Just look for basic patterns without complex processing
+    // iPhone MOV files typically store creation date in multiple locations:
+    // 1. QuickTime creation time (mvhd atom)
+    // 2. Apple udta metadata 
+    // 3. iTunes-style metadata
     
-    const text = new TextDecoder('utf-8', { fatal: false }).decode(data.slice(0, Math.min(1024 * 100, data.length)))
+    console.log('  📱 Searching for iPhone-specific creation date patterns...')
     
-    // Look for common date patterns in the first 100KB
-    const isoDateMatch = text.match(/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/g)
-    if (isoDateMatch) {
-      for (const dateStr of isoDateMatch) {
-        try {
-          const date = new Date(dateStr)
-          if (!isNaN(date.getTime()) && 
-              date.getFullYear() >= 2000 && 
-              date.getFullYear() <= 2024) {
-            console.log(`📅 Found simple iPhone date: ${date.toISOString()}`)
-            return date.toISOString()
-          }
-        } catch (e) {
-          continue
-        }
-      }
+    // Method 1: Look for Apple's udta (user data) atom which often contains creation time
+    const udtaResult = findAppleUdtaCreationTime(data)
+    if (udtaResult) {
+      console.log(`✅ SUCCESS: Found iPhone date in udta atom: ${udtaResult}`)
+      return udtaResult
     }
     
-    console.log('❌ No iPhone-specific metadata found (simplified version)')
+    // Method 2: Look for ©day atom (Apple's day metadata)
+    const dayAtomResult = findAppleDayAtom(data)
+    if (dayAtomResult) {
+      console.log(`✅ SUCCESS: Found iPhone date in ©day atom: ${dayAtomResult}`)
+      return dayAtomResult
+    }
+    
+    // Method 3: Search for embedded timestamps in readable text
+    const textResult = findEmbeddedTimestamps(data)
+    if (textResult) {
+      console.log(`✅ SUCCESS: Found iPhone date in embedded text: ${textResult}`)
+      return textResult
+    }
+    
+    console.log('❌ No iPhone creation date found in any location')
     return null
   } catch (error) {
-    console.error('❌ Error in simplified iPhone metadata extraction:', error)
+    console.error('❌ Error in iPhone metadata extraction:', error)
     return null
   }
+}
+
+function findAppleUdtaCreationTime(data: Uint8Array): string | null {
+  console.log('  🔍 Searching for Apple udta atom...')
+  
+  // Look for "udta" atom signature
+  const udtaSignature = [0x75, 0x64, 0x74, 0x61] // "udta"
+  const udtaIndex = findBytesPattern(data, udtaSignature)
+  
+  if (udtaIndex === -1) {
+    console.log('  ❌ No udta atom found')
+    return null
+  }
+  
+  console.log(`  📍 Found udta atom at position ${udtaIndex}`)
+  
+  // Search around the udta atom for creation time data
+  const searchStart = Math.max(0, udtaIndex - 500)
+  const searchEnd = Math.min(data.length, udtaIndex + 2000)
+  const searchData = data.slice(searchStart, searchEnd)
+  
+  // Convert to text to look for readable timestamps
+  const text = new TextDecoder('utf-8', { fatal: false }).decode(searchData)
+  
+  // Look for various iPhone timestamp formats
+  const patterns = [
+    /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/,
+    /(\d{4}:\d{2}:\d{2} \d{2}:\d{2}:\d{2})/,
+    /(\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2})/
+  ]
+  
+  for (const pattern of patterns) {
+    const match = text.match(pattern)
+    if (match) {
+      const dateStr = match[1].replace(/:/g, '-').replace(' ', 'T') + 'Z'
+      try {
+        const date = new Date(dateStr)
+        if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && date.getFullYear() <= 2024) {
+          return date.toISOString()
+        }
+      } catch (e) {
+        continue
+      }
+    }
+  }
+  
+  return null
+}
+
+function findAppleDayAtom(data: Uint8Array): string | null {
+  console.log('  🔍 Searching for Apple ©day atom...')
+  
+  // Look for "©day" atom (Apple's date metadata)
+  const daySignature = [0xA9, 0x64, 0x61, 0x79] // "©day"
+  const dayIndex = findBytesPattern(data, daySignature)
+  
+  if (dayIndex === -1) {
+    console.log('  ❌ No ©day atom found')
+    return null
+  }
+  
+  console.log(`  📍 Found ©day atom at position ${dayIndex}`)
+  
+  // Extract the data following the ©day atom
+  const dataAfterAtom = data.slice(dayIndex + 4, dayIndex + 50)
+  const text = new TextDecoder('utf-8', { fatal: false }).decode(dataAfterAtom)
+  
+  // Look for date patterns immediately after the atom
+  const match = text.match(/(\d{4}-\d{2}-\d{2})/)
+  if (match) {
+    try {
+      const date = new Date(match[1] + 'T12:00:00Z')
+      if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && date.getFullYear() <= 2024) {
+        return date.toISOString()
+      }
+    } catch (e) {
+      // Continue searching
+    }
+  }
+  
+  return null
+}
+
+function findEmbeddedTimestamps(data: Uint8Array): string | null {
+  console.log('  🔍 Searching for embedded timestamps...')
+  
+  // Search the first 50KB for any embedded readable timestamps
+  const searchData = data.slice(0, Math.min(50 * 1024, data.length))
+  const text = new TextDecoder('utf-8', { fatal: false }).decode(searchData)
+  
+  // Look for various timestamp formats that might be embedded
+  const patterns = [
+    /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z?)/g,
+    /(\d{4}:\d{2}:\d{2} \d{2}:\d{2}:\d{2})/g,
+    /(\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2})/g
+  ]
+  
+  for (const pattern of patterns) {
+    const matches = [...text.matchAll(pattern)]
+    for (const match of matches) {
+      try {
+        let dateStr = match[1]
+        // Normalize the format
+        if (dateStr.includes(':') && !dateStr.includes('T')) {
+          dateStr = dateStr.replace(/:/g, '-').replace(' ', 'T') + 'Z'
+        } else if (dateStr.includes('/')) {
+          dateStr = dateStr.replace(/\//g, '-').replace(' ', 'T') + 'Z'
+        }
+        
+        const date = new Date(dateStr)
+        if (!isNaN(date.getTime()) && 
+            date.getFullYear() >= 2000 && 
+            date.getFullYear() <= 2024) {
+          console.log(`  📅 Found embedded timestamp: ${dateStr} -> ${date.toISOString()}`)
+          return date.toISOString()
+        }
+      } catch (e) {
+        continue
+      }
+    }
+  }
+  
+  return null
 }
 
 /* COMMENTED OUT COMPLEX APPLE FUNCTIONS TO AVOID RUNTIME ERRORS
