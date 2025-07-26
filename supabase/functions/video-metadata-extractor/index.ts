@@ -319,6 +319,7 @@ function extractQuickTimeCreationDate(data: Uint8Array): string | null {
     console.error('Error extracting QuickTime creation date:', error)
     return null
   }
+
 }
 
 function extractMP4CreationDate(data: Uint8Array): string | null {
