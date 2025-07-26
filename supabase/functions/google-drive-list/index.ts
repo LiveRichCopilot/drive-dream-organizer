@@ -37,7 +37,7 @@ serve(async (req) => {
     // Also try to get folder info to verify access
     if (folderId) {
       try {
-        const folderResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}?fields=id,name,mimeType`, {
+        const folderResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}?fields=id,name,mimeType,capabilities`, {
           headers: {
             'Authorization': `Bearer ${accessToken}`,
           },
@@ -46,8 +46,32 @@ serve(async (req) => {
           const folderData = await folderResponse.json()
           console.log('Folder info:', folderData)
         } else {
-          console.log('Could not access folder info:', folderResponse.status)
+          console.log('Could not access folder info:', folderResponse.status, await folderResponse.text())
         }
+
+        // Try alternative queries to debug
+        console.log('Trying alternative queries...')
+        
+        // Query 1: All files in folder (not just videos)
+        const allFilesUrl = `https://www.googleapis.com/drive/v3/files?q='${folderId}' in parents&fields=files(id,name,mimeType)&pageSize=10`
+        const allFilesResponse = await fetch(allFilesUrl, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        })
+        if (allFilesResponse.ok) {
+          const allFilesData = await allFilesResponse.json()
+          console.log('All files in folder:', allFilesData)
+        }
+
+        // Query 2: Try broader video search
+        const broadVideoUrl = `https://www.googleapis.com/drive/v3/files?q='${folderId}' in parents and (mimeType contains 'video' or name contains '.mp4' or name contains '.mov' or name contains '.avi')&fields=files(id,name,mimeType)&pageSize=10`
+        const broadVideoResponse = await fetch(broadVideoUrl, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        })
+        if (broadVideoResponse.ok) {
+          const broadVideoData = await broadVideoResponse.json()
+          console.log('Broad video search results:', broadVideoData)
+        }
+
       } catch (error) {
         console.log('Error getting folder info:', error)
       }
