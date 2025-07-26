@@ -372,7 +372,7 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
       ...prev,
       status: 'organizing',
       currentStep: 6,
-      currentFile: 'Organizing videos in Google Drive by date...'
+      currentFile: `Creating "${settings.destinationFolderName || 'Organized_Videos'}" folder in Google Drive...`
     }));
 
     try {
@@ -382,24 +382,38 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
       // Get all video IDs for organization
       const videoIds = videos.map(video => video.id);
       
-      // Organize videos by date in Google Drive (creates folders and moves files)
-      await apiClient.organizeVideosByDate(videoIds);
+      setProcessingState(prev => ({
+        ...prev,
+        progress: 92,
+        currentFile: `Uploading ${videoIds.length} videos with organized structure...`
+      }));
+      
+      // Use the upload function to create organized folder structure
+      const uploadResult = await apiClient.uploadOrganizedVideos(
+        results.downloadedVideos,
+        settings.destinationFolderName || 'Organized_Videos',
+        results.organizationStructure
+      );
 
       setProcessingState(prev => ({
         ...prev,
         progress: 98,
-        currentFile: 'Videos organized! Check your Google Drive for new date-based folders.'
+        currentFile: `All ${videoIds.length} videos successfully organized! Check "${settings.destinationFolderName || 'Organized_Videos'}" folder in Google Drive.`
       }));
 
-      console.log('Google Drive organization completed successfully');
+      console.log('Google Drive organization completed successfully:', uploadResult);
+      return uploadResult;
 
     } catch (error) {
       console.error('Failed to organize videos in Google Drive:', error);
-      // Continue processing even if organization fails
+      
       setProcessingState(prev => ({
         ...prev,
-        currentFile: 'Organization failed, but processing completed successfully'
+        status: 'error',
+        currentFile: `Upload failed: ${error.message}. Your videos are safe in their original location.`
       }));
+      
+      throw error; // Re-throw to prevent completion
     }
   };
 
@@ -563,6 +577,17 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
             <Separator />
             <div className="space-y-4">
               <h4 className="font-medium">Processing Options</h4>
+              
+              {/* Estimated Time */}
+              <div className="p-3 bg-blue-50/10 border border-blue-200/20 rounded-lg">
+                <div className="text-sm font-medium text-blue-300 mb-1">Estimated Processing Time</div>
+                <div className="text-lg font-semibold text-blue-100">
+                  {Math.ceil((videos.length * 0.5) + (videos.reduce((sum, v) => sum + parseInt(String(v.size || '0')), 0) / 1024 / 1024 / 100))} minutes
+                </div>
+                <div className="text-xs text-blue-300/80 mt-1">
+                  Based on {videos.length} videos ({formatBytes(videos.reduce((sum, v) => sum + parseInt(String(v.size || '0')), 0))})
+                </div>
+              </div>
               
               {/* Destination Folder Name */}
               <div className="space-y-2">
