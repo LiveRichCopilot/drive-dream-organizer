@@ -19,6 +19,7 @@ interface ProcessingState {
   processedCount: number;
   totalSize: string;
   downloadedSize: string;
+  startTime: number;
 }
 
 interface VideoProcessorProps {
@@ -78,7 +79,8 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
     downloadedCount: 0,
     processedCount: 0,
     totalSize: formatBytes(videos.reduce((sum, v) => sum + parseInt(String(v.size || '0')), 0)),
-    downloadedSize: '0 B'
+    downloadedSize: '0 B',
+    startTime: 0 // Add startTime to state
   });
 
   const [isPaused, setIsPaused] = useState(false);
@@ -105,14 +107,15 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
     console.log('Starting processing with folderId:', folderId);
     console.log('Processing videos:', videos.length);
     
+    const startTime = Date.now();
     setProcessingState(prev => ({
       ...prev,
       status: 'downloading',
-      currentStep: 1
+      currentStep: 1,
+      startTime // Set startTime in state
     }));
 
     try {
-      const startTime = Date.now();
       const results: ProcessingResults = {
         downloadedVideos: [],
         organizationStructure: {
@@ -202,7 +205,7 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
         ...prev,
         currentFile: video.name,
         progress: (i / videos.length) * 20, // 20% of total progress
-        timeRemaining: estimateTimeRemaining(i, videos.length, Date.now())
+        timeRemaining: estimateTimeRemaining(i + 1, videos.length * 6, prev.startTime) // Use startTime from state
       }));
 
       // Simulate download time based on file size (more realistic)
@@ -456,7 +459,8 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
       downloadedCount: 0,
       processedCount: 0,
       totalSize: formatBytes(videos.reduce((sum, v) => sum + parseInt(String(v.size || '0')), 0)),
-      downloadedSize: '0 B'
+      downloadedSize: '0 B',
+      startTime: 0
     });
     setIsPaused(false);
   };
@@ -684,10 +688,13 @@ function formatDuration(ms: number): string {
 }
 
 function estimateTimeRemaining(current: number, total: number, startTime: number): string {
-  if (current === 0) return 'Calculating...';
+  if (current === 0 || startTime === 0) return 'Calculating...';
   
   const elapsed = Date.now() - startTime;
   const rate = current / elapsed;
+  
+  if (rate <= 0) return 'Calculating...';
+  
   const remaining = (total - current) / rate;
   
   return formatDuration(remaining);

@@ -258,7 +258,9 @@ class APIClient {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to upload organized videos');
+      const errorText = await response.text();
+      console.error('Upload error response:', errorText);
+      throw new Error(`Failed to upload organized videos: ${response.status} ${errorText}`);
     }
 
     return response.json();
