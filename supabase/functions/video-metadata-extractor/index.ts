@@ -236,11 +236,18 @@ async function extractRealShootingDate(fileId: string, accessToken: string, file
       extractTextMetadata(fileContent)
     
     if (extractedDate) {
-      console.log(`Successfully extracted shooting date: ${extractedDate}`)
+      // Validate that extracted date is NOT an upload date (reject 2025+ dates)
+      const extractedDateObj = new Date(extractedDate)
+      if (extractedDateObj.getFullYear() >= 2025) {
+        console.log(`Rejected extracted date ${extractedDate} - appears to be upload date, not original footage date`)
+        return null
+      }
+      
+      console.log(`Successfully extracted original shooting date: ${extractedDate}`)
       return extractedDate
     }
     
-    console.log('No real shooting date found in video metadata')
+    console.log('No original shooting date found in video metadata - extraction failed as required')
     return null
   } catch (error) {
     console.error('Error extracting real shooting date:', error)
