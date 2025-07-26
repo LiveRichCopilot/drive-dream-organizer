@@ -222,6 +222,12 @@ async function extractRealShootingDate(fileId: string, accessToken: string, file
       extractExifData(fileContent) ||
       extractXMPMetadata(fileContent) ||
       extractAVIMetadata(fileContent) ||
+      extractCanonMetadata(fileContent) ||
+      extractSonyMetadata(fileContent) ||
+      extractiPhoneMetadata(fileContent) ||
+      extractAndroidMetadata(fileContent) ||
+      extractProResMetadata(fileContent) ||
+      extractH264H265Metadata(fileContent) ||
       extractTextMetadata(fileContent)
     
     if (extractedDate) {
@@ -304,35 +310,50 @@ async function downloadVideoMetadata(fileId: string, accessToken: string): Promi
 
 function extractQuickTimeCreationDate(data: Uint8Array): string | null {
   try {
-    // Look for multiple QuickTime atoms
+    console.log('Starting QuickTime metadata extraction...')
+    
+    // Look for multiple QuickTime atoms - enhanced search
     const atoms = [
-      [0x6D, 0x76, 0x68, 0x64], // 'mvhd' - movie header
-      [0x6D, 0x64, 0x68, 0x64], // 'mdhd' - media header  
-      [0x74, 0x6B, 0x68, 0x64], // 'tkhd' - track header
+      { name: 'mvhd', bytes: [0x6D, 0x76, 0x68, 0x64], offsets: [8, 12, 16, 20, 24] }, // movie header
+      { name: 'mdhd', bytes: [0x6D, 0x64, 0x68, 0x64], offsets: [12, 16, 20, 24, 28] }, // media header  
+      { name: 'tkhd', bytes: [0x74, 0x6B, 0x68, 0x64], offsets: [8, 12, 16, 20, 24] }, // track header
+      { name: 'udta', bytes: [0x75, 0x64, 0x74, 0x61], offsets: [8, 12, 16, 20] }, // user data
+      { name: 'uuid', bytes: [0x75, 0x75, 0x69, 0x64], offsets: [16, 20, 24, 28] }, // UUID boxes
     ]
     
     for (const atom of atoms) {
-      const atomIndex = findBytesPattern(data, atom)
+      const atomIndex = findBytesPattern(data, atom.bytes)
       
-      if (atomIndex !== -1 && atomIndex + 20 < data.length) {
-        // Try different offsets for creation time
-        const offsets = [8, 12, 16, 20]
+      if (atomIndex !== -1 && atomIndex + 32 < data.length) {
+        console.log(`Found ${atom.name} atom at index ${atomIndex}`)
         
-        for (const offset of offsets) {
-          if (atomIndex + offset + 4 <= data.length) {
+        // Try different offsets for creation time
+        for (const offset of atom.offsets) {
+          if (atomIndex + offset + 8 <= data.length) {
             try {
-              const qtTime = new DataView(data.buffer, atomIndex + offset, 4).getUint32(0, false)
+              // Try both 32-bit and 64-bit timestamps
+              const qtTime32 = new DataView(data.buffer, atomIndex + offset, 4).getUint32(0, false)
+              const qtTime64 = new DataView(data.buffer, atomIndex + offset, 8).getBigUint64(0, false)
               
               // Convert from QuickTime epoch (1904) to Unix epoch (1970)
-              const unixTime = qtTime - 2082844800
-              const date = new Date(unixTime * 1000)
+              const timestamps = [
+                qtTime32 - 2082844800,
+                Number(qtTime64 - 2082844800n),
+                qtTime32 - 2082844800 - (7 * 24 * 60 * 60), // Try timezone adjustments
+                qtTime32 - 2082844800 + (7 * 24 * 60 * 60)
+              ]
               
-              // More realistic date validation
-              if (date.getFullYear() >= 2000 && 
-                  date.getFullYear() <= new Date().getFullYear() + 1 &&
-                  date.getTime() > 0) {
-                console.log(`Found QuickTime date: ${date.toISOString()}`)
-                return date.toISOString()
+              for (const unixTime of timestamps) {
+                if (unixTime > 0 && unixTime < 4102444800) { // Valid range: 1970-2100
+                  const date = new Date(unixTime * 1000)
+                  
+                  if (date.getFullYear() >= 2000 && 
+                      date.getFullYear() <= new Date().getFullYear() + 1 &&
+                      date.getTime() > 0) {
+                    console.log(`Found QuickTime date from ${atom.name}: ${date.toISOString()}`)
+                    return date.toISOString()
+                  }
+                }
               }
             } catch (e) {
               // Continue to next offset
@@ -545,3 +566,290 @@ function findBytesPattern(data: Uint8Array, pattern: number[]): number {
   }
   return -1
 }
+
+// Camera-specific metadata extraction functions
+
+function extractCanonMetadata(data: Uint8Array): string | null {
+  try {
+    console.log('Searching for Canon-specific metadata...')
+    
+    // Look for Canon CNTH (Canon Thumbnail) or CNDA (Canon Data) atoms
+    const canonAtoms = [
+      [0x43, 0x4E, 0x54, 0x48], // "CNTH"
+      [0x43, 0x4E, 0x44, 0x41], // "CNDA"
+      [0x43, 0x61, 0x6E, 0x6F], // "Cano" - Canon maker note
+    ]
+    
+    for (const atom of canonAtoms) {
+      const atomIndex = findBytesPattern(data, atom)
+      if (atomIndex !== -1 && atomIndex + 50 < data.length) {
+        // Canon stores timestamps in various formats
+        const segment = data.slice(atomIndex, atomIndex + 200)
+        const text = new TextDecoder('utf-8', { fatal: false }).decode(segment)
+        
+        // Look for Canon timestamp patterns
+        const patterns = [
+          /(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/,
+          /(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/,
+        ]
+        
+        for (const pattern of patterns) {
+          const match = text.match(pattern)
+          if (match) {
+            const [, year, month, day, hour, minute, second] = match
+            const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 
+                                 parseInt(hour), parseInt(minute), parseInt(second))
+            
+            if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && 
+                date.getFullYear() <= new Date().getFullYear() + 1) {
+              console.log(`Found Canon date: ${date.toISOString()}`)
+              return date.toISOString()
+            }
+          }
+        }
+      }
+    }
+    
+    return null
+  } catch (error) {
+    console.error('Error extracting Canon metadata:', error)
+    return null
+  }
+}
+
+function extractSonyMetadata(data: Uint8Array): string | null {
+  try {
+    console.log('Searching for Sony-specific metadata...')
+    
+    // Look for Sony-specific atoms and XAVC metadata
+    const sonyPatterns = [
+      'Sony', 'XAVC', 'AVCHD', 'rtmd', // Sony format identifiers
+    ]
+    
+    for (const pattern of sonyPatterns) {
+      const patternBytes = new TextEncoder().encode(pattern)
+      const index = findBytesPattern(data, Array.from(patternBytes))
+      
+      if (index !== -1) {
+        // Search around Sony markers for timestamps
+        const searchStart = Math.max(0, index - 100)
+        const searchEnd = Math.min(data.length, index + 500)
+        const segment = data.slice(searchStart, searchEnd)
+        const text = new TextDecoder('utf-8', { fatal: false }).decode(segment)
+        
+        // Sony timestamp patterns
+        const timestampPatterns = [
+          /(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/,
+          /(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/,
+        ]
+        
+        for (const tsPattern of timestampPatterns) {
+          const match = text.match(tsPattern)
+          if (match) {
+            const date = new Date(match[0])
+            if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && 
+                date.getFullYear() <= new Date().getFullYear() + 1) {
+              console.log(`Found Sony date: ${date.toISOString()}`)
+              return date.toISOString()
+            }
+          }
+        }
+      }
+    }
+    
+    return null
+  } catch (error) {
+    console.error('Error extracting Sony metadata:', error)
+    return null
+  }
+}
+
+function extractiPhoneMetadata(data: Uint8Array): string | null {
+  try {
+    console.log('Searching for iPhone-specific metadata...')
+    
+    // Look for Apple-specific metadata atoms
+    const appleAtoms = [
+      [0x6D, 0x65, 0x74, 0x61], // "meta" - iTunes metadata
+      [0x68, 0x76, 0x63, 0x43], // "hvcC" - HEVC configuration
+      [0x68, 0x76, 0x63, 0x31], // "hvc1" - HEVC sample entry
+    ]
+    
+    for (const atom of appleAtoms) {
+      const atomIndex = findBytesPattern(data, atom)
+      if (atomIndex !== -1) {
+        // Look for Apple's creation date format
+        const searchArea = data.slice(atomIndex, Math.min(atomIndex + 1000, data.length))
+        const text = new TextDecoder('utf-8', { fatal: false }).decode(searchArea)
+        
+        // Apple stores dates in various formats in metadata
+        const applePatterns = [
+          /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[\+\-]\d{2}:\d{2})/,
+          /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)/,
+        ]
+        
+        for (const pattern of applePatterns) {
+          const match = text.match(pattern)
+          if (match) {
+            const date = new Date(match[1])
+            if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && 
+                date.getFullYear() <= new Date().getFullYear() + 1) {
+              console.log(`Found iPhone date: ${date.toISOString()}`)
+              return date.toISOString()
+            }
+          }
+        }
+      }
+    }
+    
+    return null
+  } catch (error) {
+    console.error('Error extracting iPhone metadata:', error)
+    return null
+  }
+}
+
+function extractAndroidMetadata(data: Uint8Array): string | null {
+  try {
+    console.log('Searching for Android-specific metadata...')
+    
+    // Look for Android camera app signatures
+    const androidSignatures = ['android', 'camera2', 'CameraMetadata']
+    
+    for (const signature of androidSignatures) {
+      const sigBytes = new TextEncoder().encode(signature)
+      const index = findBytesPattern(data, Array.from(sigBytes))
+      
+      if (index !== -1) {
+        // Android cameras often store timestamps near their signatures
+        const searchArea = data.slice(Math.max(0, index - 200), Math.min(data.length, index + 500))
+        const text = new TextDecoder('utf-8', { fatal: false }).decode(searchArea)
+        
+        // Common Android timestamp formats
+        const androidPatterns = [
+          /(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/,
+          /(\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2})/,
+          /(\d{10})/  // Unix timestamp
+        ]
+        
+        for (const pattern of androidPatterns) {
+          const match = text.match(pattern)
+          if (match) {
+            let date: Date
+            if (match[1].length === 10 && /^\d{10}$/.test(match[1])) {
+              // Unix timestamp
+              date = new Date(parseInt(match[1]) * 1000)
+            } else {
+              date = new Date(match[1])
+            }
+            
+            if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && 
+                date.getFullYear() <= new Date().getFullYear() + 1) {
+              console.log(`Found Android date: ${date.toISOString()}`)
+              return date.toISOString()
+            }
+          }
+        }
+      }
+    }
+    
+    return null
+  } catch (error) {
+    console.error('Error extracting Android metadata:', error)
+    return null
+  }
+}
+
+function extractProResMetadata(data: Uint8Array): string | null {
+  try {
+    console.log('Searching for ProRes metadata...')
+    
+    // Look for ProRes-specific atoms
+    const proresAtoms = [
+      [0x61, 0x70, 0x63, 0x6E], // "apcn" - ProRes 422 Standard
+      [0x61, 0x70, 0x63, 0x68], // "apch" - ProRes 422 HQ
+      [0x61, 0x70, 0x63, 0x6F], // "apco" - ProRes 422 Proxy
+      [0x61, 0x70, 0x34, 0x68], // "ap4h" - ProRes 4444
+    ]
+    
+    for (const atom of proresAtoms) {
+      const atomIndex = findBytesPattern(data, atom)
+      if (atomIndex !== -1) {
+        // ProRes files often have creation time near the codec identifier
+        const searchArea = data.slice(Math.max(0, atomIndex - 500), Math.min(data.length, atomIndex + 500))
+        
+        // Try to find QuickTime timestamps around ProRes atoms
+        for (let i = 0; i < searchArea.length - 8; i += 4) {
+          try {
+            const qtTime = new DataView(searchArea.buffer, searchArea.byteOffset + i, 4).getUint32(0, false)
+            const unixTime = qtTime - 2082844800
+            
+            if (unixTime > 946684800 && unixTime < 4102444800) { // Valid range: 2000-2100
+              const date = new Date(unixTime * 1000)
+              if (date.getFullYear() >= 2000 && date.getFullYear() <= new Date().getFullYear() + 1) {
+                console.log(`Found ProRes date: ${date.toISOString()}`)
+                return date.toISOString()
+              }
+            }
+          } catch (e) {
+            // Continue searching
+          }
+        }
+      }
+    }
+    
+    return null
+  } catch (error) {
+    console.error('Error extracting ProRes metadata:', error)
+    return null
+  }
+}
+
+function extractH264H265Metadata(data: Uint8Array): string | null {
+  try {
+    console.log('Searching for H.264/H.265 metadata...')
+    
+    // Look for H.264/H.265 codec identifiers and associated metadata
+    const codecAtoms = [
+      [0x61, 0x76, 0x63, 0x31], // "avc1" - H.264
+      [0x68, 0x76, 0x63, 0x31], // "hvc1" - H.265/HEVC
+      [0x68, 0x65, 0x76, 0x31], // "hev1" - H.265/HEVC
+    ]
+    
+    for (const atom of codecAtoms) {
+      const atomIndex = findBytesPattern(data, atom)
+      if (atomIndex !== -1) {
+        // Search for SEI (Supplemental Enhancement Information) which might contain timestamps
+        const seiMarker = [0x00, 0x00, 0x00, 0x01, 0x06] // SEI NAL unit
+        const seiIndex = findBytesPattern(data.slice(atomIndex, atomIndex + 2000), seiMarker)
+        
+        if (seiIndex !== -1) {
+          const seiData = data.slice(atomIndex + seiIndex, atomIndex + seiIndex + 200)
+          const text = new TextDecoder('utf-8', { fatal: false }).decode(seiData)
+          
+          // Look for timestamps in SEI data
+          const seiPatterns = [
+            /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/,
+            /(\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2})/,
+          ]
+          
+          for (const pattern of seiPatterns) {
+            const match = text.match(pattern)
+            if (match) {
+              const date = new Date(match[1])
+              if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && 
+                  date.getFullYear() <= new Date().getFullYear() + 1) {
+                console.log(`Found H.264/H.265 date: ${date.toISOString()}`)
+                return date.toISOString()
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    return null
+  } catch (error) {
+    console.error('Error extracting H.264/H.265 metadata:', error)
+    return null
+  }
