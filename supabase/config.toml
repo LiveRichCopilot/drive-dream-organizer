@@ -1,1 +1,16 @@
 project_id = "iffvjtfrqaesoehbwtgi"
+
+[functions.google-auth]
+verify_jwt = false
+
+[functions.google-drive-list]
+verify_jwt = false
+
+[functions.google-drive-download]
+verify_jwt = false
+
+[functions.google-drive-organize]
+verify_jwt = false
+
+[functions.google-drive-rename]
+verify_jwt = false
