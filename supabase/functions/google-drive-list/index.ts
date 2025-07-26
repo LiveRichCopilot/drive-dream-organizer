@@ -78,6 +78,9 @@ serve(async (req) => {
     }
 
     // List video files from Google Drive
+    let allVideoFiles = []
+    
+    // First, try the direct folder search
     const driveUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,size,createdTime,thumbnailLink,videoMediaMetadata)&pageSize=100`
     console.log('Full Drive API URL:', driveUrl)
     
@@ -99,10 +102,49 @@ serve(async (req) => {
     }
 
     const data = await response.json()
-    console.log('Google Drive API response:', JSON.stringify(data, null, 2))
+    console.log('Direct folder search results:', data.files?.length || 0, 'videos')
+    allVideoFiles.push(...(data.files || []))
+
+    // If searching a specific folder and no videos found directly, search subfolders recursively
+    if (folderId && allVideoFiles.length === 0) {
+      console.log('No videos in direct folder, searching subfolders recursively...')
+      
+      try {
+        // Get all subfolders in the specified folder
+        const subfoldersUrl = `https://www.googleapis.com/drive/v3/files?q='${folderId}' in parents and mimeType='application/vnd.google-apps.folder'&fields=files(id,name)&pageSize=100`
+        const subfoldersResponse = await fetch(subfoldersUrl, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        })
+        
+        if (subfoldersResponse.ok) {
+          const subfoldersData = await subfoldersResponse.json()
+          console.log('Found subfolders:', subfoldersData.files?.map(f => f.name) || [])
+          
+          // Search each subfolder for videos
+          for (const subfolder of subfoldersData.files || []) {
+            const subfolderQuery = `mimeType contains 'video/' and '${subfolder.id}' in parents`
+            const subfolderUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(subfolderQuery)}&fields=files(id,name,size,createdTime,thumbnailLink,videoMediaMetadata)&pageSize=100`
+            
+            const subfolderResponse = await fetch(subfolderUrl, {
+              headers: { 'Authorization': `Bearer ${accessToken}` }
+            })
+            
+            if (subfolderResponse.ok) {
+              const subfolderData = await subfolderResponse.json()
+              console.log(`Found ${subfolderData.files?.length || 0} videos in subfolder "${subfolder.name}"`)
+              allVideoFiles.push(...(subfolderData.files || []))
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error searching subfolders:', error)
+      }
+    }
+
+    console.log('Total videos found:', allVideoFiles.length)
     
     // Transform the files to match our VideoFile interface
-    const videoFiles = data.files?.map((file: any) => ({
+    const videoFiles = allVideoFiles?.map((file: any) => ({
       id: file.id,
       name: file.name,
       size: file.size ? parseInt(file.size) : 0,
