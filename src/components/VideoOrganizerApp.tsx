@@ -362,12 +362,19 @@ const VideoOrganizerApp = () => {
           <Video className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
           <h3 className="text-xl font-semibold mb-2">No videos found</h3>
           <p className="text-muted-foreground mb-6">
-            {searchQuery ? "Try adjusting your search terms" : "Connect your Google Drive to see videos"}
+            {selectedFolderId 
+              ? `No videos found in the selected folder. Try checking if the folder contains video files directly (not in subfolders).`
+              : searchQuery 
+                ? "Try adjusting your search terms" 
+                : "Connect your Google Drive to see videos"
+            }
           </p>
-          <Button variant="glass">
-            <Upload className="h-4 w-4 mr-2" />
-            Upload Videos
-          </Button>
+          {!selectedFolderId && (
+            <Button variant="glass">
+              <Upload className="h-4 w-4 mr-2" />
+              Upload Videos
+            </Button>
+          )}
         </div>
       )}
       
