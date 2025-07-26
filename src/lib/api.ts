@@ -26,16 +26,11 @@ export interface VideoFile {
 
 class APIClient {
   private accessToken: string | null = null;
-  private refreshToken: string | null = null;
-  private tokenExpiry: number | null = null;
   private baseURL = 'https://iffvjtfrqaesoehbwtgi.supabase.co/functions/v1';
 
   constructor() {
-    // Check for existing tokens in localStorage
+    // Check for existing token in localStorage
     this.accessToken = localStorage.getItem('google_access_token');
-    this.refreshToken = localStorage.getItem('google_refresh_token');
-    const expiry = localStorage.getItem('google_token_expiry');
-    this.tokenExpiry = expiry ? parseInt(expiry) : null;
   }
 
   async authenticate(): Promise<void> {
@@ -113,19 +108,7 @@ class APIClient {
             
             const data = await response.json();
             this.accessToken = data.access_token;
-            this.refreshToken = data.refresh_token;
-            
-            // Store tokens and expiry
             localStorage.setItem('google_access_token', this.accessToken!);
-            if (this.refreshToken) {
-              localStorage.setItem('google_refresh_token', this.refreshToken);
-            }
-            
-            // Set expiry time (Google tokens expire in 1 hour)
-            const expiryTime = Date.now() + (data.expires_in || 3600) * 1000;
-            this.tokenExpiry = expiryTime;
-            localStorage.setItem('google_token_expiry', expiryTime.toString());
-            
             resolve();
           } catch (error) {
             reject(error);
@@ -153,58 +136,7 @@ class APIClient {
     }
   }
 
-  private async refreshAccessToken(): Promise<void> {
-    if (!this.refreshToken) {
-      throw new Error('No refresh token available. Please re-authenticate.');
-    }
-
-    try {
-      const response = await fetch(`${this.baseURL}/google-auth`, {
-        method: 'PUT', // Use PUT for refresh
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88`,
-        },
-        body: JSON.stringify({ refresh_token: this.refreshToken }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to refresh token');
-      }
-
-      const data = await response.json();
-      this.accessToken = data.access_token;
-      
-      // Update stored token
-      localStorage.setItem('google_access_token', this.accessToken!);
-      
-      // Update expiry time
-      const expiryTime = Date.now() + (data.expires_in || 3600) * 1000;
-      this.tokenExpiry = expiryTime;
-      localStorage.setItem('google_token_expiry', expiryTime.toString());
-    } catch (error) {
-      console.error('Token refresh failed:', error);
-      // Clear tokens and force re-authentication
-      this.logout();
-      throw new Error('Session expired. Please reconnect to Google Drive.');
-    }
-  }
-
-  private async ensureValidToken(): Promise<void> {
-    // Check if token is close to expiry (refresh 5 minutes early)
-    const fiveMinutes = 5 * 60 * 1000;
-    const needsRefresh = this.tokenExpiry && (Date.now() + fiveMinutes) >= this.tokenExpiry;
-    
-    if (needsRefresh && this.refreshToken) {
-      await this.refreshAccessToken();
-    } else if (!this.accessToken) {
-      throw new Error('No access token available. Please authenticate first.');
-    }
-  }
-
   async listVideoFiles(folderId?: string): Promise<VideoFile[]> {
-    await this.ensureValidToken();
-    
     const response = await fetch(`${this.baseURL}/google-drive-list`, {
       method: 'POST',
       headers: {
@@ -224,8 +156,6 @@ class APIClient {
   }
 
   async downloadFile(fileId: string, fileName: string): Promise<string> {
-    await this.ensureValidToken();
-    
     const response = await fetch(`${this.baseURL}/google-drive-download`, {
       method: 'POST',
       headers: {
@@ -245,7 +175,6 @@ class APIClient {
   }
 
   async renameFile(fileId: string, newName: string): Promise<void> {
-    await this.ensureValidToken();
     const response = await fetch(`${this.baseURL}/google-drive-rename`, {
       method: 'POST',
       headers: {
@@ -262,7 +191,6 @@ class APIClient {
   }
 
   async organizeVideosByDate(fileIds: string[]): Promise<void> {
-    await this.ensureValidToken();
     const response = await fetch(`${this.baseURL}/google-drive-organize`, {
       method: 'POST',
       headers: {
@@ -279,8 +207,6 @@ class APIClient {
   }
 
   async extractVideoMetadata(fileId: string): Promise<any> {
-    await this.ensureValidToken();
-    
     const response = await fetch(`${this.baseURL}/video-metadata-extractor`, {
       method: 'POST',
       headers: {
@@ -299,7 +225,6 @@ class APIClient {
   }
 
   async generateProjectFiles(videos: any[], settings: any): Promise<any> {
-    await this.ensureValidToken();
     const response = await fetch(`${this.baseURL}/project-file-generator`, {
       method: 'POST',
       headers: {
@@ -317,8 +242,6 @@ class APIClient {
   }
 
   async uploadOrganizedVideos(processedVideos: any[], destinationFolderName: string, organizationStructure: any, sourceFolderId?: string): Promise<any> {
-    await this.ensureValidToken();
-    
     const response = await fetch(`${this.baseURL}/google-drive-upload`, {
       method: 'POST',
       headers: {
@@ -372,11 +295,7 @@ class APIClient {
 
   logout(): void {
     this.accessToken = null;
-    this.refreshToken = null;
-    this.tokenExpiry = null;
     localStorage.removeItem('google_access_token');
-    localStorage.removeItem('google_refresh_token');
-    localStorage.removeItem('google_token_expiry');
   }
 }
 
