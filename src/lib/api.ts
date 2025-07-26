@@ -56,7 +56,7 @@ class APIClient {
       
       return new Promise((resolve, reject) => {
         const clientId = client_id;
-        const scope = 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file';
+        const scope = 'https://www.googleapis.com/auth/drive';
         const responseType = 'code';
         const redirectUri = `${window.location.origin}/auth/callback`;
         console.log('Using redirect URI:', redirectUri);
