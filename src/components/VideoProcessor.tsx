@@ -323,8 +323,17 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
     }));
 
     results.downloadedVideos.forEach((video, index) => {
-      const date = video.originalDate;
-      const timestamp = date.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const date = new Date(video.originalDate);
+      
+      // Format as YYYY-MM-DDTHH-MM-SS (more readable timestamp)
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+      
+      const timestamp = `${year}-${month}-${day}T${hours}-${minutes}-${seconds}`;
       const extension = video.originalName.split('.').pop();
       
       video.newName = `${timestamp}.${extension}`;

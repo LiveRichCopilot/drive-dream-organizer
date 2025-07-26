@@ -92,131 +92,96 @@ serve(async (req) => {
       }
     }
 
-    // Step 3: Process videos in smaller batches to avoid memory issues
+    // Step 3: Process videos one at a time to avoid memory issues
     const uploadedVideos = []
     let successCount = 0
     let errorCount = 0
-    const BATCH_SIZE = 5; // Process 5 videos at a time to avoid memory issues
 
-    console.log(`Processing ${processedVideos.length} videos in batches of ${BATCH_SIZE}`)
+    console.log(`Processing ${processedVideos.length} videos one at a time to avoid memory issues`)
 
-    for (let batchStart = 0; batchStart < processedVideos.length; batchStart += BATCH_SIZE) {
-      const batchEnd = Math.min(batchStart + BATCH_SIZE, processedVideos.length)
-      const batch = processedVideos.slice(batchStart, batchEnd)
-      
-      console.log(`Processing batch ${Math.floor(batchStart/BATCH_SIZE) + 1}/${Math.ceil(processedVideos.length/BATCH_SIZE)}: videos ${batchStart + 1}-${batchEnd}`)
+    for (let i = 0; i < processedVideos.length; i++) {
+      const video = processedVideos[i]
+      console.log(`Processing video ${i + 1}/${processedVideos.length}: ${video.originalName}`)
 
-      for (const video of batch) {
-        try {
-          // Use the ORIGINAL metadata date (when video was actually shot)
-          const originalDate = new Date(video.metadata?.originalCreationDate || video.originalDate)
-          const yearMonth = `${originalDate.getFullYear()}/${String(originalDate.getMonth() + 1).padStart(2, '0')}-${originalDate.toLocaleDateString('en', { month: 'long' })}`
-          let targetFolderId = folderMap.get(yearMonth)
-          
-          // Create subfolder if it doesn't exist
-          if (!targetFolderId) {
-            const subfolderResponse = await fetch(
-              'https://www.googleapis.com/drive/v3/files',
-              {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${accessToken}`,
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                  name: yearMonth,
-                  mimeType: 'application/vnd.google-apps.folder',
-                  parents: [mainFolder.id]
-                })
-              }
-            )
-
-            if (subfolderResponse.ok) {
-              const subfolder = await subfolderResponse.json()
-              folderMap.set(yearMonth, subfolder.id)
-              targetFolderId = subfolder.id
-              console.log(`Created subfolder ${yearMonth}:`, subfolder.id)
-            } else {
-              targetFolderId = mainFolder.id // Fallback to main folder
-            }
-          }
-
-          // Step 3a: Download the original file
-          const downloadResponse = await fetch(
-            `https://www.googleapis.com/drive/v3/files/${video.id}?alt=media`,
+      try {
+        // Use the original date for folder organization
+        const originalDate = new Date(video.originalDate)
+        const yearMonth = `${originalDate.getFullYear()}/${String(originalDate.getMonth() + 1).padStart(2, '0')}-${originalDate.toLocaleDateString('en', { month: 'long' })}`
+        let targetFolderId = folderMap.get(yearMonth)
+        
+        // Create subfolder if it doesn't exist
+        if (!targetFolderId) {
+          const subfolderResponse = await fetch(
+            'https://www.googleapis.com/drive/v3/files',
             {
+              method: 'POST',
               headers: {
-                'Authorization': `Bearer ${accessToken}`
-              }
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                name: yearMonth,
+                mimeType: 'application/vnd.google-apps.folder',
+                parents: [mainFolder.id]
+              })
             }
           )
 
-          if (!downloadResponse.ok) {
-            throw new Error(`Failed to download video ${video.originalName}`)
+          if (subfolderResponse.ok) {
+            const subfolder = await subfolderResponse.json()
+            folderMap.set(yearMonth, subfolder.id)
+            targetFolderId = subfolder.id
+            console.log(`Created subfolder ${yearMonth}:`, subfolder.id)
+          } else {
+            targetFolderId = mainFolder.id // Fallback to main folder
           }
+        }
 
-          const videoBlob = await downloadResponse.blob()
-          console.log(`Downloaded ${video.originalName} (${videoBlob.size} bytes)`)
-
-          // Step 3b: Upload with new name to organized folder
-          const uploadUrl = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart'
-          
-          const formData = new FormData()
-          
-          // Metadata for the new file
-          const metadata = {
-            name: video.newName,
-            parents: [targetFolderId],
-            description: `Organized video - Original: ${video.originalName}, Created: ${video.originalDate}`
-          }
-          
-          formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }))
-          formData.append('file', videoBlob)
-
-          const uploadResponse = await fetch(uploadUrl, {
+        // Use Google Drive copy operation instead of download/upload to avoid memory issues
+        const copyResponse = await fetch(
+          `https://www.googleapis.com/drive/v3/files/${video.id}/copy`,
+          {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${accessToken}`
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
             },
-            body: formData
-          })
-
-          if (!uploadResponse.ok) {
-            throw new Error(`Failed to upload ${video.newName}`)
+            body: JSON.stringify({
+              name: video.newName,
+              parents: [targetFolderId],
+              description: `Organized video - Original: ${video.originalName}, Created: ${video.originalDate}`
+            })
           }
+        )
 
-          const uploadedFile = await uploadResponse.json()
-          uploadedVideos.push({
-            ...video,
-            newId: uploadedFile.id,
-            uploadedPath: `${destinationFolderName}/${yearMonth}/${video.newName}`,
-            uploadSuccess: true
-          })
-
-          successCount++
-          console.log(`Successfully uploaded ${video.newName} to ${yearMonth}`)
-
-          // Small delay to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 200))
-
-        } catch (error) {
-          console.error(`Failed to process video ${video.originalName}:`, error)
-          uploadedVideos.push({
-            ...video,
-            uploadSuccess: false,
-            error: error.message
-          })
-          errorCount++
+        if (!copyResponse.ok) {
+          throw new Error(`Failed to copy video ${video.originalName}`)
         }
+
+        const copiedFile = await copyResponse.json()
+        console.log(`Successfully uploaded ${video.newName} to ${yearMonth}`)
+
+        uploadedVideos.push({
+          ...video,
+          newId: copiedFile.id,
+          uploadedPath: `${destinationFolderName}/${yearMonth}/${video.newName}`,
+          uploadSuccess: true
+        })
+        
+        successCount++
+
+        // Small delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 100))
+
+      } catch (error) {
+        console.error(`Error processing video ${video.originalName}:`, error)
+        uploadedVideos.push({
+          ...video,
+          uploadSuccess: false,
+          error: error.message
+        })
+        errorCount++
       }
-      
-      // Force garbage collection between batches to manage memory
-      if (typeof globalThis.gc === 'function') {
-        globalThis.gc()
-      }
-      
-      // Small pause between batches
-      await new Promise(resolve => setTimeout(resolve, 500))
     }
 
     // Step 4: Return results
