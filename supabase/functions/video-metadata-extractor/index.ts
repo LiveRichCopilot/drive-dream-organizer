@@ -332,13 +332,16 @@ function extractQuickTimeCreationDate(data: Uint8Array): string | null {
   try {
     console.log('Starting QuickTime metadata extraction...')
     
-    // Look for multiple QuickTime atoms - enhanced search
+    // Enhanced search for iPhone/QuickTime atoms with more comprehensive patterns
     const atoms = [
       { name: 'mvhd', bytes: [0x6D, 0x76, 0x68, 0x64], offsets: [8, 12, 16, 20, 24] }, // movie header
       { name: 'mdhd', bytes: [0x6D, 0x64, 0x68, 0x64], offsets: [12, 16, 20, 24, 28] }, // media header  
       { name: 'tkhd', bytes: [0x74, 0x6B, 0x68, 0x64], offsets: [8, 12, 16, 20, 24] }, // track header
       { name: 'udta', bytes: [0x75, 0x64, 0x74, 0x61], offsets: [8, 12, 16, 20] }, // user data
       { name: 'uuid', bytes: [0x75, 0x75, 0x69, 0x64], offsets: [16, 20, 24, 28] }, // UUID boxes
+      // iPhone-specific patterns
+      { name: 'meta', bytes: [0x6D, 0x65, 0x74, 0x61], offsets: [8, 12, 16, 20, 24] }, // metadata box
+      { name: 'ilst', bytes: [0x69, 0x6C, 0x73, 0x74], offsets: [8, 12, 16, 20] }, // iTunes-style metadata
     ]
     
     for (const atom of atoms) {
