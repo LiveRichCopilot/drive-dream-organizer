@@ -233,7 +233,7 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
 
         // Extract real metadata to get original shooting date
         console.log(`Extracting metadata for ${video.name}...`);
-        let originalDate = new Date(video.createdTime); // Fallback to Google's date
+        let originalDate: Date | null = null; // NO FALLBACK to Google's upload date
         let actualMetadata = null;
         
         try {
@@ -241,22 +241,22 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
           console.log(`Metadata for ${video.name}:`, metadata);
           actualMetadata = metadata;
           
-          // Use the extracted original date if available
+          // ONLY use extracted original date if available - never use upload dates
           if (metadata.originalDate) {
             originalDate = new Date(metadata.originalDate);
-            console.log(`Using original date for ${video.name}: ${originalDate.toISOString()}`);
-          } else if (metadata.createdTime) {
-            originalDate = new Date(metadata.createdTime);
-            console.log(`Using metadata createdTime for ${video.name}: ${originalDate.toISOString()}`);
-          } else if (metadata.modifiedTime) {
-            originalDate = new Date(metadata.modifiedTime);
-            console.log(`Using metadata modifiedTime for ${video.name}: ${originalDate.toISOString()}`);
+            console.log(`✓ SUCCESS: Using extracted original date for ${video.name}: ${originalDate.toISOString()}`);
           } else {
-            console.log(`No original date found for ${video.name}, using Google Drive date`);
+            console.log(`✗ FAILED: No original shooting date found for ${video.name} - SKIPPING video as it has no valid metadata`);
+            // Skip this video entirely if we can't get its original date
+            continue;
           }
         } catch (error) {
-          console.error(`Failed to extract metadata for ${video.name}:`, error);
+          console.error(`✗ FAILED: Metadata extraction error for ${video.name}:`, error);
+          // Skip this video entirely if metadata extraction fails
+          continue;
         }
+
+        // If we get here, we have a valid originalDate
 
         // Generate proper filename based on original date
         const formatDateTime = (date: Date) => {
