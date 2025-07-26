@@ -996,26 +996,10 @@ function extractMP4CreationDate(data: Uint8Array): string | null {
   try {
     console.log('Starting MP4 metadata extraction...')
     
-    // iPhone MP4 files store creation dates in multiple locations:
-    // 1. mvhd atom (movie header) - same as QuickTime
-    // 2. Meta atoms with creation_time
-    // 3. udta atoms with Apple metadata
+    // For MP4 files, first try to use the same mvhd approach as QuickTime
+    // since MP4 is based on the QuickTime container format
     
-    // First try the standard mvhd approach (works for iPhone MP4s too)
-    const mvhdDate = extractMvhdDate(data)
-    if (mvhdDate) {
-      console.log(`✓ SUCCESS via MP4 mvhd: ${mvhdDate}`)
-      return mvhdDate
-    }
-    
-    // Look for MP4 meta atoms
-    const metaDate = extractMP4MetaDate(data)
-    if (metaDate) {
-      console.log(`✓ SUCCESS via MP4 meta: ${metaDate}`)
-      return metaDate
-    }
-    
-    // Search for creation_time strings in the file
+    // Look for creation_time strings specific to MP4 metadata
     const creationTimePattern = new TextEncoder().encode('creation_time')
     const creationIndex = findBytesPattern(data, Array.from(creationTimePattern))
     
@@ -1060,58 +1044,17 @@ function extractMP4CreationDate(data: Uint8Array): string | null {
       }
     }
     
-    console.log('No MP4 creation date found')
+    // Look for MP4 meta atoms
+    const metaDate = extractMP4MetaDate(data)
+    if (metaDate) {
+      console.log(`✓ SUCCESS via MP4 meta: ${metaDate}`)
+      return metaDate
+    }
+    
+    console.log('No MP4-specific creation date found')
     return null
   } catch (error) {
     console.error('Error extracting MP4 creation date:', error)
-    return null
-  }
-}
-
-// Helper function to extract mvhd date from MP4 files
-function extractMvhdDate(data: Uint8Array): string | null {
-  try {
-    const mvhdIndex = findBytesPattern(data, [0x6D, 0x76, 0x68, 0x64]) // "mvhd"
-    if (mvhdIndex === -1) {
-      return null
-    }
-    
-    console.log(`Found mvhd atom in MP4 at index ${mvhdIndex}`)
-    
-    if (mvhdIndex + 20 > data.length) {
-      return null
-    }
-    
-    const version = data[mvhdIndex + 8]
-    console.log(`mvhd version: ${version}`)
-    
-    let creationTime: number
-    
-    if (version === 0 && mvhdIndex + 16 <= data.length) {
-      creationTime = new DataView(data.buffer, data.byteOffset + mvhdIndex + 12, 4).getUint32(0, false)
-    } else if (version === 1 && mvhdIndex + 24 <= data.length) {
-      const creationTime64 = new DataView(data.buffer, data.byteOffset + mvhdIndex + 16, 8).getBigUint64(0, false)
-      creationTime = Number(creationTime64)
-    } else {
-      console.log(`Unsupported mvhd version: ${version}`)
-      return null
-    }
-    
-    // Convert from Mac epoch (1904) to Unix epoch (1970)
-    const unixTime = creationTime - 2082844800
-    
-    if (unixTime > 946684800 && unixTime < 4102444800) { // 2000-2100 range
-      const date = new Date(unixTime * 1000)
-      if (!isNaN(date.getTime()) && 
-          date.getFullYear() >= 2000 && 
-          date.getFullYear() <= 2030) {
-        return date.toISOString()
-      }
-    }
-    
-    return null
-  } catch (error) {
-    console.error('Error extracting mvhd date:', error)
     return null
   }
 }
