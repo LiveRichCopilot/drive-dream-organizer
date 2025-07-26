@@ -5,7 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Check if ExifTool is available and install if needed
+// Check if ExifTool is available
 async function ensureExifTool(): Promise<boolean> {
   try {
     const process = new Deno.Command("exiftool", {
@@ -20,28 +20,10 @@ async function ensureExifTool(): Promise<boolean> {
       return true
     }
   } catch (error) {
-    console.log("ExifTool not found, attempting installation...")
+    console.log("❌ ExifTool not found:", error)
   }
 
-  try {
-    // Try to install ExifTool via apt (Debian/Ubuntu based systems)
-    console.log("Installing ExifTool...")
-    const installProcess = new Deno.Command("apt-get", {
-      args: ["update", "&&", "apt-get", "install", "-y", "exiftool"],
-      stdout: "piped",
-      stderr: "piped"
-    })
-    
-    const { code: installCode } = await installProcess.output()
-    if (installCode === 0) {
-      console.log("✅ ExifTool installed successfully")
-      return true
-    }
-  } catch (error) {
-    console.error("Failed to install ExifTool:", error)
-  }
-
-  console.log("❌ ExifTool is not available and could not be installed")
+  console.log("❌ ExifTool is not available")
   return false
 }
 
@@ -51,17 +33,17 @@ serve(async (req) => {
   }
 
   try {
-    // Ensure ExifTool is available
+    // Check ExifTool availability
     const exifToolAvailable = await ensureExifTool()
     if (!exifToolAvailable) {
-      console.warn("⚠️ ExifTool not available, will use fallback metadata extraction")
+      console.warn("⚠️ ExifTool not available, using fallback metadata extraction")
     }
+
     const authHeader = req.headers.get('authorization')
     const accessToken = authHeader?.replace('Bearer ', '')
     
     console.log('Auth header received:', authHeader ? 'Present' : 'Missing')
     console.log('Access token length:', accessToken?.length || 0)
-    console.log('Access token prefix:', accessToken?.substring(0, 20) + '...')
     
     if (!accessToken) {
       return new Response(
@@ -104,7 +86,7 @@ serve(async (req) => {
     const fileData = await fileResponse.json()
     console.log('File metadata retrieved:', fileData)
 
-    // Try to extract the real shooting date from video file metadata (with optimization)
+    // Try to extract the real shooting date from video file metadata
     const realShootingDate = await extractRealShootingDate(fileId, accessToken, fileData.name, parseInt(fileData.size || '0'), exifToolAvailable)
 
     // Extract enhanced metadata
@@ -169,8 +151,6 @@ serve(async (req) => {
   } catch (error) {
     console.error('❌ CRITICAL ERROR in video-metadata-extractor function:', error)
     console.error('Error stack:', error.stack)
-    console.error('Error name:', error.name)
-    console.error('Error message:', error.message)
     
     return new Response(
       JSON.stringify({ 
@@ -261,7 +241,7 @@ function getYear(dateString: string): string {
 
 async function extractRealShootingDate(fileId: string, accessToken: string, fileName: string, fileSize: number, exifToolAvailable: boolean = false): Promise<string | null> {
   try {
-    console.log(`=== EXIFTOOL METADATA EXTRACTION START for ${fileName} ===`)
+    console.log(`=== METADATA EXTRACTION START for ${fileName} ===`)
     console.log(`File size: ${Math.floor(fileSize / 1024 / 1024)}MB, Format: ${getVideoFormat(fileName)}`)
     
     // Try filename pattern extraction first (fastest method)
@@ -358,20 +338,12 @@ function extractDateFromFilename(fileName: string): string | null {
     /(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})/,      // YYYYMMDD_HHMMSS
     /(\d{4})-(\d{2})-(\d{2})/,                          // YYYY-MM-DD
     /(\d{4})(\d{2})(\d{2})/,                           // YYYYMMDD
-    // iPhone/iOS patterns with date extraction
-    /IMG_(\d{4})\.MOV/,                                 // IMG_NNNN.MOV (iPhone)
     /(\d{4})-(\d{2})-(\d{2}) (\d{2})\.(\d{2})\.(\d{2})/, // YYYY-MM-DD HH.MM.SS
   ]
   
   for (const pattern of patterns) {
     const match = fileName.match(pattern)
     if (match) {
-      // For iPhone naming pattern IMG_NNNN.MOV, skip filename extraction
-      if (pattern === patterns[7] && match[1]) {
-        // Skip IMG_NNNN pattern as it doesn't contain date info
-        continue
-      }
-      
       const year = parseInt(match[1])
       const month = parseInt(match[2]) || 1
       const day = parseInt(match[3]) || 1
@@ -536,15 +508,11 @@ function convertExifDateToISO(exifDate: string): string | null {
 
 async function downloadVideoMetadata(fileId: string, accessToken: string, fileSize: number): Promise<Uint8Array | null> {
   try {
-    // **OPTIMIZED DOWNLOAD STRATEGY** - Be more conservative to avoid timeouts
-    const downloadSize = Math.min(
-      fileSize < 10 * 1024 * 1024 ? fileSize : 5 * 1024 * 1024, // Full file if < 10MB, otherwise 5MB
-      fileSize
-    )
+    // Download first 5MB for metadata extraction
+    const downloadSize = Math.min(5 * 1024 * 1024, fileSize)
     
-    console.log(`📥 Downloading ${Math.floor(downloadSize / 1024 / 1024)}MB of ${Math.floor(fileSize / 1024 / 1024)}MB file for metadata extraction`)
+    console.log(`📥 Downloading ${Math.floor(downloadSize / 1024 / 1024)}MB for metadata extraction`)
     
-    // Download the ORIGINAL file without any transcoding
     const response = await fetch(
       `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
       {
@@ -561,8 +529,6 @@ async function downloadVideoMetadata(fileId: string, accessToken: string, fileSi
     }
     
     const arrayBuffer = await response.arrayBuffer()
-    console.log(`✅ Successfully downloaded ${arrayBuffer.byteLength} bytes for metadata extraction`)
-    
     return new Uint8Array(arrayBuffer)
   } catch (error) {
     console.error('Error downloading video metadata:', error)
@@ -573,883 +539,58 @@ async function downloadVideoMetadata(fileId: string, accessToken: string, fileSi
 function extractQuickTimeCreationDate(data: Uint8Array): string | null {
   try {
     console.log('🎬 Starting QuickTime/MOV metadata extraction...')
-    console.log(`📁 File size: ${data.length} bytes`)
     
-    // Convert entire file to text for broad pattern searching
-    const text = new TextDecoder('utf-8', { fatal: false }).decode(data)
+    // Look for 'mvhd' (movie header) atom
+    const mvhdPattern = [0x6D, 0x76, 0x68, 0x64] // "mvhd"
+    const mvhdIndex = findBytesPattern(data, mvhdPattern)
     
-    // First, try to find any ISO-style timestamps in the file
-    const isoPatterns = [
-      /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/g,
-      /(\d{4}:\d{2}:\d{2} \d{2}:\d{2}:\d{2})/g,
-      /(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/g
-    ]
-    
-    for (const pattern of isoPatterns) {
-      let match
-      while ((match = pattern.exec(text)) !== null) {
-        const dateStr = match[1].replace(/:/g, '-').replace(' ', 'T')
-        const date = new Date(dateStr)
-        
-        if (!isNaN(date.getTime()) && 
-            date.getFullYear() >= 2000 && 
-            date.getFullYear() <= 2030) {
-          console.log(`✅ Found ISO date in file: ${date.toISOString()}`)
-          return date.toISOString()
-        }
-      }
-    }
-    
-    // Try standard QuickTime atom parsing
-    const ftypIndex = findBytesPattern(data, [0x66, 0x74, 0x79, 0x70]) // "ftyp"
-    if (ftypIndex === -1) {
-      console.log('❌ No ftyp box found - may not be QuickTime format')
-      return tryGenericTimestampExtraction(data)
-    }
-    
-    console.log(`✅ Found ftyp box at ${ftypIndex}`)
-    
-    // Look for mvhd (movie header) atom
-    let mvhdIndex = findBytesPattern(data, [0x6D, 0x76, 0x68, 0x64]) // "mvhd"
-    
-    if (mvhdIndex === -1) {
-      // Try looking inside moov container
-      const moovIndex = findBytesPattern(data, [0x6D, 0x6F, 0x6F, 0x76]) // "moov"
-      if (moovIndex !== -1) {
-        console.log(`✅ Found moov container at ${moovIndex}`)
-        const searchArea = data.slice(moovIndex, Math.min(moovIndex + 5000, data.length))
-        const localMvhdIndex = findBytesPattern(searchArea, [0x6D, 0x76, 0x68, 0x64])
-        if (localMvhdIndex !== -1) {
-          mvhdIndex = moovIndex + localMvhdIndex
-        }
-      }
-    }
-    
-    if (mvhdIndex !== -1) {
-      console.log(`✅ Found mvhd atom at ${mvhdIndex}`)
+    if (mvhdIndex !== -1 && mvhdIndex + 20 <= data.length) {
+      console.log(`Found mvhd atom at index ${mvhdIndex}`)
       
-      // Try to extract timestamp from mvhd
-      if (mvhdIndex + 24 < data.length) {
+      try {
         const version = data[mvhdIndex + 8]
-        console.log(`mvhd version: ${version}`)
-        
-        try {
-          let timestamp = 0
-          
-          if (version === 0 && mvhdIndex + 16 <= data.length) {
-            timestamp = new DataView(data.buffer, data.byteOffset + mvhdIndex + 12, 4).getUint32(0, false)
-          } else if (version === 1 && mvhdIndex + 24 <= data.length) {
-            const timestamp64 = new DataView(data.buffer, data.byteOffset + mvhdIndex + 16, 8).getBigUint64(0, false)
-            timestamp = Number(timestamp64)
-          }
-          
-          if (timestamp > 0) {
-            // Convert from Mac epoch (1904) to Unix epoch (1970)
-            const unixTime = timestamp - 2082844800
-            console.log(`Raw timestamp: ${timestamp}, Unix: ${unixTime}`)
-            
-            if (unixTime > 946684800 && unixTime < 4102444800) { // 2000-2100
-              const date = new Date(unixTime * 1000)
-              if (!isNaN(date.getTime()) && date.getFullYear() >= 2000) {
-                console.log(`✅ Extracted from mvhd: ${date.toISOString()}`)
-                return date.toISOString()
-              }
-            }
-          }
-        } catch (e) {
-          console.log(`⚠️ mvhd parsing error: ${e.message}`)
-        }
-      }
-    }
-    
-    // Fallback: try generic timestamp extraction
-    return tryGenericTimestampExtraction(data)
-    
-  } catch (error) {
-    console.error('❌ QuickTime extraction error:', error)
-    return null
-  }
-}
-
-// Generic timestamp extraction as fallback
-function tryGenericTimestampExtraction(data: Uint8Array): string | null {
-  try {
-    console.log('🔍 Trying generic timestamp extraction...')
-    
-    // Look for common timestamp patterns in binary data
-    const searches = [
-      'creation_time',
-      'created',
-      'date',
-      '©day',
-      'IDAT',
-      'tIME'
-    ]
-    
-    for (const search of searches) {
-      const searchBytes = new TextEncoder().encode(search)
-      const index = findBytesPattern(data, Array.from(searchBytes))
-      
-      if (index !== -1) {
-        console.log(`Found ${search} at ${index}`)
-        
-        // Look for timestamps around this location
-        const start = Math.max(0, index - 50)
-        const end = Math.min(data.length, index + 200)
-        const segment = data.slice(start, end)
-        
-        // Try to find timestamp patterns in this segment
-        for (let i = 0; i < segment.length - 8; i++) {
-          try {
-            // Try 32-bit timestamp
-            const ts32 = new DataView(segment.buffer, segment.byteOffset + i, 4).getUint32(0, false)
-            const unix32 = ts32 - 2082844800 // Mac epoch conversion
-            
-            if (unix32 > 946684800 && unix32 < 4102444800) {
-              const date = new Date(unix32 * 1000)
-              if (!isNaN(date.getTime()) && date.getFullYear() >= 2000) {
-                console.log(`✅ Found timestamp near ${search}: ${date.toISOString()}`)
-                return date.toISOString()
-              }
-            }
-            
-            // Try 64-bit timestamp
-            if (i < segment.length - 8) {
-              const ts64 = new DataView(segment.buffer, segment.byteOffset + i, 8).getBigUint64(0, false)
-              const unix64 = Number(ts64) - 2082844800
-              
-              if (unix64 > 946684800 && unix64 < 4102444800) {
-                const date = new Date(unix64 * 1000)
-                if (!isNaN(date.getTime()) && date.getFullYear() >= 2000) {
-                  console.log(`✅ Found 64-bit timestamp near ${search}: ${date.toISOString()}`)
-                  return date.toISOString()
-                }
-              }
-            }
-          } catch (e) {
-            // Continue searching
-          }
-        }
-      }
-    }
-    
-    console.log('❌ No valid timestamps found in generic extraction')
-    return null
-  } catch (error) {
-    console.error('❌ Generic extraction error:', error)
-    return null
-  }
-  
-  // Fallback: Look for media header atoms (mdhd) which also contain creation times
-  const mdhdPattern = [0x6D, 0x64, 0x68, 0x64] // "mdhd"
-  let searchStart = 0
-  
-  while (searchStart < data.length - 24) {
-    const mdhdIndex = findBytesPattern(data.slice(searchStart), mdhdPattern)
-    if (mdhdIndex === -1) break
-    
-    const absoluteIndex = searchStart + mdhdIndex
-    console.log(`Found mdhd atom at index ${absoluteIndex}`)
-    
-    try {
-      if (absoluteIndex + 24 <= data.length) {
-        const version = data[absoluteIndex + 8]
         let creationTime: number
         
-        if (version === 0 && absoluteIndex + 16 <= data.length) {
-          creationTime = new DataView(data.buffer, data.byteOffset + absoluteIndex + 12, 4).getUint32(0, false)
-        } else if (version === 1 && absoluteIndex + 24 <= data.length) {
-          const creationTime64 = new DataView(data.buffer, data.byteOffset + absoluteIndex + 16, 8).getBigUint64(0, false)
+        if (version === 0 && mvhdIndex + 16 <= data.length) {
+          creationTime = new DataView(data.buffer, data.byteOffset + mvhdIndex + 12, 4).getUint32(0, false)
+        } else if (version === 1 && mvhdIndex + 24 <= data.length) {
+          const creationTime64 = new DataView(data.buffer, data.byteOffset + mvhdIndex + 16, 8).getBigUint64(0, false)
           creationTime = Number(creationTime64)
         } else {
-          searchStart = absoluteIndex + 4
-          continue
+          console.log('Unsupported mvhd version or insufficient data')
+          return null
         }
         
+        // Convert Mac epoch (1904) to Unix epoch (1970)
         const unixTime = creationTime - 2082844800
         
-        if (unixTime > 946684800 && unixTime < 4102444800) {
+        if (unixTime > 946684800 && unixTime < 4102444800) { // Valid range: 2000-2100
           const date = new Date(unixTime * 1000)
-          if (!isNaN(date.getTime()) && 
-              date.getFullYear() >= 2000 && 
-              date.getFullYear() <= 2030) {
-            console.log(`Successfully extracted mdhd creation date: ${date.toISOString()}`)
+          if (!isNaN(date.getTime())) {
+            console.log(`Successfully extracted mvhd creation date: ${date.toISOString()}`)
             return date.toISOString()
           }
         }
+      } catch (error) {
+        console.error('Error parsing mvhd atom:', error)
       }
-    } catch (error) {
-      console.error('Error parsing mdhd atom:', error)
     }
     
-    searchStart = absoluteIndex + 4
-  }
-  
-  console.log('No valid creation time found in QuickTime atoms')
-  return null
-  
+    return null
   } catch (error) {
     console.error('Error extracting QuickTime creation date:', error)
     return null
   }
 }
 
-// **ENHANCED APPLE/IPHONE METADATA EXTRACTION** 
-// Based on ExifTool patterns for comprehensive iPhone video analysis
-function extractiPhoneMetadata(data: Uint8Array): string | null {
-  try {
-    console.log('🍎 Starting iPhone metadata extraction...')
-    console.log(`📊 File size: ${data.length} bytes`)
-    
-    // First, let's see what atoms/signatures are actually in this file
-    const fileHeader = data.slice(0, 100)
-    const headerText = new TextDecoder('utf-8', { fatal: false }).decode(fileHeader)
-    console.log(`📁 File header preview: ${headerText.replace(/[^\x20-\x7E]/g, '.')}`)
-    
-    // Look for common QuickTime/MOV signatures to confirm file type
-    const signatures = ['ftyp', 'moov', 'mdat', 'udta', 'mvhd']
-    const foundSignatures = []
-    
-    for (const sig of signatures) {
-      const sigBytes = new TextEncoder().encode(sig)
-      const index = findBytesPattern(data.slice(0, Math.min(5000, data.length)), Array.from(sigBytes))
-      if (index !== -1) {
-        foundSignatures.push(`${sig}@${index}`)
-      }
-    }
-    console.log(`🔍 Found QuickTime atoms: [${foundSignatures.join(', ')}]`)
-    
-    // iPhone MOV files typically store creation date in multiple locations:
-    // 1. QuickTime creation time (mvhd atom)
-    // 2. Apple udta metadata 
-    // 3. iTunes-style metadata
-    
-    console.log('  📱 Searching for iPhone-specific creation date patterns...')
-    
-    // Method 1: Look for Apple's udta (user data) atom which often contains creation time
-    const udtaResult = findAppleUdtaCreationTime(data)
-    if (udtaResult) {
-      console.log(`✅ SUCCESS: Found iPhone date in udta atom: ${udtaResult}`)
-      return udtaResult
-    }
-    
-    // Method 2: Look for ©day atom (Apple's day metadata)
-    const dayAtomResult = findAppleDayAtom(data)
-    if (dayAtomResult) {
-      console.log(`✅ SUCCESS: Found iPhone date in ©day atom: ${dayAtomResult}`)
-      return dayAtomResult
-    }
-    
-    // Method 3: Search for embedded timestamps in readable text
-    const textResult = findEmbeddedTimestamps(data)
-    if (textResult) {
-      console.log(`✅ SUCCESS: Found iPhone date in embedded text: ${textResult}`)
-      return textResult
-    }
-    
-    console.log('❌ No iPhone creation date found in any location')
-    return null
-  } catch (error) {
-    console.error('❌ Error in iPhone metadata extraction:', error)
-    return null
-  }
-}
-
-function findAppleUdtaCreationTime(data: Uint8Array): string | null {
-  console.log('  🔍 Searching for Apple udta atom...')
-  
-  // Look for "udta" atom signature
-  const udtaSignature = [0x75, 0x64, 0x74, 0x61] // "udta"
-  const udtaIndex = findBytesPattern(data, udtaSignature)
-  
-  if (udtaIndex === -1) {
-    console.log('  ❌ No udta atom found')
-    return null
-  }
-  
-  console.log(`  📍 Found udta atom at position ${udtaIndex}`)
-  
-  // Search around the udta atom for creation time data
-  const searchStart = Math.max(0, udtaIndex - 500)
-  const searchEnd = Math.min(data.length, udtaIndex + 2000)
-  const searchData = data.slice(searchStart, searchEnd)
-  
-  // Convert to text to look for readable timestamps
-  const text = new TextDecoder('utf-8', { fatal: false }).decode(searchData)
-  
-  // Look for various iPhone timestamp formats
-  const patterns = [
-    /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/,
-    /(\d{4}:\d{2}:\d{2} \d{2}:\d{2}:\d{2})/,
-    /(\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2})/
-  ]
-  
-  for (const pattern of patterns) {
-    const match = text.match(pattern)
-    if (match) {
-      const dateStr = match[1].replace(/:/g, '-').replace(' ', 'T') + 'Z'
-      try {
-        const date = new Date(dateStr)
-        if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && date.getFullYear() <= 2024) {
-          return date.toISOString()
-        }
-      } catch (e) {
-        continue
-      }
-    }
-  }
-  
-  return null
-}
-
-function findAppleDayAtom(data: Uint8Array): string | null {
-  console.log('  🔍 Searching for Apple ©day atom...')
-  
-  // Look for "©day" atom (Apple's date metadata)
-  const daySignature = [0xA9, 0x64, 0x61, 0x79] // "©day"
-  const dayIndex = findBytesPattern(data, daySignature)
-  
-  if (dayIndex === -1) {
-    console.log('  ❌ No ©day atom found')
-    return null
-  }
-  
-  console.log(`  📍 Found ©day atom at position ${dayIndex}`)
-  
-  // Extract the data following the ©day atom
-  const dataAfterAtom = data.slice(dayIndex + 4, dayIndex + 50)
-  const text = new TextDecoder('utf-8', { fatal: false }).decode(dataAfterAtom)
-  
-  // Look for date patterns immediately after the atom
-  const match = text.match(/(\d{4}-\d{2}-\d{2})/)
-  if (match) {
-    try {
-      const date = new Date(match[1] + 'T12:00:00Z')
-      if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && date.getFullYear() <= 2024) {
-        return date.toISOString()
-      }
-    } catch (e) {
-      // Continue searching
-    }
-  }
-  
-  return null
-}
-
-function findEmbeddedTimestamps(data: Uint8Array): string | null {
-  console.log('  🔍 Searching for embedded timestamps...')
-  
-  // Search the first 50KB for any embedded readable timestamps
-  const searchData = data.slice(0, Math.min(50 * 1024, data.length))
-  const text = new TextDecoder('utf-8', { fatal: false }).decode(searchData)
-  
-  // Look for various timestamp formats that might be embedded
-  const patterns = [
-    /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z?)/g,
-    /(\d{4}:\d{2}:\d{2} \d{2}:\d{2}:\d{2})/g,
-    /(\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2})/g
-  ]
-  
-  for (const pattern of patterns) {
-    const matches = [...text.matchAll(pattern)]
-    for (const match of matches) {
-      try {
-        let dateStr = match[1]
-        // Normalize the format
-        if (dateStr.includes(':') && !dateStr.includes('T')) {
-          dateStr = dateStr.replace(/:/g, '-').replace(' ', 'T') + 'Z'
-        } else if (dateStr.includes('/')) {
-          dateStr = dateStr.replace(/\//g, '-').replace(' ', 'T') + 'Z'
-        }
-        
-        const date = new Date(dateStr)
-        if (!isNaN(date.getTime()) && 
-            date.getFullYear() >= 2000 && 
-            date.getFullYear() <= 2024) {
-          console.log(`  📅 Found embedded timestamp: ${dateStr} -> ${date.toISOString()}`)
-          return date.toISOString()
-        }
-      } catch (e) {
-        continue
-      }
-    }
-  }
-  
-  return null
-}
-
-/* COMMENTED OUT COMPLEX APPLE FUNCTIONS TO AVOID RUNTIME ERRORS
-function extractAppleUdtaMetadata(data: Uint8Array): string | null {
-  const udtaPattern = [0x75, 0x64, 0x74, 0x61] // "udta"
-  let searchIndex = 0
-  
-  while (searchIndex < data.length - 1000) {
-    const udtaIndex = findBytesPattern(data.slice(searchIndex), udtaPattern)
-    if (udtaIndex === -1) break
-    
-    const actualIndex = searchIndex + udtaIndex
-    console.log(`Found udta atom at ${actualIndex}`)
-    
-    // Extract a reasonable chunk of udta data
-    const udtaData = data.slice(actualIndex, Math.min(actualIndex + 2048, data.length))
-    
-    // Look for various Apple date formats within udta
-    const text = new TextDecoder('utf-8', { fatal: false }).decode(udtaData)
-    
-    // Common iPhone date patterns
-    const patterns = [
-      /(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{3}))?Z?/g, // ISO format
-      /(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/g, // Compact ISO
-      /(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/g, // EXIF format
-      /(\d{4})\/(\d{2})\/(\d{2})/g // Simple date
-    ]
-    
-    for (const pattern of patterns) {
-      let match
-      while ((match = pattern.exec(text)) !== null) {
-        try {
-          let dateStr = match[0]
-          
-          // Normalize different formats to ISO
-          if (dateStr.includes('/')) {
-            const [, year, month, day] = match
-            dateStr = `${year}-${month}-${day}T12:00:00Z`
-          } else if (dateStr.includes(':') && !dateStr.includes('T')) {
-            const [, year, month, day, hour, minute, second] = match
-            dateStr = `${year}-${month}-${day}T${hour}:${minute}:${second}Z`
-          } else if (!dateStr.includes('T')) {
-            const year = match[1], month = match[2], day = match[3]
-            const hour = match[4] || '12', minute = match[5] || '00', second = match[6] || '00'
-            dateStr = `${year}-${month}-${day}T${hour}:${minute}:${second}Z`
-          }
-          
-          const date = new Date(dateStr)
-          if (!isNaN(date.getTime()) && 
-              date.getFullYear() >= 2000 && 
-              date.getFullYear() <= 2024) {
-            console.log(`📅 Found valid date in udta: ${date.toISOString()}`)
-            return date.toISOString()
-          }
-        } catch (e) {
-          continue
-        }
-      }
-    }
-    
-    searchIndex = actualIndex + 4
-  }
-  
-  return null
-}
-
-function extractAppleDayAtom(data: Uint8Array): string | null {
-  // Apple's ©day atom signature
-  const dayPattern = [0xA9, 0x64, 0x61, 0x79] // "©day"
-  const index = findBytesPattern(data, dayPattern)
-  if (index === -1) return null
-  
-  // Extract data following the atom
-  const dataStart = index + 8 // Skip atom header
-  if (dataStart >= data.length - 20) return null
-  
-  const atomData = data.slice(dataStart, Math.min(dataStart + 100, data.length))
-  const text = new TextDecoder('utf-8', { fatal: false }).decode(atomData)
-  
-  // Look for date patterns
-  const dateMatch = text.match(/(\d{4})-(\d{2})-(\d{2})/)
-  if (dateMatch) {
-    const [, year, month, day] = dateMatch
-    const date = new Date(`${year}-${month}-${day}T12:00:00Z`)
-    if (!isNaN(date.getTime()) && 
-        date.getFullYear() >= 2000 && 
-        date.getFullYear() <= 2024) {
-      return date.toISOString()
-    }
-  }
-  
-  return null
-}
-
-function extractAppleXyzAtom(data: Uint8Array): string | null {
-  // Apple's ©xyz atom (location data)
-  const xyzPattern = [0xA9, 0x78, 0x79, 0x7A] // "©xyz"
-  const index = findBytesPattern(data, xyzPattern)
-  if (index === -1) return null
-  
-  const dataStart = index + 8
-  if (dataStart >= data.length - 50) return null
-  
-  const atomData = data.slice(dataStart, Math.min(dataStart + 200, data.length))
-  const text = new TextDecoder('utf-8', { fatal: false }).decode(atomData)
-  
-  // Location data sometimes contains timestamps
-  const dateMatch = text.match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/)
-  if (dateMatch) {
-    const date = new Date(dateMatch[0])
-    if (!isNaN(date.getTime()) && 
-        date.getFullYear() >= 2000 && 
-        date.getFullYear() <= 2024) {
-      return date.toISOString()
-    }
-  }
-  
-  return null
-}
-
-function extractAppleItunesMetadata(data: Uint8Array): string | null {
-  // Look for iTunes metadata container "meta"
-  const metaPattern = [0x6D, 0x65, 0x74, 0x61] // "meta"
-  const index = findBytesPattern(data, metaPattern)
-  if (index === -1) return null
-  
-  const metaData = data.slice(index, Math.min(index + 4096, data.length))
-  const text = new TextDecoder('utf-8', { fatal: false }).decode(metaData)
-  
-  // Look for various iTunes date fields
-  const patterns = [
-    /date[^0-9]*(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/gi,
-    /created[^0-9]*(\d{4}-\d{2}-\d{2})/gi,
-    /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z?)/g
-  ]
-  
-  for (const pattern of patterns) {
-    const matches = text.match(pattern)
-    if (matches) {
-      for (const match of matches) {
-        const dateMatch = match.match(/(\d{4}-\d{2}-\d{2}T?\d{0,2}:?\d{0,2}:?\d{0,2})/)
-        if (dateMatch) {
-          try {
-            let dateStr = dateMatch[1]
-            if (!dateStr.includes('T')) {
-              dateStr += 'T12:00:00Z'
-            } else if (!dateStr.includes('Z') && dateStr.length === 19) {
-              dateStr += 'Z'
-            }
-            
-            const date = new Date(dateStr)
-            if (!isNaN(date.getTime()) && 
-                date.getFullYear() >= 2000 && 
-                date.getFullYear() <= 2024) {
-              return date.toISOString()
-            }
-          } catch (e) {
-            continue
-          }
-        }
-      }
-    }
-  }
-  
-  return null
-}
-
-function extractEmbeddedExifData(data: Uint8Array): string | null {
-  // Look for EXIF data embedded in iPhone videos
-  const exifPattern = [0x45, 0x78, 0x69, 0x66] // "Exif"
-  const index = findBytesPattern(data, exifPattern)
-  if (index === -1) return null
-  
-  // Also look for common EXIF date tags
-  const datePatterns = [
-    'DateTime',
-    'DateTimeOriginal', 
-    'DateTimeDigitized',
-    'CreateDate'
-  ]
-  
-  for (const pattern of datePatterns) {
-    const patternBytes = new TextEncoder().encode(pattern)
-    const patternIndex = findBytesPattern(data, Array.from(patternBytes))
-    if (patternIndex !== -1) {
-      // Look for date after the tag
-      const searchStart = patternIndex + pattern.length
-      const searchData = data.slice(searchStart, Math.min(searchStart + 100, data.length))
-      const text = new TextDecoder('utf-8', { fatal: false }).decode(searchData)
-      
-      const dateMatch = text.match(/(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/)
-      if (dateMatch) {
-        const [, year, month, day, hour, minute, second] = dateMatch
-        const date = new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}Z`)
-        if (!isNaN(date.getTime()) && 
-            date.getFullYear() >= 2000 && 
-            date.getFullYear() <= 2024) {
-          return date.toISOString()
-        }
-      }
-    }
-  }
-  
-  return null
-*/
-
 function extractMP4CreationDate(data: Uint8Array): string | null {
   try {
-    console.log('Starting MP4 metadata extraction...')
+    console.log('🎥 Starting MP4 metadata extraction...')
     
-    // For MP4 files, first try to use the same mvhd approach as QuickTime
-    // since MP4 is based on the QuickTime container format
-    
-    // Look for creation_time strings specific to MP4 metadata
-    const creationTimePattern = new TextEncoder().encode('creation_time')
-    const creationIndex = findBytesPattern(data, Array.from(creationTimePattern))
-    
-    if (creationIndex !== -1) {
-      console.log(`Found creation_time pattern at ${creationIndex}`)
-      
-      // Look for timestamp after the pattern
-      const searchStart = creationIndex + creationTimePattern.length
-      const searchEnd = Math.min(searchStart + 100, data.length)
-      
-      // Try to find a 4-byte or 8-byte timestamp (Unix time + Mac epoch offset)
-      for (let i = searchStart; i < searchEnd - 8; i++) {
-        try {
-          // Try 4-byte timestamp first
-          const timestamp32 = new DataView(data.buffer, data.byteOffset + i, 4).getUint32(0, false)
-          const unixTime32 = timestamp32 - 2082844800 // Mac epoch to Unix epoch
-          
-          if (unixTime32 > 946684800 && unixTime32 < 4102444800) { // 2000-2100
-            const date = new Date(unixTime32 * 1000)
-            if (!isNaN(date.getTime())) {
-              console.log(`✓ Found MP4 creation_time (32-bit): ${date.toISOString()}`)
-              return date.toISOString()
-            }
-          }
-          
-          // Try 8-byte timestamp if 4-byte didn't work
-          if (i < searchEnd - 8) {
-            const timestamp64 = new DataView(data.buffer, data.byteOffset + i, 8).getBigUint64(0, false)
-            const unixTime64 = Number(timestamp64) - 2082844800
-            
-            if (unixTime64 > 946684800 && unixTime64 < 4102444800) {
-              const date = new Date(unixTime64 * 1000)
-              if (!isNaN(date.getTime())) {
-                console.log(`✓ Found MP4 creation_time (64-bit): ${date.toISOString()}`)
-                return date.toISOString()
-              }
-            }
-          }
-        } catch (e) {
-          // Continue searching
-        }
-      }
-    }
-    
-    // Look for MP4 meta atoms
-    const metaDate = extractMP4MetaDate(data)
-    if (metaDate) {
-      console.log(`✓ SUCCESS via MP4 meta: ${metaDate}`)
-      return metaDate
-    }
-    
-    console.log('No MP4-specific creation date found')
-    return null
+    // Look for 'mvhd' atom in MP4 files
+    return extractQuickTimeCreationDate(data) // MP4 uses same structure as QuickTime
   } catch (error) {
     console.error('Error extracting MP4 creation date:', error)
-    return null
-  }
-}
-
-// Helper function to extract dates from MP4 meta atoms
-function extractMP4MetaDate(data: Uint8Array): string | null {
-  try {
-    // Look for meta atom
-    const metaIndex = findBytesPattern(data, [0x6D, 0x65, 0x74, 0x61]) // "meta"
-    if (metaIndex === -1) {
-      return null
-    }
-    
-    console.log(`Found meta atom at ${metaIndex}`)
-    
-    // Search for date-related keys within meta atom
-    const dateKeys = ['©day', 'date', 'creation_time']
-    
-    for (const key of dateKeys) {
-      const keyBytes = new TextEncoder().encode(key)
-      const keyIndex = findBytesPattern(data.slice(metaIndex, Math.min(metaIndex + 1000, data.length)), Array.from(keyBytes))
-      
-      if (keyIndex !== -1) {
-        const absoluteIndex = metaIndex + keyIndex
-        console.log(`Found ${key} key at ${absoluteIndex}`)
-        
-        // Look for date data after the key
-        const searchStart = absoluteIndex + key.length
-        const searchEnd = Math.min(searchStart + 50, data.length)
-        const segment = data.slice(searchStart, searchEnd)
-        const text = new TextDecoder('utf-8', { fatal: false }).decode(segment)
-        
-        // Look for various date formats
-        const patterns = [
-          /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/,
-          /(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/,
-          /(\d{4}:\d{2}:\d{2} \d{2}:\d{2}:\d{2})/
-        ]
-        
-        for (const pattern of patterns) {
-          const match = text.match(pattern)
-          if (match) {
-            const dateStr = match[1].replace(/:/g, '-').replace(' ', 'T')
-            const date = new Date(dateStr)
-            if (!isNaN(date.getTime()) && 
-                date.getFullYear() >= 2000 && 
-                date.getFullYear() <= 2030) {
-              return date.toISOString()
-            }
-          }
-        }
-      }
-    }
-    
-    return null
-  } catch (error) {
-    console.error('Error extracting MP4 meta date:', error)
-    return null
-  }
-}
-
-function extractTextMetadata(data: Uint8Array): string | null {
-  try {
-    // Convert to text and search for various timestamp patterns
-    const text = new TextDecoder('utf-8', { fatal: false }).decode(data)
-    
-    const patterns = [
-      /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/gi,
-      /creation.*?(\d{4}-\d{2}-\d{2})/gi,
-      /timestamp.*?(\d{4}-\d{2}-\d{2})/gi,
-    ]
-    
-    const foundDates: Date[] = []
-    
-    for (const pattern of patterns) {
-      let match
-      while ((match = pattern.exec(text)) !== null) {
-        const dateStr = match[1]
-        const date = new Date(dateStr)
-        if (!isNaN(date.getTime()) && 
-            date.getFullYear() >= 2000 && 
-            date.getFullYear() <= 2030) {
-          foundDates.push(date)
-        }
-      }
-    }
-    
-    if (foundDates.length > 0) {
-      const sortedDates = foundDates.sort((a, b) => a.getTime() - b.getTime())
-      return sortedDates[0].toISOString()
-    }
-    
-    return null
-  } catch (error) {
-    console.error('Error extracting text metadata:', error)
-    return null
-  }
-}
-
-// Additional metadata extraction functions
-
-function extractExifData(data: Uint8Array): string | null {
-  try {
-    // Look for EXIF data in video files (some cameras embed this)
-    const exifMarker = [0xFF, 0xE1] // EXIF marker
-    const exifIndex = findBytesPattern(data, exifMarker)
-    
-    if (exifIndex !== -1) {
-      // Look for DateTime tag (0x0132) in EXIF data
-      const dateTimeTag = [0x01, 0x32]
-      const tagIndex = findBytesPattern(data.slice(exifIndex, exifIndex + 2000), dateTimeTag)
-      
-      if (tagIndex !== -1) {
-        const segment = data.slice(exifIndex + tagIndex + 8, exifIndex + tagIndex + 28)
-        const text = new TextDecoder('utf-8', { fatal: false }).decode(segment)
-        
-        // EXIF DateTime format: "YYYY:MM:DD HH:MM:SS"
-        const match = text.match(/(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/)
-        if (match) {
-          const [, year, month, day, hour, minute, second] = match
-          const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 
-                               parseInt(hour), parseInt(minute), parseInt(second))
-          
-          if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && 
-              date.getFullYear() <= 2030) {
-            console.log(`Found EXIF date: ${date.toISOString()}`)
-            return date.toISOString()
-          }
-        }
-      }
-    }
-    
-    return null
-  } catch (error) {
-    console.error('Error extracting EXIF data:', error)
-    return null
-  }
-}
-
-function extractXMPMetadata(data: Uint8Array): string | null {
-  try {
-    // Look for XMP metadata which can contain creation dates
-    const text = new TextDecoder('utf-8', { fatal: false }).decode(data)
-    
-    const xmpPatterns = [
-      /xmp:CreateDate="([^"]+)"/i,
-      /xmp:ModifyDate="([^"]+)"/i,
-      /photoshop:DateCreated="([^"]+)"/i,
-      /CreateDate="([^"]+)"/i,
-      /<CreateDate>([^<]+)<\/CreateDate>/i,
-      /<DateTimeOriginal>([^<]+)<\/DateTimeOriginal>/i,
-    ]
-    
-    for (const pattern of xmpPatterns) {
-      const match = text.match(pattern)
-      if (match) {
-        const dateStr = match[1]
-        const date = new Date(dateStr)
-        
-        if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && 
-            date.getFullYear() <= 2030) {
-          console.log(`Found XMP date: ${date.toISOString()}`)
-          return date.toISOString()
-        }
-      }
-    }
-    
-    return null
-  } catch (error) {
-    console.error('Error extracting XMP metadata:', error)
-    return null
-  }
-}
-
-function extractAVIMetadata(data: Uint8Array): string | null {
-  try {
-    // Look for AVI header and stream info
-    const aviHeader = [0x52, 0x49, 0x46, 0x46] // "RIFF"
-    const aviIndex = findBytesPattern(data, aviHeader)
-    
-    if (aviIndex !== -1) {
-      // Look for IDIT (creation date) chunk in AVI
-      const iditChunk = [0x49, 0x44, 0x49, 0x54] // "IDIT"
-      const iditIndex = findBytesPattern(data.slice(aviIndex, aviIndex + 5000), iditChunk)
-      
-      if (iditIndex !== -1) {
-        const segment = data.slice(aviIndex + iditIndex + 8, aviIndex + iditIndex + 50)
-        const text = new TextDecoder('utf-8', { fatal: false }).decode(segment)
-        
-        // AVI date format can vary
-        const dateMatch = text.match(/(\d{4}-\d{2}-\d{2})|(\w{3}\s+\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}\s+\d{4})/)
-        if (dateMatch) {
-          const date = new Date(dateMatch[0])
-          if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && 
-              date.getFullYear() <= 2030) {
-            console.log(`Found AVI date: ${date.toISOString()}`)
-            return date.toISOString()
-          }
-        }
-      }
-    }
-    
-    return null
-  } catch (error) {
-    console.error('Error extracting AVI metadata:', error)
     return null
   }
 }
@@ -1466,248 +607,4 @@ function findBytesPattern(data: Uint8Array, pattern: number[]): number {
     if (found) return i
   }
   return -1
-}
-
-// Camera-specific metadata extraction functions
-
-function extractCanonMetadata(data: Uint8Array): string | null {
-  try {
-    console.log('Searching for Canon-specific metadata...')
-    
-    // Look for Canon CNTH (Canon Thumbnail) or CNDA (Canon Data) atoms
-    const canonAtoms = [
-      [0x43, 0x4E, 0x54, 0x48], // "CNTH"
-      [0x43, 0x4E, 0x44, 0x41], // "CNDA"
-      [0x43, 0x61, 0x6E, 0x6F], // "Cano" - Canon maker note
-    ]
-    
-    for (const atom of canonAtoms) {
-      const atomIndex = findBytesPattern(data, atom)
-      if (atomIndex !== -1 && atomIndex + 50 < data.length) {
-        // Canon stores timestamps in various formats
-        const segment = data.slice(atomIndex, atomIndex + 200)
-        const text = new TextDecoder('utf-8', { fatal: false }).decode(segment)
-        
-        // Look for Canon timestamp patterns
-        const patterns = [
-          /(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/,
-          /(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/,
-        ]
-        
-        for (const pattern of patterns) {
-          const match = text.match(pattern)
-          if (match) {
-            const [, year, month, day, hour, minute, second] = match
-            const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 
-                                 parseInt(hour), parseInt(minute), parseInt(second))
-            
-            if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && 
-                date.getFullYear() <= 2030) {
-              console.log(`Found Canon date: ${date.toISOString()}`)
-              return date.toISOString()
-            }
-          }
-        }
-      }
-    }
-    
-    return null
-  } catch (error) {
-    console.error('Error extracting Canon metadata:', error)
-    return null
-  }
-}
-
-function extractSonyMetadata(data: Uint8Array): string | null {
-  try {
-    console.log('Searching for Sony-specific metadata...')
-    
-    // Look for Sony-specific atoms and XAVC metadata
-    const sonyPatterns = [
-      'Sony', 'XAVC', 'AVCHD', 'rtmd', // Sony format identifiers
-    ]
-    
-    for (const pattern of sonyPatterns) {
-      const patternBytes = new TextEncoder().encode(pattern)
-      const index = findBytesPattern(data, Array.from(patternBytes))
-      
-      if (index !== -1) {
-        // Search around Sony markers for timestamps
-        const searchStart = Math.max(0, index - 100)
-        const searchEnd = Math.min(data.length, index + 500)
-        const segment = data.slice(searchStart, searchEnd)
-        const text = new TextDecoder('utf-8', { fatal: false }).decode(segment)
-        
-        // Sony timestamp patterns
-        const timestampPatterns = [
-          /(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/,
-          /(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/,
-        ]
-        
-        for (const tsPattern of timestampPatterns) {
-          const match = text.match(tsPattern)
-          if (match) {
-            const date = new Date(match[0])
-            if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && 
-                date.getFullYear() <= 2030) {
-              console.log(`Found Sony date: ${date.toISOString()}`)
-              return date.toISOString()
-            }
-          }
-        }
-      }
-    }
-    
-    return null
-  } catch (error) {
-    console.error('Error extracting Sony metadata:', error)
-    return null
-  }
-}
-
-
-function extractAndroidMetadata(data: Uint8Array): string | null {
-  try {
-    console.log('Searching for Android-specific metadata...')
-    
-    // Look for Android camera app signatures
-    const androidSignatures = ['android', 'camera2', 'CameraMetadata']
-    
-    for (const signature of androidSignatures) {
-      const sigBytes = new TextEncoder().encode(signature)
-      const index = findBytesPattern(data, Array.from(sigBytes))
-      
-      if (index !== -1) {
-        // Android cameras often store timestamps near their signatures
-        const searchArea = data.slice(Math.max(0, index - 200), Math.min(data.length, index + 500))
-        const text = new TextDecoder('utf-8', { fatal: false }).decode(searchArea)
-        
-        // Common Android timestamp formats
-        const androidPatterns = [
-          /(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/,
-          /(\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2})/,
-          /(\d{10})/  // Unix timestamp
-        ]
-        
-        for (const pattern of androidPatterns) {
-          const match = text.match(pattern)
-          if (match) {
-            let date: Date
-            if (match[1].length === 10 && /^\d{10}$/.test(match[1])) {
-              // Unix timestamp
-              date = new Date(parseInt(match[1]) * 1000)
-            } else {
-              date = new Date(match[1])
-            }
-            
-            if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && 
-                date.getFullYear() <= 2030) {
-              console.log(`Found Android date: ${date.toISOString()}`)
-              return date.toISOString()
-            }
-          }
-        }
-      }
-    }
-    
-    return null
-  } catch (error) {
-    console.error('Error extracting Android metadata:', error)
-    return null
-  }
-}
-
-function extractProResMetadata(data: Uint8Array): string | null {
-  try {
-    console.log('Searching for ProRes metadata...')
-    
-    // Look for ProRes-specific atoms
-    const proresAtoms = [
-      [0x61, 0x70, 0x63, 0x6E], // "apcn" - ProRes 422 Standard
-      [0x61, 0x70, 0x63, 0x68], // "apch" - ProRes 422 HQ
-      [0x61, 0x70, 0x63, 0x6F], // "apco" - ProRes 422 Proxy
-      [0x61, 0x70, 0x34, 0x68], // "ap4h" - ProRes 4444
-    ]
-    
-    for (const atom of proresAtoms) {
-      const atomIndex = findBytesPattern(data, atom)
-      if (atomIndex !== -1) {
-        // ProRes files often have creation time near the codec identifier
-        const searchArea = data.slice(Math.max(0, atomIndex - 500), Math.min(data.length, atomIndex + 500))
-        
-        // Try to find QuickTime timestamps around ProRes atoms
-        for (let i = 0; i < searchArea.length - 8; i += 4) {
-          try {
-            const qtTime = new DataView(searchArea.buffer, searchArea.byteOffset + i, 4).getUint32(0, false)
-            const unixTime = qtTime - 2082844800
-            
-            if (unixTime > 946684800 && unixTime < 4102444800) { // Valid range: 2000-2100
-              const date = new Date(unixTime * 1000)
-              if (date.getFullYear() >= 2000 && date.getFullYear() <= 2030) {
-                console.log(`Found ProRes date: ${date.toISOString()}`)
-                return date.toISOString()
-              }
-            }
-          } catch (e) {
-            // Continue searching
-          }
-        }
-      }
-    }
-    
-    return null
-  } catch (error) {
-    console.error('Error extracting ProRes metadata:', error)
-    return null
-  }
-}
-
-function extractH264H265Metadata(data: Uint8Array): string | null {
-  try {
-    console.log('Searching for H.264/H.265 metadata...')
-    
-    // Look for H.264/H.265 codec identifiers and associated metadata
-    const codecAtoms = [
-      [0x61, 0x76, 0x63, 0x31], // "avc1" - H.264
-      [0x68, 0x76, 0x63, 0x31], // "hvc1" - H.265/HEVC
-      [0x68, 0x65, 0x76, 0x31], // "hev1" - H.265/HEVC
-    ]
-    
-    for (const atom of codecAtoms) {
-      const atomIndex = findBytesPattern(data, atom)
-      if (atomIndex !== -1) {
-        // Search for SEI (Supplemental Enhancement Information) which might contain timestamps
-        const seiMarker = [0x00, 0x00, 0x00, 0x01, 0x06] // SEI NAL unit
-        const seiIndex = findBytesPattern(data.slice(atomIndex, atomIndex + 2000), seiMarker)
-        
-        if (seiIndex !== -1) {
-          const seiData = data.slice(atomIndex + seiIndex, atomIndex + seiIndex + 200)
-          const text = new TextDecoder('utf-8', { fatal: false }).decode(seiData)
-          
-          // Look for timestamps in SEI data
-          const seiPatterns = [
-            /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/,
-            /(\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2})/,
-          ]
-          
-          for (const pattern of seiPatterns) {
-            const match = text.match(pattern)
-            if (match) {
-              const date = new Date(match[1])
-              if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && 
-                  date.getFullYear() <= 2030) {
-                console.log(`Found H.264/H.265 date: ${date.toISOString()}`)
-                return date.toISOString()
-              }
-            }
-          }
-        }
-      }
-    }
-    
-    return null
-  } catch (error) {
-    console.error('Error extracting H.264/H.265 metadata:', error)
-    return null
-  }
 }
