@@ -204,53 +204,147 @@ function getYear(dateString: string): string {
 
 async function extractRealShootingDate(fileId: string, accessToken: string, fileName: string, fileSize: number): Promise<string | null> {
   try {
-    console.log(`Attempting to extract real shooting date for ${fileName}`)
+    console.log(`=== METADATA EXTRACTION START for ${fileName} ===`)
+    console.log(`File size: ${Math.floor(fileSize / 1024 / 1024)}MB, Format: ${getVideoFormat(fileName)}`)
     
     // Try filename pattern extraction first (fastest method)
+    console.log('Step 1: Checking filename for date patterns...')
     const filenameDate = extractDateFromFilename(fileName)
     if (filenameDate) {
-      console.log(`Found date in filename: ${filenameDate}`)
+      console.log(`✓ SUCCESS: Found date in filename: ${filenameDate}`)
       return filenameDate
     }
+    console.log('✗ No date found in filename, proceeding to file content analysis...')
     
     // Download file content to extract metadata
+    console.log('Step 2: Downloading file content for metadata extraction...')
     const fileContent = await downloadVideoMetadata(fileId, accessToken, fileSize)
     if (!fileContent) {
-      console.log('Could not download file content for metadata extraction')
+      console.log('✗ FAILURE: Could not download file content - this should not happen unless file is corrupted or access is denied')
+      return null
+    }
+    console.log(`✓ Downloaded ${Math.floor(fileContent.length / 1024)}KB for analysis`)
+    
+    // Try different metadata extraction methods in order of reliability
+    console.log('Step 3: Attempting metadata extraction methods...')
+    
+    console.log('  3a: QuickTime/MOV extraction...')
+    const quickTimeDate = extractQuickTimeCreationDate(fileContent)
+    if (quickTimeDate) {
+      console.log(`✓ SUCCESS via QuickTime: ${quickTimeDate}`)
+      return validateAndReturnDate(quickTimeDate, 'QuickTime')
+    }
+    
+    console.log('  3b: MP4 extraction...')
+    const mp4Date = extractMP4CreationDate(fileContent)
+    if (mp4Date) {
+      console.log(`✓ SUCCESS via MP4: ${mp4Date}`)
+      return validateAndReturnDate(mp4Date, 'MP4')
+    }
+    
+    console.log('  3c: EXIF data extraction...')
+    const exifDate = extractExifData(fileContent)
+    if (exifDate) {
+      console.log(`✓ SUCCESS via EXIF: ${exifDate}`)
+      return validateAndReturnDate(exifDate, 'EXIF')
+    }
+    
+    console.log('  3d: XMP metadata extraction...')
+    const xmpDate = extractXMPMetadata(fileContent)
+    if (xmpDate) {
+      console.log(`✓ SUCCESS via XMP: ${xmpDate}`)
+      return validateAndReturnDate(xmpDate, 'XMP')
+    }
+    
+    console.log('  3e: AVI metadata extraction...')
+    const aviDate = extractAVIMetadata(fileContent)
+    if (aviDate) {
+      console.log(`✓ SUCCESS via AVI: ${aviDate}`)
+      return validateAndReturnDate(aviDate, 'AVI')
+    }
+    
+    console.log('  3f: Canon-specific extraction...')
+    const canonDate = extractCanonMetadata(fileContent)
+    if (canonDate) {
+      console.log(`✓ SUCCESS via Canon: ${canonDate}`)
+      return validateAndReturnDate(canonDate, 'Canon')
+    }
+    
+    console.log('  3g: Sony-specific extraction...')
+    const sonyDate = extractSonyMetadata(fileContent)
+    if (sonyDate) {
+      console.log(`✓ SUCCESS via Sony: ${sonyDate}`)
+      return validateAndReturnDate(sonyDate, 'Sony')
+    }
+    
+    console.log('  3h: iPhone-specific extraction...')
+    const iPhoneDate = extractiPhoneMetadata(fileContent)
+    if (iPhoneDate) {
+      console.log(`✓ SUCCESS via iPhone: ${iPhoneDate}`)
+      return validateAndReturnDate(iPhoneDate, 'iPhone')
+    }
+    
+    console.log('  3i: Android-specific extraction...')
+    const androidDate = extractAndroidMetadata(fileContent)
+    if (androidDate) {
+      console.log(`✓ SUCCESS via Android: ${androidDate}`)
+      return validateAndReturnDate(androidDate, 'Android')
+    }
+    
+    console.log('  3j: ProRes metadata extraction...')
+    const proResDate = extractProResMetadata(fileContent)
+    if (proResDate) {
+      console.log(`✓ SUCCESS via ProRes: ${proResDate}`)
+      return validateAndReturnDate(proResDate, 'ProRes')
+    }
+    
+    console.log('  3k: H264/H265 metadata extraction...')
+    const h264Date = extractH264H265Metadata(fileContent)
+    if (h264Date) {
+      console.log(`✓ SUCCESS via H264/H265: ${h264Date}`)
+      return validateAndReturnDate(h264Date, 'H264/H265')
+    }
+    
+    console.log('  3l: Text metadata extraction (last resort)...')
+    const textDate = extractTextMetadata(fileContent)
+    if (textDate) {
+      console.log(`✓ SUCCESS via Text: ${textDate}`)
+      return validateAndReturnDate(textDate, 'Text')
+    }
+    
+    console.log('✗ COMPLETE FAILURE: All extraction methods failed')
+    console.log('This indicates either:')
+    console.log('  - File is corrupted or has no embedded metadata')
+    console.log('  - Camera/device did not write standard metadata')
+    console.log('  - File format is not supported by current extraction methods')
+    console.log('  - Metadata is in an unusual location/format not covered by extractors')
+    return null
+  } catch (error) {
+    console.error('✗ EXTRACTION ERROR:', error)
+    console.error('This indicates a coding error in the extraction logic')
+    return null
+  }
+}
+
+function validateAndReturnDate(extractedDate: string, method: string): string | null {
+  try {
+    // Validate that extracted date is NOT an upload date (reject 2025+ dates)
+    const extractedDateObj = new Date(extractedDate)
+    if (extractedDateObj.getFullYear() >= 2025) {
+      console.log(`✗ REJECTED ${method} date ${extractedDate} - appears to be upload date, not original footage date`)
       return null
     }
     
-    // Try different metadata extraction methods in order of reliability
-    const extractedDate = 
-      extractQuickTimeCreationDate(fileContent) ||
-      extractMP4CreationDate(fileContent) ||
-      extractExifData(fileContent) ||
-      extractXMPMetadata(fileContent) ||
-      extractAVIMetadata(fileContent) ||
-      extractCanonMetadata(fileContent) ||
-      extractSonyMetadata(fileContent) ||
-      extractiPhoneMetadata(fileContent) ||
-      extractAndroidMetadata(fileContent) ||
-      extractProResMetadata(fileContent) ||
-      extractH264H265Metadata(fileContent) ||
-      extractTextMetadata(fileContent)
-    
-    if (extractedDate) {
-      // Validate that extracted date is NOT an upload date (reject 2025+ dates)
-      const extractedDateObj = new Date(extractedDate)
-      if (extractedDateObj.getFullYear() >= 2025) {
-        console.log(`Rejected extracted date ${extractedDate} - appears to be upload date, not original footage date`)
-        return null
-      }
-      
-      console.log(`Successfully extracted original shooting date: ${extractedDate}`)
-      return extractedDate
+    // Additional validation for reasonable dates
+    if (extractedDateObj.getFullYear() < 2000 || extractedDateObj.getFullYear() > 2024) {
+      console.log(`✗ REJECTED ${method} date ${extractedDate} - year ${extractedDateObj.getFullYear()} is outside reasonable range (2000-2024)`)
+      return null
     }
     
-    console.log('No original shooting date found in video metadata - extraction failed as required')
-    return null
+    console.log(`✓ VALIDATED ${method} date: ${extractedDate}`)
+    return extractedDate
   } catch (error) {
-    console.error('Error extracting real shooting date:', error)
+    console.log(`✗ INVALID ${method} date format: ${extractedDate}`)
     return null
   }
 }
