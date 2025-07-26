@@ -121,9 +121,16 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
-    console.error('Error in video-metadata-extractor function:', error)
+    console.error('❌ CRITICAL ERROR in video-metadata-extractor function:', error)
+    console.error('Error stack:', error.stack)
+    console.error('Error name:', error.name)
+    console.error('Error message:', error.message)
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: `Function error: ${error.message}`,
+        details: error.stack 
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
@@ -286,11 +293,15 @@ async function extractRealShootingDate(fileId: string, accessToken: string, file
       return validateAndReturnDate(sonyDate, 'Sony')
     }
     
-    console.log('  3h: iPhone-specific extraction...')
-    const iPhoneDate = extractiPhoneMetadata(fileContent)
-    if (iPhoneDate) {
-      console.log(`✓ SUCCESS via iPhone: ${iPhoneDate}`)
-      return validateAndReturnDate(iPhoneDate, 'iPhone')
+     console.log('  3h: iPhone-specific extraction...')
+    try {
+      const iPhoneDate = extractiPhoneMetadata(fileContent)
+      if (iPhoneDate) {
+        console.log(`✓ SUCCESS via iPhone: ${iPhoneDate}`)
+        return validateAndReturnDate(iPhoneDate, 'iPhone')
+      }
+    } catch (error) {
+      console.error('❌ Error in iPhone metadata extraction:', error)
     }
     
     console.log('  3i: Android-specific extraction...')
@@ -597,32 +608,40 @@ function extractQuickTimeCreationDate(data: Uint8Array): string | null {
 // Based on ExifTool patterns for comprehensive iPhone video analysis
 function extractiPhoneMetadata(data: Uint8Array): string | null {
   try {
-    console.log('🍎 Starting optimized iPhone-specific metadata extraction...')
+    console.log('🍎 Starting iPhone metadata extraction (simplified for debugging)...')
     
-    // **SIMPLIFIED AND FAST** - Focus on the most common patterns first
+    // TEMPORARY SIMPLIFIED VERSION to avoid crashes
+    // Just look for basic patterns without complex processing
     
-    // 1. Quick Apple udta search (most common for iPhone)
-    const udtaDate = extractAppleUdtaMetadata(data)
-    if (udtaDate) {
-      console.log(`✅ SUCCESS: Found date in Apple udta: ${udtaDate}`)
-      return udtaDate
+    const text = new TextDecoder('utf-8', { fatal: false }).decode(data.slice(0, Math.min(1024 * 100, data.length)))
+    
+    // Look for common date patterns in the first 100KB
+    const isoDateMatch = text.match(/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/g)
+    if (isoDateMatch) {
+      for (const dateStr of isoDateMatch) {
+        try {
+          const date = new Date(dateStr)
+          if (!isNaN(date.getTime()) && 
+              date.getFullYear() >= 2000 && 
+              date.getFullYear() <= 2024) {
+            console.log(`📅 Found simple iPhone date: ${date.toISOString()}`)
+            return date.toISOString()
+          }
+        } catch (e) {
+          continue
+        }
+      }
     }
     
-    // 2. Quick iTunes metadata search (second most common)
-    const itunesDate = extractAppleItunesMetadata(data)
-    if (itunesDate) {
-      console.log(`✅ SUCCESS: Found date in iTunes metadata: ${itunesDate}`)
-      return itunesDate
-    }
-    
-    console.log('❌ No iPhone-specific metadata found')
+    console.log('❌ No iPhone-specific metadata found (simplified version)')
     return null
   } catch (error) {
-    console.error('❌ Error in iPhone metadata extraction:', error)
+    console.error('❌ Error in simplified iPhone metadata extraction:', error)
     return null
   }
 }
 
+/* COMMENTED OUT COMPLEX APPLE FUNCTIONS TO AVOID RUNTIME ERRORS
 function extractAppleUdtaMetadata(data: Uint8Array): string | null {
   const udtaPattern = [0x75, 0x64, 0x74, 0x61] // "udta"
   let searchIndex = 0
@@ -824,7 +843,7 @@ function extractEmbeddedExifData(data: Uint8Array): string | null {
   }
   
   return null
-}
+*/
 
 function extractMP4CreationDate(data: Uint8Array): string | null {
   try {
