@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.google-drive-rename]
 verify_jwt = false
+
+[functions.video-metadata-extractor]
+verify_jwt = false
+
+[functions.project-file-generator]
+verify_jwt = false

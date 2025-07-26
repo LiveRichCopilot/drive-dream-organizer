@@ -18,16 +18,21 @@ import {
   Filter,
   Download,
   Edit2,
-  LogOut
+  LogOut,
+  Cog
 } from "lucide-react";
 import heroImage from "@/assets/hero-video-bg.jpg";
 import { useGoogleDrive } from "@/hooks/useGoogleDrive";
 import GoogleDriveFolderInput from "@/components/GoogleDriveFolderInput";
+import VideoProcessor from "./VideoProcessor";
+import ProcessingResults from "./ProcessingResults";
 
 type ViewMode = "grid" | "list";
 
 const VideoOrganizerApp = () => {
   const [selectedFolderId, setSelectedFolderId] = useState<string | undefined>();
+  const [showProcessor, setShowProcessor] = useState(false);
+  const [processingResults, setProcessingResults] = useState<any>(null);
   
   const {
     isConnected,
@@ -178,6 +183,43 @@ const VideoOrganizerApp = () => {
             </div>
           )}
         </div>
+
+        {/* Processing Pipeline */}
+        {videos.length > 0 && (
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Video Processing Pipeline</h2>
+              <Button 
+                onClick={() => setShowProcessor(!showProcessor)}
+                variant="outline"
+                size="sm"
+              >
+                <Cog className="mr-2 h-4 w-4" />
+                {showProcessor ? "Hide" : "Show"} Processor
+              </Button>
+            </div>
+            
+            {showProcessor && !processingResults && (
+              <VideoProcessor 
+                videos={filteredVideos}
+                onProcessingComplete={(results) => {
+                  setProcessingResults(results);
+                  setShowProcessor(false);
+                }}
+              />
+            )}
+            
+            {processingResults && (
+              <ProcessingResults 
+                results={processingResults}
+                onStartNew={() => {
+                  setProcessingResults(null);
+                  setShowProcessor(true);
+                }}
+              />
+            )}
+          </div>
+        )}
 
         {/* Search and Controls */}
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
