@@ -56,7 +56,15 @@ serve(async (req) => {
     )
 
     if (!mainFolderResponse.ok) {
-      throw new Error('Failed to create main destination folder')
+      const errorDetails = await mainFolderResponse.text()
+      console.error('Google Drive API error when creating folder:', {
+        status: mainFolderResponse.status,
+        statusText: mainFolderResponse.statusText,
+        error: errorDetails,
+        folderName: destinationFolderName,
+        parentFolderId: parentFolderId
+      })
+      throw new Error(`Failed to create main destination folder: ${mainFolderResponse.status} ${errorDetails}`)
     }
 
     const mainFolder = await mainFolderResponse.json()
