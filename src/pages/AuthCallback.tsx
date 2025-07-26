@@ -2,9 +2,13 @@ import { useEffect } from 'react';
 
 const AuthCallback = () => {
   useEffect(() => {
-    console.log('AuthCallback component loaded');
+    console.log('=== AUTH CALLBACK COMPONENT LOADED ===');
     console.log('Current URL:', window.location.href);
+    console.log('Current pathname:', window.location.pathname);
+    console.log('Current search:', window.location.search);
+    console.log('Current hash:', window.location.hash);
     console.log('Has opener?', !!window.opener);
+    console.log('Document ready state:', document.readyState);
     
     // Extract the authorization code from URL parameters
     const urlParams = new URLSearchParams(window.location.search);
