@@ -622,6 +622,263 @@ function extractQuickTimeCreationDate(data: Uint8Array): string | null {
   }
 }
 
+// **ENHANCED APPLE/IPHONE METADATA EXTRACTION** 
+// Based on ExifTool patterns for comprehensive iPhone video analysis
+function extractiPhoneMetadata(data: Uint8Array): string | null {
+  try {
+    console.log('🍎 Starting enhanced iPhone-specific metadata extraction...')
+    
+    // 1. Look for Apple-specific atoms in user data (udta)
+    console.log('🔍 Searching for Apple udta (user data) atoms...')
+    const udtaDate = extractAppleUdtaMetadata(data)
+    if (udtaDate) {
+      console.log(`✅ SUCCESS: Found date in Apple udta: ${udtaDate}`)
+      return udtaDate
+    }
+    
+    // 2. Look for Apple's ©day atom (creation day)
+    console.log('🔍 Searching for Apple ©day atom...')
+    const dayAtom = extractAppleDayAtom(data)
+    if (dayAtom) {
+      console.log(`✅ SUCCESS: Found date in ©day atom: ${dayAtom}`)
+      return dayAtom
+    }
+    
+    // 3. Look for Apple's ©xyz atom (location data with timestamps)
+    console.log('🔍 Searching for Apple ©xyz location atom...')
+    const xyzAtom = extractAppleXyzAtom(data)
+    if (xyzAtom) {
+      console.log(`✅ SUCCESS: Found date in ©xyz atom: ${xyzAtom}`)
+      return xyzAtom
+    }
+    
+    // 4. Look for iTunes-style metadata container
+    console.log('🔍 Searching for iTunes metadata...')
+    const itunesDate = extractAppleItunesMetadata(data)
+    if (itunesDate) {
+      console.log(`✅ SUCCESS: Found date in iTunes metadata: ${itunesDate}`)
+      return itunesDate
+    }
+    
+    // 5. Look for embedded EXIF-style data in iPhone videos
+    console.log('🔍 Searching for embedded EXIF data...')
+    const exifDate = extractEmbeddedExifData(data)
+    if (exifDate) {
+      console.log(`✅ SUCCESS: Found date in embedded EXIF: ${exifDate}`)
+      return exifDate
+    }
+    
+    console.log('❌ No iPhone-specific metadata found')
+    return null
+  } catch (error) {
+    console.error('❌ Error in iPhone metadata extraction:', error)
+    return null
+  }
+}
+
+function extractAppleUdtaMetadata(data: Uint8Array): string | null {
+  const udtaPattern = [0x75, 0x64, 0x74, 0x61] // "udta"
+  let searchIndex = 0
+  
+  while (searchIndex < data.length - 1000) {
+    const udtaIndex = findBytesPattern(data.slice(searchIndex), udtaPattern)
+    if (udtaIndex === -1) break
+    
+    const actualIndex = searchIndex + udtaIndex
+    console.log(`Found udta atom at ${actualIndex}`)
+    
+    // Extract a reasonable chunk of udta data
+    const udtaData = data.slice(actualIndex, Math.min(actualIndex + 2048, data.length))
+    
+    // Look for various Apple date formats within udta
+    const text = new TextDecoder('utf-8', { fatal: false }).decode(udtaData)
+    
+    // Common iPhone date patterns
+    const patterns = [
+      /(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{3}))?Z?/g, // ISO format
+      /(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/g, // Compact ISO
+      /(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/g, // EXIF format
+      /(\d{4})\/(\d{2})\/(\d{2})/g // Simple date
+    ]
+    
+    for (const pattern of patterns) {
+      let match
+      while ((match = pattern.exec(text)) !== null) {
+        try {
+          let dateStr = match[0]
+          
+          // Normalize different formats to ISO
+          if (dateStr.includes('/')) {
+            const [, year, month, day] = match
+            dateStr = `${year}-${month}-${day}T12:00:00Z`
+          } else if (dateStr.includes(':') && !dateStr.includes('T')) {
+            const [, year, month, day, hour, minute, second] = match
+            dateStr = `${year}-${month}-${day}T${hour}:${minute}:${second}Z`
+          } else if (!dateStr.includes('T')) {
+            const year = match[1], month = match[2], day = match[3]
+            const hour = match[4] || '12', minute = match[5] || '00', second = match[6] || '00'
+            dateStr = `${year}-${month}-${day}T${hour}:${minute}:${second}Z`
+          }
+          
+          const date = new Date(dateStr)
+          if (!isNaN(date.getTime()) && 
+              date.getFullYear() >= 2000 && 
+              date.getFullYear() <= 2024) {
+            console.log(`📅 Found valid date in udta: ${date.toISOString()}`)
+            return date.toISOString()
+          }
+        } catch (e) {
+          continue
+        }
+      }
+    }
+    
+    searchIndex = actualIndex + 4
+  }
+  
+  return null
+}
+
+function extractAppleDayAtom(data: Uint8Array): string | null {
+  // Apple's ©day atom signature
+  const dayPattern = [0xA9, 0x64, 0x61, 0x79] // "©day"
+  const index = findBytesPattern(data, dayPattern)
+  if (index === -1) return null
+  
+  // Extract data following the atom
+  const dataStart = index + 8 // Skip atom header
+  if (dataStart >= data.length - 20) return null
+  
+  const atomData = data.slice(dataStart, Math.min(dataStart + 100, data.length))
+  const text = new TextDecoder('utf-8', { fatal: false }).decode(atomData)
+  
+  // Look for date patterns
+  const dateMatch = text.match(/(\d{4})-(\d{2})-(\d{2})/)
+  if (dateMatch) {
+    const [, year, month, day] = dateMatch
+    const date = new Date(`${year}-${month}-${day}T12:00:00Z`)
+    if (!isNaN(date.getTime()) && 
+        date.getFullYear() >= 2000 && 
+        date.getFullYear() <= 2024) {
+      return date.toISOString()
+    }
+  }
+  
+  return null
+}
+
+function extractAppleXyzAtom(data: Uint8Array): string | null {
+  // Apple's ©xyz atom (location data)
+  const xyzPattern = [0xA9, 0x78, 0x79, 0x7A] // "©xyz"
+  const index = findBytesPattern(data, xyzPattern)
+  if (index === -1) return null
+  
+  const dataStart = index + 8
+  if (dataStart >= data.length - 50) return null
+  
+  const atomData = data.slice(dataStart, Math.min(dataStart + 200, data.length))
+  const text = new TextDecoder('utf-8', { fatal: false }).decode(atomData)
+  
+  // Location data sometimes contains timestamps
+  const dateMatch = text.match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/)
+  if (dateMatch) {
+    const date = new Date(dateMatch[0])
+    if (!isNaN(date.getTime()) && 
+        date.getFullYear() >= 2000 && 
+        date.getFullYear() <= 2024) {
+      return date.toISOString()
+    }
+  }
+  
+  return null
+}
+
+function extractAppleItunesMetadata(data: Uint8Array): string | null {
+  // Look for iTunes metadata container "meta"
+  const metaPattern = [0x6D, 0x65, 0x74, 0x61] // "meta"
+  const index = findBytesPattern(data, metaPattern)
+  if (index === -1) return null
+  
+  const metaData = data.slice(index, Math.min(index + 4096, data.length))
+  const text = new TextDecoder('utf-8', { fatal: false }).decode(metaData)
+  
+  // Look for various iTunes date fields
+  const patterns = [
+    /date[^0-9]*(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/gi,
+    /created[^0-9]*(\d{4}-\d{2}-\d{2})/gi,
+    /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z?)/g
+  ]
+  
+  for (const pattern of patterns) {
+    const matches = text.match(pattern)
+    if (matches) {
+      for (const match of matches) {
+        const dateMatch = match.match(/(\d{4}-\d{2}-\d{2}T?\d{0,2}:?\d{0,2}:?\d{0,2})/)
+        if (dateMatch) {
+          try {
+            let dateStr = dateMatch[1]
+            if (!dateStr.includes('T')) {
+              dateStr += 'T12:00:00Z'
+            } else if (!dateStr.includes('Z') && dateStr.length === 19) {
+              dateStr += 'Z'
+            }
+            
+            const date = new Date(dateStr)
+            if (!isNaN(date.getTime()) && 
+                date.getFullYear() >= 2000 && 
+                date.getFullYear() <= 2024) {
+              return date.toISOString()
+            }
+          } catch (e) {
+            continue
+          }
+        }
+      }
+    }
+  }
+  
+  return null
+}
+
+function extractEmbeddedExifData(data: Uint8Array): string | null {
+  // Look for EXIF data embedded in iPhone videos
+  const exifPattern = [0x45, 0x78, 0x69, 0x66] // "Exif"
+  const index = findBytesPattern(data, exifPattern)
+  if (index === -1) return null
+  
+  // Also look for common EXIF date tags
+  const datePatterns = [
+    'DateTime',
+    'DateTimeOriginal', 
+    'DateTimeDigitized',
+    'CreateDate'
+  ]
+  
+  for (const pattern of datePatterns) {
+    const patternBytes = new TextEncoder().encode(pattern)
+    const patternIndex = findBytesPattern(data, Array.from(patternBytes))
+    if (patternIndex !== -1) {
+      // Look for date after the tag
+      const searchStart = patternIndex + pattern.length
+      const searchData = data.slice(searchStart, Math.min(searchStart + 100, data.length))
+      const text = new TextDecoder('utf-8', { fatal: false }).decode(searchData)
+      
+      const dateMatch = text.match(/(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/)
+      if (dateMatch) {
+        const [, year, month, day, hour, minute, second] = dateMatch
+        const date = new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}Z`)
+        if (!isNaN(date.getTime()) && 
+            date.getFullYear() >= 2000 && 
+            date.getFullYear() <= 2024) {
+          return date.toISOString()
+        }
+      }
+    }
+  }
+  
+  return null
+}
+
 function extractMP4CreationDate(data: Uint8Array): string | null {
   try {
     // Look for MP4 atoms containing creation time
