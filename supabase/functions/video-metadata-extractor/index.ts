@@ -14,6 +14,10 @@ serve(async (req) => {
     const authHeader = req.headers.get('authorization')
     const accessToken = authHeader?.replace('Bearer ', '')
     
+    console.log('Auth header received:', authHeader ? 'Present' : 'Missing')
+    console.log('Access token length:', accessToken?.length || 0)
+    console.log('Access token prefix:', accessToken?.substring(0, 20) + '...')
+    
     if (!accessToken) {
       return new Response(
         JSON.stringify({ error: 'Access token required' }),
