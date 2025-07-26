@@ -994,28 +994,173 @@ function extractEmbeddedExifData(data: Uint8Array): string | null {
 
 function extractMP4CreationDate(data: Uint8Array): string | null {
   try {
-    // Look for MP4 atoms containing creation time
-    const patterns = ['creation_time', 'created', 'date']
+    console.log('Starting MP4 metadata extraction...')
     
-    for (const pattern of patterns) {
-      const patternBytes = new TextEncoder().encode(pattern)
-      const index = findBytesPattern(data, Array.from(patternBytes))
+    // iPhone MP4 files store creation dates in multiple locations:
+    // 1. mvhd atom (movie header) - same as QuickTime
+    // 2. Meta atoms with creation_time
+    // 3. udta atoms with Apple metadata
+    
+    // First try the standard mvhd approach (works for iPhone MP4s too)
+    const mvhdDate = extractMvhdDate(data)
+    if (mvhdDate) {
+      console.log(`✓ SUCCESS via MP4 mvhd: ${mvhdDate}`)
+      return mvhdDate
+    }
+    
+    // Look for MP4 meta atoms
+    const metaDate = extractMP4MetaDate(data)
+    if (metaDate) {
+      console.log(`✓ SUCCESS via MP4 meta: ${metaDate}`)
+      return metaDate
+    }
+    
+    // Search for creation_time strings in the file
+    const creationTimePattern = new TextEncoder().encode('creation_time')
+    const creationIndex = findBytesPattern(data, Array.from(creationTimePattern))
+    
+    if (creationIndex !== -1) {
+      console.log(`Found creation_time pattern at ${creationIndex}`)
       
-      if (index !== -1) {
-        // Search for ISO date format after the pattern
-        const searchStart = index + pattern.length
-        const searchEnd = Math.min(searchStart + 200, data.length)
+      // Look for timestamp after the pattern
+      const searchStart = creationIndex + creationTimePattern.length
+      const searchEnd = Math.min(searchStart + 100, data.length)
+      
+      // Try to find a 4-byte or 8-byte timestamp (Unix time + Mac epoch offset)
+      for (let i = searchStart; i < searchEnd - 8; i++) {
+        try {
+          // Try 4-byte timestamp first
+          const timestamp32 = new DataView(data.buffer, data.byteOffset + i, 4).getUint32(0, false)
+          const unixTime32 = timestamp32 - 2082844800 // Mac epoch to Unix epoch
+          
+          if (unixTime32 > 946684800 && unixTime32 < 4102444800) { // 2000-2100
+            const date = new Date(unixTime32 * 1000)
+            if (!isNaN(date.getTime())) {
+              console.log(`✓ Found MP4 creation_time (32-bit): ${date.toISOString()}`)
+              return date.toISOString()
+            }
+          }
+          
+          // Try 8-byte timestamp if 4-byte didn't work
+          if (i < searchEnd - 8) {
+            const timestamp64 = new DataView(data.buffer, data.byteOffset + i, 8).getBigUint64(0, false)
+            const unixTime64 = Number(timestamp64) - 2082844800
+            
+            if (unixTime64 > 946684800 && unixTime64 < 4102444800) {
+              const date = new Date(unixTime64 * 1000)
+              if (!isNaN(date.getTime())) {
+                console.log(`✓ Found MP4 creation_time (64-bit): ${date.toISOString()}`)
+                return date.toISOString()
+              }
+            }
+          }
+        } catch (e) {
+          // Continue searching
+        }
+      }
+    }
+    
+    console.log('No MP4 creation date found')
+    return null
+  } catch (error) {
+    console.error('Error extracting MP4 creation date:', error)
+    return null
+  }
+}
+
+// Helper function to extract mvhd date from MP4 files
+function extractMvhdDate(data: Uint8Array): string | null {
+  try {
+    const mvhdIndex = findBytesPattern(data, [0x6D, 0x76, 0x68, 0x64]) // "mvhd"
+    if (mvhdIndex === -1) {
+      return null
+    }
+    
+    console.log(`Found mvhd atom in MP4 at index ${mvhdIndex}`)
+    
+    if (mvhdIndex + 20 > data.length) {
+      return null
+    }
+    
+    const version = data[mvhdIndex + 8]
+    console.log(`mvhd version: ${version}`)
+    
+    let creationTime: number
+    
+    if (version === 0 && mvhdIndex + 16 <= data.length) {
+      creationTime = new DataView(data.buffer, data.byteOffset + mvhdIndex + 12, 4).getUint32(0, false)
+    } else if (version === 1 && mvhdIndex + 24 <= data.length) {
+      const creationTime64 = new DataView(data.buffer, data.byteOffset + mvhdIndex + 16, 8).getBigUint64(0, false)
+      creationTime = Number(creationTime64)
+    } else {
+      console.log(`Unsupported mvhd version: ${version}`)
+      return null
+    }
+    
+    // Convert from Mac epoch (1904) to Unix epoch (1970)
+    const unixTime = creationTime - 2082844800
+    
+    if (unixTime > 946684800 && unixTime < 4102444800) { // 2000-2100 range
+      const date = new Date(unixTime * 1000)
+      if (!isNaN(date.getTime()) && 
+          date.getFullYear() >= 2000 && 
+          date.getFullYear() <= 2030) {
+        return date.toISOString()
+      }
+    }
+    
+    return null
+  } catch (error) {
+    console.error('Error extracting mvhd date:', error)
+    return null
+  }
+}
+
+// Helper function to extract dates from MP4 meta atoms
+function extractMP4MetaDate(data: Uint8Array): string | null {
+  try {
+    // Look for meta atom
+    const metaIndex = findBytesPattern(data, [0x6D, 0x65, 0x74, 0x61]) // "meta"
+    if (metaIndex === -1) {
+      return null
+    }
+    
+    console.log(`Found meta atom at ${metaIndex}`)
+    
+    // Search for date-related keys within meta atom
+    const dateKeys = ['©day', 'date', 'creation_time']
+    
+    for (const key of dateKeys) {
+      const keyBytes = new TextEncoder().encode(key)
+      const keyIndex = findBytesPattern(data.slice(metaIndex, Math.min(metaIndex + 1000, data.length)), Array.from(keyBytes))
+      
+      if (keyIndex !== -1) {
+        const absoluteIndex = metaIndex + keyIndex
+        console.log(`Found ${key} key at ${absoluteIndex}`)
+        
+        // Look for date data after the key
+        const searchStart = absoluteIndex + key.length
+        const searchEnd = Math.min(searchStart + 50, data.length)
         const segment = data.slice(searchStart, searchEnd)
         const text = new TextDecoder('utf-8', { fatal: false }).decode(segment)
         
-        const isoMatch = text.match(/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/i)
-        if (isoMatch) {
-          const date = new Date(isoMatch[1])
-          if (!isNaN(date.getTime()) && 
-              date.getFullYear() >= 2000 && 
-              date.getFullYear() <= 2030) {
-            console.log(`Found MP4 date: ${date.toISOString()}`)
-            return date.toISOString()
+        // Look for various date formats
+        const patterns = [
+          /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/,
+          /(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/,
+          /(\d{4}:\d{2}:\d{2} \d{2}:\d{2}:\d{2})/
+        ]
+        
+        for (const pattern of patterns) {
+          const match = text.match(pattern)
+          if (match) {
+            const dateStr = match[1].replace(/:/g, '-').replace(' ', 'T')
+            const date = new Date(dateStr)
+            if (!isNaN(date.getTime()) && 
+                date.getFullYear() >= 2000 && 
+                date.getFullYear() <= 2030) {
+              return date.toISOString()
+            }
           }
         }
       }
@@ -1023,7 +1168,7 @@ function extractMP4CreationDate(data: Uint8Array): string | null {
     
     return null
   } catch (error) {
-    console.error('Error extracting MP4 creation date:', error)
+    console.error('Error extracting MP4 meta date:', error)
     return null
   }
 }
