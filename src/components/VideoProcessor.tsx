@@ -388,11 +388,12 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
         currentFile: `Uploading ${videoIds.length} videos with organized structure...`
       }));
       
-      // Use the upload function to create organized folder structure
+      // Use the upload function to create organized folder structure IN SOURCE FOLDER
       const uploadResult = await apiClient.uploadOrganizedVideos(
         results.downloadedVideos,
         settings.destinationFolderName || 'Organized_Videos',
-        results.organizationStructure
+        results.organizationStructure,
+        folderId // Pass the source folder ID so it organizes within the same folder
       );
 
       setProcessingState(prev => ({

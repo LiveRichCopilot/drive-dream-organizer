@@ -24,7 +24,8 @@ serve(async (req) => {
     const { 
       processedVideos, 
       destinationFolderName,
-      organizationStructure 
+      organizationStructure,
+      sourceFolderId 
     } = await req.json()
     
     if (!processedVideos || !destinationFolderName) {
@@ -34,9 +35,10 @@ serve(async (req) => {
       )
     }
 
-    console.log(`Uploading ${processedVideos.length} videos to folder: ${destinationFolderName}`)
+    console.log(`Organizing ${processedVideos.length} videos in source folder: ${sourceFolderId || 'root'}`)
 
-    // Step 1: Create the main destination folder
+    // Step 1: Create the organized folder within the source folder (not at root)
+    const parentFolderId = sourceFolderId || null; // Use source folder as parent
     const mainFolderResponse = await fetch(
       'https://www.googleapis.com/drive/v3/files',
       {
@@ -47,7 +49,8 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           name: destinationFolderName,
-          mimeType: 'application/vnd.google-apps.folder'
+          mimeType: 'application/vnd.google-apps.folder',
+          parents: parentFolderId ? [parentFolderId] : undefined
         })
       }
     )
@@ -105,9 +108,9 @@ serve(async (req) => {
 
       for (const video of batch) {
         try {
-          // Determine target folder
-          const videoDate = new Date(video.originalDate)
-          const yearMonth = `${videoDate.getFullYear()}/${String(videoDate.getMonth() + 1).padStart(2, '0')}-${videoDate.toLocaleDateString('en', { month: 'long' })}`
+          // Use the ORIGINAL metadata date (when video was actually shot)
+          const originalDate = new Date(video.metadata?.originalCreationDate || video.originalDate)
+          const yearMonth = `${originalDate.getFullYear()}/${String(originalDate.getMonth() + 1).padStart(2, '0')}-${originalDate.toLocaleDateString('en', { month: 'long' })}`
           let targetFolderId = folderMap.get(yearMonth)
           
           // Create subfolder if it doesn't exist
