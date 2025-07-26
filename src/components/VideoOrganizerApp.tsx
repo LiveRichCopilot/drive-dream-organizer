@@ -256,7 +256,7 @@ const VideoOrganizerApp = () => {
             <Button variant="outline" size="sm">
               <Filter className="h-4 w-4" />
             </Button>
-            <Button variant="secondary" size="sm" onClick={organizeVideos}>
+            <Button variant="glass" size="sm" onClick={organizeVideos}>
               <Calendar className="h-4 w-4 mr-2" />
               Organize by Date
             </Button>
@@ -362,7 +362,7 @@ const VideoOrganizerApp = () => {
           <p className="text-muted-foreground mb-6">
             {searchQuery ? "Try adjusting your search terms" : "Connect your Google Drive to see videos"}
           </p>
-          <Button variant="secondary">
+          <Button variant="glass">
             <Upload className="h-4 w-4 mr-2" />
             Upload Videos
           </Button>

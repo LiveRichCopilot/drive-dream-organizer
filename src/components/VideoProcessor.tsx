@@ -372,32 +372,34 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
       ...prev,
       status: 'organizing',
       currentStep: 6,
-      currentFile: 'Uploading to Google Drive...'
+      currentFile: 'Organizing videos in Google Drive by date...'
     }));
 
     try {
       // Import the API client method
       const { apiClient } = await import('@/lib/api');
       
-      const uploadResult = await apiClient.uploadOrganizedVideos(
-        results.downloadedVideos,
-        settings.destinationFolderName,
-        results.organizationStructure
-      );
-
-      // Update results with upload information
-      results.uploadResult = uploadResult;
+      // Get all video IDs for organization
+      const videoIds = videos.map(video => video.id);
+      
+      // Organize videos by date in Google Drive (creates folders and moves files)
+      await apiClient.organizeVideosByDate(videoIds);
 
       setProcessingState(prev => ({
         ...prev,
-        progress: 98
+        progress: 98,
+        currentFile: 'Videos organized! Check your Google Drive for new date-based folders.'
       }));
 
-      console.log('Upload completed:', uploadResult);
+      console.log('Google Drive organization completed successfully');
 
     } catch (error) {
-      console.error('Failed to upload to Google Drive:', error);
-      // Continue processing even if upload fails
+      console.error('Failed to organize videos in Google Drive:', error);
+      // Continue processing even if organization fails
+      setProcessingState(prev => ({
+        ...prev,
+        currentFile: 'Organization failed, but processing completed successfully'
+      }));
     }
   };
 

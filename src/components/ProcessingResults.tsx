@@ -176,7 +176,7 @@ const ProcessingResults: React.FC<ProcessingResultsProps> = ({ results, onStartN
                   </div>
                   <Button 
                     onClick={() => downloadProjectFile(projectFile)}
-                    variant="outline"
+                    variant="glass"
                     size="sm"
                   >
                     <Download className="mr-2 h-4 w-4" />
@@ -224,10 +224,10 @@ const ProcessingResults: React.FC<ProcessingResultsProps> = ({ results, onStartN
 
       {/* Actions */}
       <div className="flex gap-3">
-        <Button onClick={onStartNew} variant="outline" className="flex-1">
+        <Button onClick={onStartNew} variant="glass" className="flex-1">
           Process More Videos
         </Button>
-        <Button className="flex-1">
+        <Button variant="glass" className="flex-1">
           Open Downloads Folder
         </Button>
       </div>
