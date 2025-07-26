@@ -27,17 +27,20 @@ import GoogleDriveFolderInput from "@/components/GoogleDriveFolderInput";
 type ViewMode = "grid" | "list";
 
 const VideoOrganizerApp = () => {
+  const [selectedFolderId, setSelectedFolderId] = useState<string | undefined>();
+  
   const {
     isConnected,
     isLoading,
     videos,
     progress,
     connect,
+    loadVideos,
     downloadVideo,
     renameVideo,
     organizeVideos,
     disconnect,
-  } = useGoogleDrive();
+  } = useGoogleDrive(selectedFolderId);
   
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [searchQuery, setSearchQuery] = useState("");
@@ -114,7 +117,11 @@ const VideoOrganizerApp = () => {
                       <GoogleDriveFolderInput 
                         onFolderSelected={(folderId) => {
                           console.log('Folder selected:', folderId);
-                          // You can store this folderId in state for future use
+                          setSelectedFolderId(folderId);
+                          // Reload videos after folder selection
+                          if (isConnected) {
+                            loadVideos();
+                          }
                         }}
                       />
                     </div>

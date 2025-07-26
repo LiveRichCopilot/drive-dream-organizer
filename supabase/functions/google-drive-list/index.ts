@@ -21,9 +21,22 @@ serve(async (req) => {
       )
     }
 
+    // Get folder ID from request body
+    const body = await req.json().catch(() => ({}))
+    const folderId = body.folderId
+
+    // Build query for Google Drive API
+    let query = "mimeType contains 'video/'"
+    if (folderId) {
+      query += ` and '${folderId}' in parents`
+    }
+
+    console.log('Searching for videos with query:', query)
+    console.log('Folder ID:', folderId)
+
     // List video files from Google Drive
     const response = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=mimeType contains 'video/'&fields=files(id,name,size,createdTime,thumbnailLink,videoMediaMetadata)&pageSize=100`,
+      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,size,createdTime,thumbnailLink,videoMediaMetadata)&pageSize=100`,
       {
         headers: {
           'Authorization': `Bearer ${accessToken}`,

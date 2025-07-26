@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { apiClient, VideoFile } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 
-export const useGoogleDrive = () => {
+export const useGoogleDrive = (folderId?: string) => {
   const [isConnected, setIsConnected] = useState(apiClient.isAuthenticated());
   const [isLoading, setIsLoading] = useState(false);
   const [videos, setVideos] = useState<VideoFile[]>([]);
@@ -64,14 +64,14 @@ export const useGoogleDrive = () => {
     
     setIsLoading(true);
     try {
-      const videoFiles = await apiClient.listVideoFiles();
+      const videoFiles = await apiClient.listVideoFiles(folderId);
       setVideos(videoFiles);
     } catch (error) {
       console.error('Failed to load videos:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [isConnected]);
+  }, [isConnected, folderId]);
 
   const downloadVideo = useCallback(async (fileId: string, fileName: string) => {
     try {

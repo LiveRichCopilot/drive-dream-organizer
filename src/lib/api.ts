@@ -136,12 +136,15 @@ class APIClient {
     }
   }
 
-  async listVideoFiles(): Promise<VideoFile[]> {
+  async listVideoFiles(folderId?: string): Promise<VideoFile[]> {
     const response = await fetch(`${this.baseURL}/google-drive-list`, {
+      method: 'POST',
       headers: {
+        'Content-Type': 'application/json',
         'Authorization': `Bearer ${this.accessToken}`,
         'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88',
       },
+      body: JSON.stringify({ folderId }),
     });
     
     if (!response.ok) {
