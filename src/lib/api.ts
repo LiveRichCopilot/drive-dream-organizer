@@ -62,7 +62,7 @@ class APIClient {
         console.log('Using redirect URI:', redirectUri);
         console.log('Using client ID:', clientId);
         
-        const authUrl = `https://accounts.google.com/oauth2/auth?` +
+        const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
           `client_id=${clientId}&` +
           `redirect_uri=${encodeURIComponent(redirectUri)}&` +
           `response_type=${responseType}&` +
