@@ -7,9 +7,10 @@ import { Separator } from '@/components/ui/separator';
 import { Download, Play, Pause, RotateCcw, FileText, Clock, HardDrive } from 'lucide-react';
 import { VideoFile, apiClient } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
+import { VideoPreview } from './VideoPreview';
 
 interface ProcessingState {
-  status: 'idle' | 'downloading' | 'extracting' | 'organizing' | 'generating' | 'completed' | 'error';
+  status: 'idle' | 'downloading' | 'extracting' | 'organizing' | 'generating' | 'preview' | 'uploading' | 'completed' | 'error';
   currentStep: number;
   totalSteps: number;
   currentFile?: string;
@@ -84,6 +85,7 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
   });
 
   const [isPaused, setIsPaused] = useState(false);
+  const [previewResults, setPreviewResults] = useState<ProcessingResults | null>(null);
   const [settings, setSettings] = useState({
     extractMetadata: true,
     organizeByDate: true,
@@ -147,26 +149,22 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
       // Step 5: Generate project files
       await generateProjectFiles(results);
 
-      // Step 6: Upload organized videos back to Google Drive
-      if (settings.destinationFolderName) {
-        await uploadToGoogleDrive(results);
-      }
-
+      // Show preview instead of immediately uploading
       const endTime = Date.now();
       results.totalTime = formatDuration(endTime - startTime);
 
       setProcessingState(prev => ({
         ...prev,
-        status: 'completed',
-        progress: 100,
+        status: 'preview',
+        progress: 90,
         currentStep: 5
       }));
 
-      onProcessingComplete(results);
+      setPreviewResults(results);
       
       toast({
         title: "Processing Complete!",
-        description: `Successfully processed ${videos.length} videos in ${results.totalTime}`,
+        description: `Successfully processed ${videos.length} videos. Review the timeline before uploading.`,
       });
 
     } catch (error) {
@@ -513,7 +511,74 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
       startTime: 0
     });
     setIsPaused(false);
+    setPreviewResults(null);
   };
+
+  const handleConfirmUpload = async () => {
+    if (!previewResults) return;
+    
+    setProcessingState(prev => ({
+      ...prev,
+      status: 'uploading',
+      currentStep: 6,
+      progress: 90
+    }));
+
+    try {
+      // Step 6: Upload organized videos back to Google Drive
+      if (settings.destinationFolderName) {
+        await uploadToGoogleDrive(previewResults);
+      }
+
+      setProcessingState(prev => ({
+        ...prev,
+        status: 'completed',
+        progress: 100
+      }));
+
+      onProcessingComplete(previewResults);
+      
+      toast({
+        title: "Upload Complete!",
+        description: `Successfully uploaded ${videos.length} organized videos to Google Drive`,
+      });
+
+    } catch (error) {
+      console.error('Upload failed:', error);
+      setProcessingState(prev => ({
+        ...prev,
+        status: 'error'
+      }));
+      
+      toast({
+        title: "Upload Failed",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleBackToProcessing = () => {
+    setProcessingState(prev => ({
+      ...prev,
+      status: 'generating',
+      currentStep: 5,
+      progress: 80
+    }));
+    setPreviewResults(null);
+  };
+
+  // Show preview when processing is complete
+  if (processingState.status === 'preview' && previewResults) {
+    return (
+      <VideoPreview
+        videos={previewResults.downloadedVideos}
+        onConfirmUpload={handleConfirmUpload}
+        onBack={handleBackToProcessing}
+        projectName={settings.destinationFolderName || 'Video Organization Project'}
+      />
+    );
+  }
 
   return (
     <Card className="w-full">
