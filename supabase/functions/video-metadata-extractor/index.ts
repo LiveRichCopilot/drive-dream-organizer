@@ -247,14 +247,63 @@ async function extractOriginalDate(fileData: any, accessToken: string): Promise<
 
 async function getEXIFData(fileId: string, accessToken: string): Promise<any | null> {
   try {
-    // This would require downloading and analyzing the video file
-    // For now, we'll return null as this requires additional video processing libraries
-    // In a real implementation, you might use FFmpeg or similar tools
+    // Download a small portion of the video file to extract metadata
+    const fileResponse = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Range': 'bytes=0-1048576' // First 1MB should contain metadata
+        }
+      }
+    )
+
+    if (!fileResponse.ok) {
+      console.log('Could not download file for EXIF extraction')
+      return null
+    }
+
+    const arrayBuffer = await fileResponse.arrayBuffer()
+    const uint8Array = new Uint8Array(arrayBuffer)
     
-    console.log('EXIF extraction not implemented for videos yet')
+    // Look for creation date in video metadata using basic parsing
+    const metadataString = new TextDecoder('utf-8', { fatal: false }).decode(uint8Array)
+    
+    // Look for common metadata timestamps in the file
+    const patterns = [
+      // ISO date patterns that might be in metadata
+      /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/g,
+      // Apple/QuickTime creation time patterns
+      /creation_time\s*:\s*(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/gi,
+      // MP4 metadata patterns
+      /©day.*?(\d{4}-\d{2}-\d{2})/gi,
+    ]
+    
+    const foundDates: Date[] = []
+    
+    for (const pattern of patterns) {
+      let match
+      while ((match = pattern.exec(metadataString)) !== null) {
+        const dateStr = match[1]
+        const date = new Date(dateStr)
+        if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && date.getFullYear() <= new Date().getFullYear()) {
+          foundDates.push(date)
+        }
+      }
+    }
+    
+    // Return the earliest reasonable date found
+    if (foundDates.length > 0) {
+      const earliestDate = foundDates.sort((a, b) => a.getTime() - b.getTime())[0]
+      console.log(`Found EXIF creation date: ${earliestDate.toISOString()}`)
+      return {
+        dateTimeOriginal: earliestDate.toISOString()
+      }
+    }
+    
+    console.log('No EXIF creation date found in video metadata')
     return null
   } catch (error) {
     console.error('EXIF extraction failed:', error)
     return null
   }
-}
