@@ -258,7 +258,7 @@ function extractDateFromFilename(fileName: string): string | null {
     /(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})/,      // YYYYMMDD_HHMMSS
     /(\d{4})-(\d{2})-(\d{2})/,                          // YYYY-MM-DD
     /(\d{4})(\d{2})(\d{2})/,                           // YYYYMMDD
-    // iPhone/iOS patterns
+    // iPhone/iOS patterns with date extraction
     /IMG_(\d{4})\.MOV/,                                 // IMG_NNNN.MOV (iPhone)
     /(\d{4})-(\d{2})-(\d{2}) (\d{2})\.(\d{2})\.(\d{2})/, // YYYY-MM-DD HH.MM.SS
   ]
@@ -266,18 +266,25 @@ function extractDateFromFilename(fileName: string): string | null {
   for (const pattern of patterns) {
     const match = fileName.match(pattern)
     if (match) {
+      // For iPhone naming pattern IMG_NNNN.MOV, skip filename extraction
+      if (pattern === patterns[7] && match[1]) {
+        // Skip IMG_NNNN pattern as it doesn't contain date info
+        continue
+      }
+      
       const year = parseInt(match[1])
       const month = parseInt(match[2]) || 1
       const day = parseInt(match[3]) || 1
       
-      // More lenient year validation - remove 2025 exclusion
-      if (year >= 2000 && year <= new Date().getFullYear() + 1) {
+      // Reasonable year validation - allow 2000-2030
+      if (year >= 2000 && year <= 2030 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
         const hour = match[4] ? parseInt(match[4]) : 12
         const minute = match[5] ? parseInt(match[5]) : 0
         const second = match[6] ? parseInt(match[6]) : 0
         
         const date = new Date(year, month - 1, day, hour, minute, second)
         if (!isNaN(date.getTime()) && date.getFullYear() === year) {
+          console.log(`Extracted date from filename ${fileName}: ${date.toISOString()}`)
           return date.toISOString()
         }
       }
@@ -357,12 +364,14 @@ function extractQuickTimeCreationDate(data: Uint8Array): string | null {
               ]
               
               for (const unixTime of timestamps) {
-                if (unixTime > 0 && unixTime < 4102444800) { // Valid range: 1970-2100
+                if (unixTime > 946684800 && unixTime < 4102444800) { // Valid range: 2000-2100
                   const date = new Date(unixTime * 1000)
                   
+                  // More reasonable date validation - allow any date from 2000-2030
                   if (date.getFullYear() >= 2000 && 
-                      date.getFullYear() <= new Date().getFullYear() + 1 &&
-                      date.getTime() > 0) {
+                      date.getFullYear() <= 2030 &&
+                      date.getTime() > 0 &&
+                      date.getMonth() >= 0 && date.getMonth() <= 11) {
                     console.log(`Found QuickTime date from ${atom.name}: ${date.toISOString()}`)
                     return date.toISOString()
                   }
@@ -404,7 +413,8 @@ function extractMP4CreationDate(data: Uint8Array): string | null {
           const date = new Date(isoMatch[1])
           if (!isNaN(date.getTime()) && 
               date.getFullYear() >= 2000 && 
-              date.getFullYear() <= new Date().getFullYear() + 1) {
+              date.getFullYear() <= 2030) {
+            console.log(`Found MP4 date: ${date.toISOString()}`)
             return date.toISOString()
           }
         }
@@ -438,7 +448,7 @@ function extractTextMetadata(data: Uint8Array): string | null {
         const date = new Date(dateStr)
         if (!isNaN(date.getTime()) && 
             date.getFullYear() >= 2000 && 
-            date.getFullYear() <= new Date().getFullYear() + 1) {
+            date.getFullYear() <= 2030) {
           foundDates.push(date)
         }
       }
@@ -481,7 +491,7 @@ function extractExifData(data: Uint8Array): string | null {
                                parseInt(hour), parseInt(minute), parseInt(second))
           
           if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && 
-              date.getFullYear() <= new Date().getFullYear() + 1) {
+              date.getFullYear() <= 2030) {
             console.log(`Found EXIF date: ${date.toISOString()}`)
             return date.toISOString()
           }
@@ -517,7 +527,7 @@ function extractXMPMetadata(data: Uint8Array): string | null {
         const date = new Date(dateStr)
         
         if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && 
-            date.getFullYear() <= new Date().getFullYear() + 1) {
+            date.getFullYear() <= 2030) {
           console.log(`Found XMP date: ${date.toISOString()}`)
           return date.toISOString()
         }
@@ -551,7 +561,7 @@ function extractAVIMetadata(data: Uint8Array): string | null {
         if (dateMatch) {
           const date = new Date(dateMatch[0])
           if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && 
-              date.getFullYear() <= new Date().getFullYear() + 1) {
+              date.getFullYear() <= 2030) {
             console.log(`Found AVI date: ${date.toISOString()}`)
             return date.toISOString()
           }
@@ -614,7 +624,7 @@ function extractCanonMetadata(data: Uint8Array): string | null {
                                  parseInt(hour), parseInt(minute), parseInt(second))
             
             if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && 
-                date.getFullYear() <= new Date().getFullYear() + 1) {
+                date.getFullYear() <= 2030) {
               console.log(`Found Canon date: ${date.toISOString()}`)
               return date.toISOString()
             }
@@ -661,7 +671,7 @@ function extractSonyMetadata(data: Uint8Array): string | null {
           if (match) {
             const date = new Date(match[0])
             if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && 
-                date.getFullYear() <= new Date().getFullYear() + 1) {
+                date.getFullYear() <= 2030) {
               console.log(`Found Sony date: ${date.toISOString()}`)
               return date.toISOString()
             }
@@ -706,7 +716,7 @@ function extractiPhoneMetadata(data: Uint8Array): string | null {
           if (match) {
             const date = new Date(match[1])
             if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && 
-                date.getFullYear() <= new Date().getFullYear() + 1) {
+                date.getFullYear() <= 2030) {
               console.log(`Found iPhone date: ${date.toISOString()}`)
               return date.toISOString()
             }
@@ -757,7 +767,7 @@ function extractAndroidMetadata(data: Uint8Array): string | null {
             }
             
             if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && 
-                date.getFullYear() <= new Date().getFullYear() + 1) {
+                date.getFullYear() <= 2030) {
               console.log(`Found Android date: ${date.toISOString()}`)
               return date.toISOString()
             }
@@ -799,7 +809,7 @@ function extractProResMetadata(data: Uint8Array): string | null {
             
             if (unixTime > 946684800 && unixTime < 4102444800) { // Valid range: 2000-2100
               const date = new Date(unixTime * 1000)
-              if (date.getFullYear() >= 2000 && date.getFullYear() <= new Date().getFullYear() + 1) {
+              if (date.getFullYear() >= 2000 && date.getFullYear() <= 2030) {
                 console.log(`Found ProRes date: ${date.toISOString()}`)
                 return date.toISOString()
               }
@@ -851,7 +861,7 @@ function extractH264H265Metadata(data: Uint8Array): string | null {
             if (match) {
               const date = new Date(match[1])
               if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && 
-                  date.getFullYear() <= new Date().getFullYear() + 1) {
+                  date.getFullYear() <= 2030) {
                 console.log(`Found H.264/H.265 date: ${date.toISOString()}`)
                 return date.toISOString()
               }
