@@ -406,22 +406,20 @@ function extractDateFromFilename(fileName: string): string | null {
 
 async function downloadVideoMetadata(fileId: string, accessToken: string, fileSize: number): Promise<Uint8Array | null> {
   try {
-    // For iPhone videos, we need to download more of the file to get metadata
-    // QuickTime metadata can be at the beginning OR end of the file
+    // **OPTIMIZED DOWNLOAD STRATEGY** - Be more conservative to avoid timeouts
     const downloadSize = Math.min(
-      fileSize < 50 * 1024 * 1024 ? fileSize : 20 * 1024 * 1024, // Download full file if < 50MB, otherwise 20MB
+      fileSize < 10 * 1024 * 1024 ? fileSize : 5 * 1024 * 1024, // Full file if < 10MB, otherwise 5MB
       fileSize
     )
     
     console.log(`📥 Downloading ${Math.floor(downloadSize / 1024 / 1024)}MB of ${Math.floor(fileSize / 1024 / 1024)}MB file for metadata extraction`)
     
-    // Download the ORIGINAL file without any transcoding - this is critical!
+    // Download the ORIGINAL file without any transcoding
     const response = await fetch(
       `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
       {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          // For smaller files, download the whole thing. For larger files, get beginning + end
           ...(downloadSize < fileSize ? { 'Range': `bytes=0-${downloadSize - 1}` } : {})
         }
       }
@@ -434,33 +432,6 @@ async function downloadVideoMetadata(fileId: string, accessToken: string, fileSi
     
     const arrayBuffer = await response.arrayBuffer()
     console.log(`✅ Successfully downloaded ${arrayBuffer.byteLength} bytes for metadata extraction`)
-    
-    // Also try to get the end of the file if we didn't download the whole thing
-    if (downloadSize < fileSize && fileSize > 10 * 1024 * 1024) {
-      console.log(`📥 Also downloading end of file for metadata that might be at the end...`)
-      try {
-        const endResponse = await fetch(
-          `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-          {
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'Range': `bytes=${fileSize - 5 * 1024 * 1024}-${fileSize - 1}` // Last 5MB
-            }
-          }
-        )
-        if (endResponse.ok) {
-          const endBuffer = await endResponse.arrayBuffer()
-          console.log(`✅ Also got ${endBuffer.byteLength} bytes from end of file`)
-          // Combine beginning and end for comprehensive metadata search
-          const combined = new Uint8Array(arrayBuffer.byteLength + endBuffer.byteLength)
-          combined.set(new Uint8Array(arrayBuffer), 0)
-          combined.set(new Uint8Array(endBuffer), arrayBuffer.byteLength)
-          return combined
-        }
-      } catch (error) {
-        console.log(`⚠️ Could not get end of file, continuing with beginning only`)
-      }
-    }
     
     return new Uint8Array(arrayBuffer)
   } catch (error) {
@@ -626,46 +597,22 @@ function extractQuickTimeCreationDate(data: Uint8Array): string | null {
 // Based on ExifTool patterns for comprehensive iPhone video analysis
 function extractiPhoneMetadata(data: Uint8Array): string | null {
   try {
-    console.log('🍎 Starting enhanced iPhone-specific metadata extraction...')
+    console.log('🍎 Starting optimized iPhone-specific metadata extraction...')
     
-    // 1. Look for Apple-specific atoms in user data (udta)
-    console.log('🔍 Searching for Apple udta (user data) atoms...')
+    // **SIMPLIFIED AND FAST** - Focus on the most common patterns first
+    
+    // 1. Quick Apple udta search (most common for iPhone)
     const udtaDate = extractAppleUdtaMetadata(data)
     if (udtaDate) {
       console.log(`✅ SUCCESS: Found date in Apple udta: ${udtaDate}`)
       return udtaDate
     }
     
-    // 2. Look for Apple's ©day atom (creation day)
-    console.log('🔍 Searching for Apple ©day atom...')
-    const dayAtom = extractAppleDayAtom(data)
-    if (dayAtom) {
-      console.log(`✅ SUCCESS: Found date in ©day atom: ${dayAtom}`)
-      return dayAtom
-    }
-    
-    // 3. Look for Apple's ©xyz atom (location data with timestamps)
-    console.log('🔍 Searching for Apple ©xyz location atom...')
-    const xyzAtom = extractAppleXyzAtom(data)
-    if (xyzAtom) {
-      console.log(`✅ SUCCESS: Found date in ©xyz atom: ${xyzAtom}`)
-      return xyzAtom
-    }
-    
-    // 4. Look for iTunes-style metadata container
-    console.log('🔍 Searching for iTunes metadata...')
+    // 2. Quick iTunes metadata search (second most common)
     const itunesDate = extractAppleItunesMetadata(data)
     if (itunesDate) {
       console.log(`✅ SUCCESS: Found date in iTunes metadata: ${itunesDate}`)
       return itunesDate
-    }
-    
-    // 5. Look for embedded EXIF-style data in iPhone videos
-    console.log('🔍 Searching for embedded EXIF data...')
-    const exifDate = extractEmbeddedExifData(data)
-    if (exifDate) {
-      console.log(`✅ SUCCESS: Found date in embedded EXIF: ${exifDate}`)
-      return exifDate
     }
     
     console.log('❌ No iPhone-specific metadata found')
