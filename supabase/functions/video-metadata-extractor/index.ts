@@ -740,7 +740,6 @@ function tryGenericTimestampExtraction(data: Uint8Array): string | null {
     return null
   }
 }
-    }
     
     // Fallback: Look for media header atoms (mdhd) which also contain creation times
     const mdhdPattern = [0x6D, 0x64, 0x68, 0x64] // "mdhd"
