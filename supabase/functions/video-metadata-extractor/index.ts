@@ -586,36 +586,6 @@ function extractQuickTimeCreationDate(data: Uint8Array): string | null {
       
     } catch (error) {
       console.error('❌ Error parsing mvhd atom:', error)
-        console.log(`Found 64-bit creation time: ${creationTime}`)
-      } else {
-        console.log(`Unsupported mvhd version: ${version}`)
-        return null
-      }
-      
-      // Convert from QuickTime epoch (1904-01-01) to Unix epoch (1970-01-01)
-      // QuickTime epoch is 2082844800 seconds before Unix epoch
-      const unixTime = creationTime - 2082844800
-      console.log(`Converted to Unix time: ${unixTime}`)
-      
-      // Validate timestamp is in reasonable range (2000-2030)
-      if (unixTime > 946684800 && unixTime < 4102444800) {
-        const date = new Date(unixTime * 1000)
-        
-        // Additional validation
-        if (!isNaN(date.getTime()) && 
-            date.getFullYear() >= 2000 && 
-            date.getFullYear() <= 2030) {
-          console.log(`Successfully extracted QuickTime creation date: ${date.toISOString()}`)
-          return date.toISOString()
-        } else {
-          console.log(`Date validation failed: ${date.toISOString()}, year: ${date.getFullYear()}`)
-        }
-      } else {
-        console.log(`Unix timestamp out of valid range: ${unixTime}`)
-      }
-      
-    } catch (error) {
-      console.error('Error parsing mvhd atom:', error)
     }
     
     // Fallback: Look for media header atoms (mdhd) which also contain creation times
