@@ -74,11 +74,12 @@ const MetadataVerification: React.FC<MetadataVerificationProps> = ({
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           
-          // Check if it's an authentication error and stop the process
-          if (errorMessage.includes('authentication expired') || errorMessage.includes('re-authenticate')) {
+          // Check if it's an authentication error and provide clear guidance
+          if (errorMessage.includes('authentication expired') || errorMessage.includes('re-authenticate') || 
+              errorMessage.includes('Invalid Credentials') || errorMessage.includes('UNAUTHENTICATED')) {
             toast({
-              title: "Authentication Required",
-              description: errorMessage,
+              title: "Google Drive Authentication Expired",
+              description: "Please go back and click 'Authenticate with Google Drive' to get a fresh access token, then retry verification.",
               variant: "destructive"
             });
             setIsVerifying(false);
