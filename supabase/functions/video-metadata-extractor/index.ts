@@ -211,6 +211,11 @@ async function extractRealShootingDate(fileId: string, accessToken: string, file
     console.log(`=== METADATA EXTRACTION START for ${fileName} ===`)
     console.log(`File size: ${Math.floor(fileSize / 1024 / 1024)}MB, Format: ${getVideoFormat(fileName)}`)
     
+    // For iPhone/iOS videos (IMG_*.MOV files), try a different approach first
+    if (fileName.match(/^IMG_\d+\.MOV$/i)) {
+      console.log('🍎 Detected iPhone video file - using iOS-specific extraction')
+    }
+    
     // Try filename pattern extraction first (fastest method)
     console.log('Step 1: Checking filename for date patterns...')
     const filenameDate = extractDateFromFilename(fileName)
