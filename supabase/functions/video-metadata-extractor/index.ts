@@ -454,40 +454,61 @@ async function downloadVideoMetadata(fileId: string, accessToken: string, fileSi
 function extractQuickTimeCreationDate(data: Uint8Array): string | null {
   try {
     console.log('Starting QuickTime/MOV metadata extraction...')
+    console.log(`File size: ${data.length} bytes`)
+    
+    // Debug: Show first 100 bytes as hex to understand file structure
+    const headerHex = Array.from(data.slice(0, 100))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join(' ')
+    console.log(`File header (hex): ${headerHex.slice(0, 200)}...`)
     
     // Look for QuickTime file type box first to confirm this is a MOV file
     const ftypIndex = findBytesPattern(data, [0x66, 0x74, 0x79, 0x70]) // "ftyp"
     if (ftypIndex === -1) {
-      console.log('No QuickTime ftyp box found')
+      console.log('❌ No QuickTime ftyp box found - not a valid MOV file')
       return null
     }
-    console.log(`Found ftyp box at index ${ftypIndex}`)
+    console.log(`✓ Found ftyp box at index ${ftypIndex}`)
     
-    // Enhanced search for movie header atom (mvhd) - try multiple approaches
+    // Show what's after ftyp to understand the brand
+    if (ftypIndex + 12 < data.length) {
+      const brand = new TextDecoder('utf-8', { fatal: false }).decode(data.slice(ftypIndex + 8, ftypIndex + 12))
+      console.log(`File brand: ${brand}`)
+    }
+    
+    // Enhanced search for movie header atom (mvhd) 
     let mvhdIndex = findBytesPattern(data, [0x6D, 0x76, 0x68, 0x64]) // "mvhd"
     if (mvhdIndex === -1) {
-      console.log('Primary mvhd search failed, trying alternative search...')
+      console.log('❌ Primary mvhd search failed, trying alternative search...')
       
       // Alternative search: look for "moov" container first, then mvhd inside it
       const moovIndex = findBytesPattern(data, [0x6D, 0x6F, 0x6F, 0x76]) // "moov"
       if (moovIndex !== -1) {
-        console.log(`Found moov container at index ${moovIndex}`)
-        // Search for mvhd within 1KB after moov
-        const searchArea = data.slice(moovIndex, Math.min(moovIndex + 1024, data.length))
+        console.log(`✓ Found moov container at index ${moovIndex}`)
+        
+        // Show moov atom size
+        if (moovIndex >= 4) {
+          const moovSize = new DataView(data.buffer, data.byteOffset + moovIndex - 4, 4).getUint32(0, false)
+          console.log(`Moov atom size: ${moovSize} bytes`)
+        }
+        
+        // Search for mvhd within the entire moov atom, not just 1KB
+        const moovSearchEnd = Math.min(moovIndex + 10000, data.length) // Search up to 10KB
+        const searchArea = data.slice(moovIndex, moovSearchEnd)
         const localMvhdIndex = findBytesPattern(searchArea, [0x6D, 0x76, 0x68, 0x64])
         if (localMvhdIndex !== -1) {
           mvhdIndex = moovIndex + localMvhdIndex
-          console.log(`Found mvhd in moov container at index ${mvhdIndex}`)
+          console.log(`✓ Found mvhd in moov container at index ${mvhdIndex}`)
         }
       }
       
       if (mvhdIndex === -1) {
-        console.log('No mvhd atom found after exhaustive search')
+        console.log('❌ No mvhd atom found after exhaustive search')
         return null
       }
+    } else {
+      console.log(`✓ Found mvhd atom at index ${mvhdIndex}`)
     }
-    
-    console.log(`Found mvhd atom at index ${mvhdIndex}`)
     
     try {
       // mvhd structure: 
@@ -498,26 +519,73 @@ function extractQuickTimeCreationDate(data: Uint8Array): string | null {
       // 4 bytes: creation time (if version 0) or 8 bytes (if version 1)
       
       if (mvhdIndex + 20 > data.length) {
-        console.log('mvhd atom too close to end of data')
+        console.log('❌ mvhd atom too close to end of data')
         return null
+      }
+      
+      // Get the atom size first (4 bytes before mvhd)
+      let atomSize = 0
+      if (mvhdIndex >= 4) {
+        atomSize = new DataView(data.buffer, data.byteOffset + mvhdIndex - 4, 4).getUint32(0, false)
+        console.log(`mvhd atom size: ${atomSize} bytes`)
       }
       
       // Check version byte (position 8 after start of mvhd)
       const version = data[mvhdIndex + 8]
-      console.log(`mvhd version: ${version}`)
+      const flags = [data[mvhdIndex + 9], data[mvhdIndex + 10], data[mvhdIndex + 11]]
+      console.log(`mvhd version: ${version}, flags: [${flags.join(', ')}]`)
       
       let creationTime: number
       
       if (version === 0) {
         // Version 0: 32-bit creation time at offset 12
-        if (mvhdIndex + 16 > data.length) return null
+        if (mvhdIndex + 16 > data.length) {
+          console.log('❌ Not enough data for version 0 creation time')
+          return null
+        }
         creationTime = new DataView(data.buffer, data.byteOffset + mvhdIndex + 12, 4).getUint32(0, false)
-        console.log(`Found 32-bit creation time: ${creationTime}`)
+        console.log(`✓ Found 32-bit creation time: ${creationTime} (hex: 0x${creationTime.toString(16)})`)
       } else if (version === 1) {
         // Version 1: 64-bit creation time at offset 16  
-        if (mvhdIndex + 24 > data.length) return null
+        if (mvhdIndex + 24 > data.length) {
+          console.log('❌ Not enough data for version 1 creation time')
+          return null
+        }
         const creationTime64 = new DataView(data.buffer, data.byteOffset + mvhdIndex + 16, 8).getBigUint64(0, false)
         creationTime = Number(creationTime64)
+        console.log(`✓ Found 64-bit creation time: ${creationTime} (hex: 0x${creationTime.toString(16)})`)
+      } else {
+        console.log(`❌ Unsupported mvhd version: ${version}`)
+        return null
+      }
+      
+      // Convert from QuickTime epoch (1904-01-01) to Unix epoch (1970-01-01)
+      // QuickTime epoch is 2082844800 seconds before Unix epoch
+      const unixTime = creationTime - 2082844800
+      console.log(`📅 Converted to Unix time: ${unixTime}`)
+      console.log(`📅 Raw date: ${new Date(unixTime * 1000).toString()}`)
+      
+      // Validate timestamp is in reasonable range (2000-2030)
+      if (unixTime > 946684800 && unixTime < 4102444800) {
+        const date = new Date(unixTime * 1000)
+        
+        // Additional validation
+        if (!isNaN(date.getTime()) && 
+            date.getFullYear() >= 2000 && 
+            date.getFullYear() <= 2030) {
+          console.log(`✅ SUCCESS: QuickTime creation date: ${date.toISOString()}`)
+          console.log(`✅ Human readable: ${date.toString()}`)
+          return date.toISOString()
+        } else {
+          console.log(`❌ Date validation failed: ${date.toISOString()}, year: ${date.getFullYear()}`)
+        }
+      } else {
+        console.log(`❌ Unix timestamp out of valid range: ${unixTime}`)
+        console.log(`Expected range: 946684800 - 4102444800, got: ${unixTime}`)
+      }
+      
+    } catch (error) {
+      console.error('❌ Error parsing mvhd atom:', error)
         console.log(`Found 64-bit creation time: ${creationTime}`)
       } else {
         console.log(`Unsupported mvhd version: ${version}`)
