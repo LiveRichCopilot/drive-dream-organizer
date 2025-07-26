@@ -597,6 +597,10 @@ function extractQuickTimeCreationDate(data: Uint8Array): string | null {
     console.log(`🎬 Starting QuickTime/MOV metadata extraction...`)
     console.log(`📊 Data size: ${data.length} bytes`)
     
+    // First, let's examine the file structure to understand what atoms are present
+    console.log(`🔍 Analyzing file structure...`)
+    analyzeFileStructure(data)
+    
     // Look for 'mvhd' (movie header) atom
     console.log(`🔍 Searching for 'mvhd' atom...`)
     const mvhdPattern = [0x6D, 0x76, 0x68, 0x64] // "mvhd"
@@ -604,41 +608,211 @@ function extractQuickTimeCreationDate(data: Uint8Array): string | null {
     
     console.log(`📋 mvhd atom search result: ${mvhdIndex === -1 ? 'NOT FOUND' : `found at index ${mvhdIndex}`}`)
     
+    // If mvhd not found, try alternative approaches
+    if (mvhdIndex === -1) {
+      console.log(`❌ mvhd atom not found, trying alternative QuickTime metadata...`)
+      return tryAlternativeQuickTimeExtraction(data)
+    }
+    
     if (mvhdIndex !== -1 && mvhdIndex + 20 <= data.length) {
-      console.log(`Found mvhd atom at index ${mvhdIndex}`)
+      console.log(`✅ Found mvhd atom at index ${mvhdIndex}`)
+      console.log(`🔍 Examining mvhd atom structure...`)
+      
+      // Show hex dump around mvhd atom for debugging
+      const startIndex = Math.max(0, mvhdIndex - 16)
+      const endIndex = Math.min(data.length, mvhdIndex + 32)
+      const hexDump = Array.from(data.slice(startIndex, endIndex))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join(' ')
+      console.log(`📋 Hex dump around mvhd (bytes ${startIndex}-${endIndex}): ${hexDump}`)
       
       try {
+        // Check atom size first
+        const atomSize = new DataView(data.buffer, data.byteOffset + mvhdIndex - 4, 4).getUint32(0, false)
+        console.log(`📊 mvhd atom size: ${atomSize} bytes`)
+        
         const version = data[mvhdIndex + 8]
+        console.log(`📊 mvhd version: ${version}`)
+        
         let creationTime: number
         
         if (version === 0 && mvhdIndex + 16 <= data.length) {
           creationTime = new DataView(data.buffer, data.byteOffset + mvhdIndex + 12, 4).getUint32(0, false)
+          console.log(`📊 Raw creation time (v0): ${creationTime}`)
         } else if (version === 1 && mvhdIndex + 24 <= data.length) {
           const creationTime64 = new DataView(data.buffer, data.byteOffset + mvhdIndex + 16, 8).getBigUint64(0, false)
           creationTime = Number(creationTime64)
+          console.log(`📊 Raw creation time (v1): ${creationTime}`)
         } else {
-          console.log('Unsupported mvhd version or insufficient data')
+          console.log(`❌ Unsupported mvhd version ${version} or insufficient data`)
           return null
         }
         
         // Convert Mac epoch (1904) to Unix epoch (1970)
         const unixTime = creationTime - 2082844800
+        console.log(`📊 Unix timestamp: ${unixTime}`)
         
         if (unixTime > 946684800 && unixTime < 4102444800) { // Valid range: 2000-2100
           const date = new Date(unixTime * 1000)
           if (!isNaN(date.getTime())) {
-            console.log(`Successfully extracted mvhd creation date: ${date.toISOString()}`)
+            console.log(`✅ Successfully extracted mvhd creation date: ${date.toISOString()}`)
             return date.toISOString()
+          } else {
+            console.log(`❌ Invalid date calculation from timestamp ${unixTime}`)
           }
+        } else {
+          console.log(`❌ Unix timestamp ${unixTime} is outside valid range (946684800-4102444800)`)
         }
       } catch (error) {
-        console.error('Error parsing mvhd atom:', error)
+        console.error(`❌ Error parsing mvhd atom:`, error)
       }
     }
     
     return null
   } catch (error) {
     console.error('Error extracting QuickTime creation date:', error)
+    return null
+  }
+}
+
+function analyzeFileStructure(data: Uint8Array): void {
+  try {
+    console.log(`🔍 File structure analysis...`)
+    
+    // Show first 64 bytes as hex dump
+    const headerSize = Math.min(64, data.length)
+    const headerHex = Array.from(data.slice(0, headerSize))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join(' ')
+    console.log(`📋 File header (first ${headerSize} bytes): ${headerHex}`)
+    
+    // Look for common QuickTime/MP4 atoms
+    const commonAtoms = ['ftyp', 'moov', 'mvhd', 'trak', 'mdat', 'free', 'skip']
+    const foundAtoms: string[] = []
+    
+    for (const atom of commonAtoms) {
+      const atomBytes = Array.from(atom).map(c => c.charCodeAt(0))
+      const index = findBytesPattern(data, atomBytes)
+      if (index !== -1) {
+        foundAtoms.push(`${atom}@${index}`)
+      }
+    }
+    
+    console.log(`📋 Found atoms: ${foundAtoms.length > 0 ? foundAtoms.join(', ') : 'none found'}`)
+    
+    // Check file signature
+    const signature = Array.from(data.slice(0, 12))
+      .map(b => String.fromCharCode(b))
+      .join('')
+    console.log(`📋 File signature: "${signature}"`)
+    
+  } catch (error) {
+    console.error(`❌ Error analyzing file structure:`, error)
+  }
+}
+
+function tryAlternativeQuickTimeExtraction(data: Uint8Array): string | null {
+  try {
+    console.log(`🔍 Trying alternative QuickTime metadata extraction methods...`)
+    
+    // Look for creation date in different locations
+    const datePatterns = [
+      'creation_time',
+      'date',
+      'DATE',
+      'created'
+    ]
+    
+    for (const pattern of datePatterns) {
+      const patternBytes = Array.from(pattern).map(c => c.charCodeAt(0))
+      const index = findBytesPattern(data, patternBytes)
+      if (index !== -1) {
+        console.log(`📋 Found potential date pattern "${pattern}" at index ${index}`)
+        // Try to extract date from this location
+        const result = extractDateFromLocation(data, index, pattern)
+        if (result) {
+          console.log(`✅ Extracted date using pattern "${pattern}": ${result}`)
+          return result
+        }
+      }
+    }
+    
+    // Look for ISO date strings in the binary data
+    console.log(`🔍 Searching for ISO date strings...`)
+    const isoDateResult = findISODateInBinary(data)
+    if (isoDateResult) {
+      console.log(`✅ Found ISO date in binary: ${isoDateResult}`)
+      return isoDateResult
+    }
+    
+    console.log(`❌ All alternative extraction methods failed`)
+    return null
+  } catch (error) {
+    console.error(`❌ Error in alternative extraction:`, error)
+    return null
+  }
+}
+
+function extractDateFromLocation(data: Uint8Array, index: number, pattern: string): string | null {
+  try {
+    // Look for date-like data near the pattern
+    const searchStart = index + pattern.length
+    const searchEnd = Math.min(searchStart + 64, data.length)
+    const searchData = data.slice(searchStart, searchEnd)
+    
+    // Convert to string to look for readable dates
+    const searchString = Array.from(searchData)
+      .map(b => b >= 32 && b <= 126 ? String.fromCharCode(b) : '.')
+      .join('')
+    
+    console.log(`🔍 Data after "${pattern}": ${searchString}`)
+    
+    // Look for timestamp patterns
+    const timestampMatch = searchString.match(/(\d{4}[-:/]\d{2}[-:/]\d{2}[\s\T]\d{2}[:]\d{2}[:]\d{2})/);
+    if (timestampMatch) {
+      const dateStr = timestampMatch[1].replace(/[:/]/g, '-').replace(' ', 'T')
+      const date = new Date(dateStr)
+      if (!isNaN(date.getTime())) {
+        return date.toISOString()
+      }
+    }
+    
+    return null
+  } catch (error) {
+    console.error(`❌ Error extracting date from location:`, error)
+    return null
+  }
+}
+
+function findISODateInBinary(data: Uint8Array): string | null {
+  try {
+    // Convert binary to string representation
+    const searchString = Array.from(data)
+      .map(b => b >= 32 && b <= 126 ? String.fromCharCode(b) : ' ')
+      .join('')
+    
+    // Look for ISO date patterns
+    const isoPatterns = [
+      /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/g,
+      /(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})/g,
+      /(\d{4}:\d{2}:\d{2}\s\d{2}:\d{2}:\d{2})/g
+    ]
+    
+    for (const pattern of isoPatterns) {
+      const matches = [...searchString.matchAll(pattern)]
+      for (const match of matches) {
+        const dateStr = match[1].replace(/:/g, '-', 2).replace(' ', 'T')
+        const date = new Date(dateStr)
+        if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && date.getFullYear() <= 2024) {
+          console.log(`📋 Found valid ISO date: ${dateStr} -> ${date.toISOString()}`)
+          return date.toISOString()
+        }
+      }
+    }
+    
+    return null
+  } catch (error) {
+    console.error(`❌ Error finding ISO date in binary:`, error)
     return null
   }
 }
