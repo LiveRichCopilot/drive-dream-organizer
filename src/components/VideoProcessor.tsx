@@ -193,51 +193,73 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
 
     let downloadedSize = 0;
     const totalSize = videos.reduce((sum, v) => sum + parseInt(String(v.size || '0')), 0);
-
-    for (let i = 0; i < videos.length; i++) {
-      if (isPaused) {
-        await waitForResume();
-      }
-
-      const video = videos[i];
+    
+    // Process videos in batches to avoid memory issues
+    const batchSize = 10; // Process 10 videos at a time
+    const totalBatches = Math.ceil(videos.length / batchSize);
+    
+    for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+      const startIndex = batchIndex * batchSize;
+      const endIndex = Math.min(startIndex + batchSize, videos.length);
+      const batch = videos.slice(startIndex, endIndex);
       
-      setProcessingState(prev => ({
-        ...prev,
-        currentFile: video.name,
-        progress: (i / videos.length) * 20, // 20% of total progress
-        timeRemaining: estimateTimeRemaining(i + 1, videos.length * 6, prev.startTime) // Use startTime from state
-      }));
-
-      // Simulate download time based on file size (more realistic)
-      const sizeInMB = parseInt(String(video.size || '0')) / (1024 * 1024);
-      const downloadTime = Math.max(2000, sizeInMB * 50); // At least 2 seconds, 50ms per MB
-      await new Promise(resolve => setTimeout(resolve, downloadTime));
+      console.log(`Processing batch ${batchIndex + 1}/${totalBatches}: videos ${startIndex + 1}-${endIndex}`);
       
-      downloadedSize += parseInt(String(video.size || '0'));
-      
-      setProcessingState(prev => ({
-        ...prev,
-        downloadedCount: i + 1,
-        downloadedSize: formatBytes(downloadedSize)
-      }));
-
-      // Add to results
-      results.downloadedVideos.push({
-        id: video.id,
-        originalName: video.name,
-        newName: video.name,
-        originalDate: new Date(video.createdTime),
-        localPath: `/downloads/${video.name}`,
-        metadata: {
-          duration: video.duration || 0,
-          resolution: `1920x1080`, // Default resolution - would be extracted from actual file
-          fps: 30, // Default, would be extracted from actual file
-          codec: 'h264',
-          bitrate: 5000,
-          fileSize: parseInt(String(video.size || '0'))
+      for (let i = 0; i < batch.length; i++) {
+        if (isPaused) {
+          await waitForResume();
         }
-      });
+
+        const video = batch[i];
+        const globalIndex = startIndex + i;
+        
+        setProcessingState(prev => ({
+          ...prev,
+          currentFile: `Batch ${batchIndex + 1}/${totalBatches}: ${video.name}`,
+          progress: (globalIndex / videos.length) * 20, // 20% of total progress
+          timeRemaining: estimateTimeRemaining(globalIndex + 1, videos.length * 6, prev.startTime)
+        }));
+
+        // Simulate download time based on file size (more realistic but faster for large batches)
+        const sizeInMB = parseInt(String(video.size || '0')) / (1024 * 1024);
+        const downloadTime = Math.max(500, sizeInMB * 25); // Faster processing: 25ms per MB
+        await new Promise(resolve => setTimeout(resolve, downloadTime));
+        
+        downloadedSize += parseInt(String(video.size || '0'));
+        
+        setProcessingState(prev => ({
+          ...prev,
+          downloadedCount: globalIndex + 1,
+          downloadedSize: formatBytes(downloadedSize)
+        }));
+
+        // Add to results with chronological sorting preparation
+        results.downloadedVideos.push({
+          id: video.id,
+          originalName: video.name,
+          newName: video.name,
+          originalDate: new Date(video.createdTime),
+          localPath: `/downloads/${video.name}`,
+          metadata: {
+            duration: video.duration || 0,
+            resolution: `1920x1080`, // Default resolution - would be extracted from actual file
+            fps: 30, // Default, would be extracted from actual file
+            codec: 'h264',
+            bitrate: 5000,
+            fileSize: parseInt(String(video.size || '0'))
+          }
+        });
+      }
+      
+      // Small pause between batches to prevent memory overload
+      if (batchIndex < totalBatches - 1) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
     }
+    
+    // CRITICAL: Sort all videos by creation date to ensure chronological order
+    results.downloadedVideos.sort((a, b) => a.originalDate.getTime() - b.originalDate.getTime());
+    console.log(`All ${results.downloadedVideos.length} videos processed and sorted chronologically`);
   };
 
   const extractMetadata = async (results: ProcessingResults) => {
