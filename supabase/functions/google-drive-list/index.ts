@@ -35,23 +35,28 @@ serve(async (req) => {
     console.log('Folder ID:', folderId)
 
     // List video files from Google Drive
-    const response = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,size,createdTime,thumbnailLink,videoMediaMetadata)&pageSize=100`,
-      {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      }
-    )
+    const driveUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,size,createdTime,thumbnailLink,videoMediaMetadata)&pageSize=100`
+    console.log('Full Drive API URL:', driveUrl)
+    
+    const response = await fetch(driveUrl, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    })
 
+    console.log('Google Drive API response status:', response.status)
+    
     if (!response.ok) {
+      const errorText = await response.text()
+      console.error('Google Drive API error:', errorText)
       return new Response(
-        JSON.stringify({ error: 'Failed to fetch files from Google Drive' }),
+        JSON.stringify({ error: 'Failed to fetch files from Google Drive', details: errorText }),
         { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
     const data = await response.json()
+    console.log('Google Drive API response:', JSON.stringify(data, null, 2))
     
     // Transform the files to match our VideoFile interface
     const videoFiles = data.files?.map((file: any) => ({
