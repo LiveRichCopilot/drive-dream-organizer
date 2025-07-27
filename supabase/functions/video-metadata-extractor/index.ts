@@ -195,17 +195,31 @@ async function extractFromAtomStructure(
     const data = new Uint8Array(arrayBuffer);
     
     console.log(`📦 Downloaded ${data.length} bytes for analysis`);
-
+    
+    // First, let's see the raw file header
+    console.log(`🔍 First 32 bytes:`, Array.from(data.slice(0, 32)).map(b => b.toString(16).padStart(2, '0')).join(' '));
+    
     // Parse the complete atom structure
     const parser = new MOVAtomParser(data);
     const atoms = parser.parseAtomTree();
     
     console.log(`🌳 Found ${atoms.length} top-level atoms`);
     
-    // Log all atoms for debugging
+    // Log all atoms for debugging with more detail
     for (const atom of atoms) {
       const atomName = uint32ToAtomName(atom.type);
-      console.log(`📋 Processing atom: ${atomName} (${atom.size} bytes)`);
+      console.log(`📋 Atom: ${atomName} | Size: ${atom.size} | Offset: ${atom.offset} | DataOffset: ${atom.dataOffset}`);
+      
+      // If it's moov, let's dive deeper
+      if (atom.type === ATOM_TYPES.MOOV) {
+        console.log(`🎬 FOUND MOOV ATOM! Let's examine it...`);
+        const children = parser.parseChildAtoms(atom);
+        console.log(`📂 MOOV has ${children.length} child atoms:`);
+        for (const child of children) {
+          const childName = uint32ToAtomName(child.type);
+          console.log(`  └─ ${childName} (${child.size} bytes)`);
+        }
+      }
     }
 
     // Extract metadata using comprehensive atom traversal
