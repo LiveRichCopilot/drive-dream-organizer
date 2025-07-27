@@ -9,8 +9,9 @@ import { toast } from '@/hooks/use-toast';
 
 interface MetadataVerificationProps {
   videos: VideoFile[];
-  onVerificationComplete: (verifiedVideos: VideoFile[], rejectedVideos: VideoFile[]) => void;
+  onVerificationComplete: (verifiedVideos: VideoFile[], rejectedVideos: VideoFile[], results: VerificationResult[]) => void;
   onBack: () => void;
+  initialResults?: VerificationResult[]; // Add prop to restore previous results
 }
 
 interface VerificationResult {
@@ -24,7 +25,8 @@ interface VerificationResult {
 const MetadataVerification: React.FC<MetadataVerificationProps> = ({
   videos,
   onVerificationComplete,
-  onBack
+  onBack,
+  initialResults
 }) => {
   const [results, setResults] = useState<VerificationResult[]>([]);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -32,12 +34,16 @@ const MetadataVerification: React.FC<MetadataVerificationProps> = ({
   const [currentVideo, setCurrentVideo] = useState<string>('');
 
   useEffect(() => {
-    // Initialize results
-    setResults(videos.map(video => ({
-      video,
-      status: 'pending'
-    })));
-  }, [videos]);
+    // Initialize results - use previous results if available, otherwise start fresh
+    if (initialResults && initialResults.length === videos.length) {
+      setResults(initialResults);
+    } else {
+      setResults(videos.map(video => ({
+        video,
+        status: 'pending'
+      })));
+    }
+  }, [videos, initialResults]);
 
   const startVerification = async (onlyFailed = false) => {
     setIsVerifying(true);
@@ -179,7 +185,7 @@ const MetadataVerification: React.FC<MetadataVerificationProps> = ({
       return;
     }
     
-    onVerificationComplete(verifiedVideos, rejectedVideos);
+    onVerificationComplete(verifiedVideos, rejectedVideos, results);
   };
 
   const getStatusIcon = (status: VerificationResult['status']) => {

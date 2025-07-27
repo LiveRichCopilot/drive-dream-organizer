@@ -30,6 +30,14 @@ interface VideoProcessorProps {
   onProcessingComplete: (results: ProcessingResults) => void;
 }
 
+interface VerificationResult {
+  video: VideoFile;
+  status: 'pending' | 'success' | 'failed' | 'error';
+  metadata?: any;
+  originalDate?: string;
+  error?: string;
+}
+
 interface ProcessingResults {
   downloadedVideos: ProcessedVideo[];
   organizationStructure: FolderStructure;
@@ -90,6 +98,7 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
   const [previewResults, setPreviewResults] = useState<ProcessingResults | null>(null);
   const [verifiedVideos, setVerifiedVideos] = useState<VideoFile[]>([]);
   const [rejectedVideos, setRejectedVideos] = useState<VideoFile[]>([]);
+  const [verificationResults, setVerificationResults] = useState<VerificationResult[]>([]);
   const [settings, setSettings] = useState({
     extractMetadata: true,
     organizeByDate: true,
@@ -117,9 +126,10 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
     }));
   };
 
-  const handleVerificationComplete = (verified: VideoFile[], rejected: VideoFile[]) => {
+  const handleVerificationComplete = (verified: VideoFile[], rejected: VideoFile[], results: VerificationResult[]) => {
     setVerifiedVideos(verified);
     setRejectedVideos(rejected);
+    setVerificationResults(results); // Store the detailed results for persistence
     setProcessingState(prev => ({
       ...prev,
       status: 'idle'
@@ -692,6 +702,7 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
         videos={videos}
         onVerificationComplete={handleVerificationComplete}
         onBack={backToProcessing}
+        initialResults={verificationResults} // Pass the stored results
       />
     );
   }
