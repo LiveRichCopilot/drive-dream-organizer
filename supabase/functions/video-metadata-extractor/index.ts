@@ -241,54 +241,21 @@ async function extractFromAtomStructure(
   }
 }
 
-// Completely rewritten QuickTime parser
+// Fixed QuickTime atom parser with proper structure parsing
 async function parseQuickTimeAtoms(data: Uint8Array): Promise<MetadataResult | null> {
   console.log(`🎬 Parsing ${data.length} bytes for QuickTime atoms`);
   
-  // Search for moov atom signature in the entire data
-  const moovSignature = new Uint8Array([0x6D, 0x6F, 0x6F, 0x76]); // 'moov'
+  // First, let's properly parse the atom structure
+  let offset = 0;
   
-  for (let i = 0; i <= data.length - 8; i++) {
-    // Check if we found the moov signature
-    if (data[i] === moovSignature[0] && 
-        data[i + 1] === moovSignature[1] && 
-        data[i + 2] === moovSignature[2] && 
-        data[i + 3] === moovSignature[3]) {
-      
-      // Found moov, now get the size (4 bytes before the signature)
-      if (i >= 4) {
-        const sizeOffset = i - 4;
-        const size = (data[sizeOffset] << 24) | 
-                     (data[sizeOffset + 1] << 16) | 
-                     (data[sizeOffset + 2] << 8) | 
-                     data[sizeOffset + 3];
-        
-        console.log(`🎯 Found moov atom at offset ${sizeOffset}, size ${size}`);
-        
-        // Validate size makes sense
-        if (size > 8 && size < data.length && sizeOffset + size <= data.length) {
-          return parseMoovAtom(data, i + 4, size - 8); // Skip moov header
-        }
-      }
-    }
-  }
-  
-  console.log('❌ No valid moov atom found');
-  return null;
-}
-
-function parseMoovAtom(data: Uint8Array, moovStart: number, moovSize: number): MetadataResult | null {
-  let offset = moovStart;
-  const moovEnd = moovStart + moovSize;
-  
-  while (offset < moovEnd - 8 && offset < data.length - 8) {
-    // CRITICAL: Ensure we don't read past array bounds
-    if (offset + 8 > data.length) break;
-    
+  while (offset < data.length - 8) {
+    // Read atom size (big-endian)
     const size = (data[offset] << 24) >>> 0 | 
                  (data[offset + 1] << 16) | 
                  (data[offset + 2] << 8) | 
                  data[offset + 3];
+    
+    // Read atom type
     const type = String.fromCharCode(
       data[offset + 4], 
       data[offset + 5], 
@@ -296,93 +263,129 @@ function parseMoovAtom(data: Uint8Array, moovStart: number, moovSize: number): M
       data[offset + 7]
     );
     
-    console.log(`Atom ${type} at offset ${offset}, size ${size}`);
+    console.log(`Found atom: ${type} at offset ${offset}, size ${size}`);
     
-    if (size < 8 || offset + size > data.length) break;
+    // Validate atom
+    if (size < 8 || offset + size > data.length) {
+      // Try extended size (64-bit)
+      if (size === 1 && offset + 16 <= data.length) {
+        // 64-bit size follows the type
+        const extSize = (data[offset + 12] << 24) >>> 0 | 
+                       (data[offset + 13] << 16) | 
+                       (data[offset + 14] << 8) | 
+                       data[offset + 15];
+        offset += extSize;
+        continue;
+      }
+      offset += 8; // Skip invalid atom
+      continue;
+    }
     
-    // Found mvhd atom
+    // Found moov atom!
+    if (type === 'moov') {
+      console.log(`🎯 Found moov atom at offset ${offset}`);
+      return parseMoovAtom(data, offset + 8, size - 8);
+    }
+    
+    // Skip to next atom
+    offset += size;
+  }
+  
+  console.log('❌ No moov atom found in parsed atoms');
+  return null;
+}
+
+// Fixed parseMoovAtom function with proper timestamp handling
+function parseMoovAtom(data: Uint8Array, moovStart: number, moovSize: number): MetadataResult | null {
+  let offset = moovStart;
+  const moovEnd = Math.min(moovStart + moovSize, data.length);
+  
+  while (offset < moovEnd - 8) {
+    if (offset + 8 > data.length) break;
+    
+    const size = (data[offset] << 24) >>> 0 | 
+                 (data[offset + 1] << 16) | 
+                 (data[offset + 2] << 8) | 
+                 data[offset + 3];
+    
+    const type = String.fromCharCode(
+      data[offset + 4], 
+      data[offset + 5], 
+      data[offset + 6], 
+      data[offset + 7]
+    );
+    
+    console.log(`  moov child: ${type} at offset ${offset}, size ${size}`);
+    
+    if (size < 8 || offset + size > data.length) {
+      offset += 8;
+      continue;
+    }
+    
+    // Found mvhd atom - Movie Header
     if (type === 'mvhd') {
-      // CRITICAL FIX: mvhd is INSIDE moov, so offset is relative to data array
-      const mvhdDataStart = offset + 8; // Skip atom header
+      const mvhdStart = offset + 8;
       
-      if (mvhdDataStart + 4 > data.length) {
-        console.error('mvhd atom too small');
+      if (mvhdStart + 4 > data.length) {
+        console.error('mvhd too small');
         break;
       }
       
-      const version = data[mvhdDataStart];
-      const flags = (data[mvhdDataStart + 1] << 16) | 
-                    (data[mvhdDataStart + 2] << 8) | 
-                    data[mvhdDataStart + 3];
+      const version = data[mvhdStart];
+      console.log(`mvhd version: ${version}`);
       
-      console.log(`mvhd version: ${version}, flags: ${flags}`);
-      
-      // CRITICAL: Creation time starts after version/flags
-      const timestampOffset = mvhdDataStart + 4;
+      // Creation time is at offset 4 after version/flags
+      const timeOffset = mvhdStart + 4;
       
       let timestamp;
       if (version === 0) {
         // 32-bit timestamp
-        if (timestampOffset + 4 > data.length) break;
+        if (timeOffset + 4 > data.length) break;
         
-        timestamp = (data[timestampOffset] << 24) >>> 0 | 
-                   (data[timestampOffset + 1] << 16) | 
-                   (data[timestampOffset + 2] << 8) | 
-                   data[timestampOffset + 3];
-                   
-        console.log(`32-bit raw bytes: ${Array.from(data.slice(timestampOffset, timestampOffset + 4)).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
+        timestamp = (data[timeOffset] << 24) >>> 0 | 
+                   (data[timeOffset + 1] << 16) | 
+                   (data[timeOffset + 2] << 8) | 
+                   data[timeOffset + 3];
       } else {
-        // 64-bit timestamp
-        if (timestampOffset + 8 > data.length) break;
+        // 64-bit timestamp (version 1)
+        if (timeOffset + 8 > data.length) break;
         
-        // For 64-bit, we need to handle both parts
-        const high = (data[timestampOffset] << 24) >>> 0 | 
-                    (data[timestampOffset + 1] << 16) | 
-                    (data[timestampOffset + 2] << 8) | 
-                    data[timestampOffset + 3];
-        const low = (data[timestampOffset + 4] << 24) >>> 0 | 
-                   (data[timestampOffset + 5] << 16) | 
-                   (data[timestampOffset + 6] << 8) | 
-                   data[timestampOffset + 7];
+        // For dates after 2001, high part should be 0
+        const high = (data[timeOffset] << 24) >>> 0 | 
+                    (data[timeOffset + 1] << 16) | 
+                    (data[timeOffset + 2] << 8) | 
+                    data[timeOffset + 3];
+        const low = (data[timeOffset + 4] << 24) >>> 0 | 
+                   (data[timeOffset + 5] << 16) | 
+                   (data[timeOffset + 6] << 8) | 
+                   data[timeOffset + 7];
         
-        // Combine high and low parts
-        timestamp = (high * 0x100000000) + low;
-        
-        console.log(`64-bit timestamp - high: ${high}, low: ${low}, combined: ${timestamp}`);
+        timestamp = low; // For recent dates, just use low part
       }
       
-      console.log(`Raw QuickTime timestamp: ${timestamp}`);
+      console.log(`Raw timestamp: ${timestamp}`);
       
-      // Validate timestamp is reasonable (not 0 or negative)
-      if (timestamp <= 0 || timestamp > 4294967295) {
-        console.error(`Invalid timestamp: ${timestamp}`);
-        return null;
-      }
-      
-      // Convert from Mac epoch (1904-01-01 00:00:00) to Unix epoch
-      const MAC_EPOCH_TO_UNIX = 2082844800;
-      const unixTimestamp = timestamp - MAC_EPOCH_TO_UNIX;
+      // Convert from QuickTime epoch (1904) to Unix epoch (1970)
+      // QuickTime epoch: January 1, 1904, 00:00:00
+      // Unix epoch: January 1, 1970, 00:00:00
+      // Difference: 2,082,844,800 seconds
+      const MAC_TO_UNIX_EPOCH = 2082844800;
+      const unixTimestamp = timestamp - MAC_TO_UNIX_EPOCH;
       
       console.log(`Unix timestamp: ${unixTimestamp}`);
       
-      // Validate unix timestamp is reasonable
-      if (unixTimestamp < 0 || unixTimestamp > Date.now() / 1000) {
-        console.error(`Invalid unix timestamp: ${unixTimestamp}`);
-        return null;
-      }
-      
       const date = new Date(unixTimestamp * 1000);
-      console.log(`Converted date: ${date.toISOString()} (${date.toLocaleString()})`);
+      console.log(`📅 Parsed date: ${date.toISOString()}`);
       
-      // Validate the date is reasonable
-      if (date.getFullYear() >= 2000 && date.getFullYear() <= new Date().getFullYear() && !isNaN(date.getTime())) {
+      // Validate the date
+      if (date.getFullYear() >= 2000 && date.getFullYear() <= new Date().getFullYear() + 1) {
         return {
           originalDate: date.toISOString(),
           extractionMethod: 'mvhd-atom',
           confidence: 'high'
         };
       } else {
-        console.error(`Invalid date: ${date.toISOString()}, year: ${date.getFullYear()}`);
+        console.error(`Invalid date year: ${date.getFullYear()}`);
       }
     }
     
