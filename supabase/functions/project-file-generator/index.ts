@@ -154,161 +154,102 @@ function generateCapCutProject(videos: VideoFile[], settings: ProjectSettings) {
       }
     })),
 
-    // Project metadata
-    metadata: {
-      total_clips: sortedVideos.length,
-      total_duration: calculateTotalDuration(sortedVideos),
-      creation_date: new Date().toISOString(),
-      organized_by_date: settings.organization.groupByDate,
-      instructions: "Import video files to the same folder as this project file for proper linking"
-    }
-  }
-
-  // Add date-based subsequences if requested
-  if (settings.organization.createSubsequences && settings.organization.groupByDate) {
-    project.subsequences = createDateBasedSubsequences(sortedVideos)
+    // Project metadata with proper CapCut format
+    "type": "capcut_project",
+    "version": "1.0.0",
+    "id": generateUUID(),
+    "name": settings.projectName,
+    "fps": settings.timeline.frameRate,
+    "duration": sortedVideos.reduce((sum, v) => sum + (v.duration * 1000), 0),
+    "width": parseInt(settings.timeline.resolution.split('x')[0]),
+    "height": parseInt(settings.timeline.resolution.split('x')[1]),
+    "materials": sortedVideos.map((video, index) => ({
+      "id": `material_${index}`,
+      "type": "video", 
+      "name": video.name,
+      "path": video.name,
+      "duration": video.duration * 1000,
+      "width": parseInt(video.resolution?.split('x')[0] || '1920'),
+      "height": parseInt(video.resolution?.split('x')[1] || '1080'),
+      "fps": video.fps || settings.timeline.frameRate
+    }))
   }
 
   return JSON.stringify(project, null, 2)
 }
 
 function generatePremiereProject(videos: VideoFile[], settings: ProjectSettings) {
-  // Sort videos chronologically if requested
   const sortedVideos = settings.timeline.sequence === 'chronological' 
     ? videos.sort((a, b) => new Date(a.originalDate).getTime() - new Date(b.originalDate).getTime())
     : videos
 
-  // Generate proper Premiere Pro XML project file (Final Cut Pro XML format which Premiere can import)
-  const videoClips = sortedVideos.map(video => 
-    `          <clip id="${video.id}">
-            <name>${video.name}</name>
-            <duration>${Math.round(video.duration)}</duration>
-            <rate>
-              <timebase>${settings.timeline.frameRate}</timebase>
-              <ntsc>FALSE</ntsc>
-            </rate>
-            <media>
-              <video>
-                <track>
-                  <clipitem id="${video.id}_item">
-                    <name>${video.name}</name>
-                    <duration>${Math.round(video.duration)}</duration>
-                    <rate>
-                      <timebase>${settings.timeline.frameRate}</timebase>
-                      <ntsc>FALSE</ntsc>
-                    </rate>
-                    <in>0</in>
-                    <out>${Math.round(video.duration)}</out>
-                    <file id="${video.id}_file">
-                      <name>${video.name}</name>
-                      <pathurl>file://localhost/${video.name}</pathurl>
-                      <rate>
-                        <timebase>${settings.timeline.frameRate}</timebase>
-                        <ntsc>FALSE</ntsc>
-                      </rate>
-                      <duration>${Math.round(video.duration)}</duration>
-                      <media>
-                        <video>
-                          <samplecharacteristics>
-                            <rate>
-                              <timebase>${settings.timeline.frameRate}</timebase>
-                              <ntsc>FALSE</ntsc>
-                            </rate>
-                            <width>${parseInt(settings.timeline.resolution.split('x')[0])}</width>
-                            <height>${parseInt(settings.timeline.resolution.split('x')[1])}</height>
-                            <anamorphic>FALSE</anamorphic>
-                            <pixelaspectratio>square</pixelaspectratio>
-                            <fielddominance>none</fielddominance>
-                          </samplecharacteristics>
-                        </video>
-                      </media>
-                    </file>
-                  </clipitem>
-                </track>
-              </video>
-            </media>
-          </clip>`
-  ).join('\n')
+  const fps = settings.timeline.frameRate || 30
+  const totalFrames = sortedVideos.reduce((sum, v) => sum + Math.round((v.duration / 1000) * fps), 0)
 
-  const timelineClips = sortedVideos.map((video, index) => {
-    const startTime = calculateClipStartTime(sortedVideos, index);
-    return `              <clipitem id="${video.id}_timeline">
-                <name>${video.name}</name>
-                <duration>${Math.round(video.duration)}</duration>
-                <rate>
-                  <timebase>${settings.timeline.frameRate}</timebase>
-                  <ntsc>FALSE</ntsc>
-                </rate>
-                <in>0</in>
-                <out>${Math.round(video.duration)}</out>
-                <start>${Math.round(startTime)}</start>
-                <end>${Math.round(startTime + video.duration)}</end>
-                <file id="${video.id}_file"/>
-              </clipitem>`;
-  }).join('\n')
-
-  const projectXML = `<?xml version="1.0" encoding="UTF-8"?>
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE xmeml>
 <xmeml version="5">
   <project>
     <name>${settings.projectName}</name>
     <children>
-      <bin>
-        <name>Organized Videos</name>
-        <children>
-${videoClips}
-        </children>
-      </bin>
-      <sequence id="${generateUUID()}">
+      <sequence id="sequence-1">
         <name>${settings.projectName}_Timeline</name>
-        <duration>${calculateTotalDuration(sortedVideos)}</duration>
+        <duration>${totalFrames}</duration>
         <rate>
-          <timebase>${settings.timeline.frameRate}</timebase>
           <ntsc>FALSE</ntsc>
+          <timebase>${fps}</timebase>
         </rate>
-        <timecode>
-          <rate>
-            <timebase>${settings.timeline.frameRate}</timebase>
-            <ntsc>FALSE</ntsc>
-          </rate>
-          <string>00:00:00:00</string>
-          <frame>0</frame>
-          <source>source</source>
-          <displayformat>NDF</displayformat>
-        </timecode>
         <media>
           <video>
             <format>
               <samplecharacteristics>
-                <rate>
-                  <timebase>${settings.timeline.frameRate}</timebase>
-                  <ntsc>FALSE</ntsc>
-                </rate>
                 <width>${parseInt(settings.timeline.resolution.split('x')[0])}</width>
                 <height>${parseInt(settings.timeline.resolution.split('x')[1])}</height>
-                <anamorphic>FALSE</anamorphic>
                 <pixelaspectratio>square</pixelaspectratio>
-                <fielddominance>none</fielddominance>
+                <rate>
+                  <timebase>${fps}</timebase>
+                </rate>
               </samplecharacteristics>
             </format>
             <track>
-${timelineClips}
+              ${sortedVideos.map((video, index) => {
+                const startFrame = sortedVideos.slice(0, index).reduce((sum, v) => sum + Math.round((v.duration / 1000) * fps), 0)
+                const endFrame = startFrame + Math.round((video.duration / 1000) * fps)
+                
+                return `
+              <clipitem id="clipitem-${index + 1}">
+                <name>${video.name}</name>
+                <start>${startFrame}</start>
+                <end>${endFrame}</end>
+                <in>0</in>
+                <out>${Math.round((video.duration / 1000) * fps)}</out>
+                <file id="file-${index + 1}">
+                  <name>${video.name}</name>
+                  <pathurl>file://localhost/${video.name}</pathurl>
+                  <rate>
+                    <timebase>${fps}</timebase>
+                  </rate>
+                  <duration>${Math.round((video.duration / 1000) * fps)}</duration>
+                  <media>
+                    <video>
+                      <samplecharacteristics>
+                        <width>${parseInt(video.resolution?.split('x')[0] || '1920')}</width>
+                        <height>${parseInt(video.resolution?.split('x')[1] || '1080')}</height>
+                      </samplecharacteristics>
+                    </video>
+                  </media>
+                </file>
+              </clipitem>`
+              }).join('')}
             </track>
           </video>
         </media>
       </sequence>
     </children>
   </project>
-</xmeml>
+</xmeml>`
 
-<!-- Instructions for use:
-1. Save this XML file as ${settings.projectName}.xml
-2. Place all video files (${sortedVideos.map(v => v.name).join(', ')}) in the same folder as this XML file
-3. Import this XML file into Premiere Pro via File > Import > Project
-4. Files are arranged chronologically by original date
--->`
-
-  return projectXML
+  return xml
 }
 
 function createDateBasedSubsequences(videos: VideoFile[]) {
