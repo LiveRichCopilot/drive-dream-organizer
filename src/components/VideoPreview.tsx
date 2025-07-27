@@ -104,12 +104,13 @@ export const VideoPreview: React.FC<VideoPreviewProps> = ({
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Badge variant="secondary" className="bg-teal-500/20 text-teal-400 border-teal-500/30">
+          <Badge variant="secondary" className="glass">
             ✓ completed
           </Badge>
           <Button 
             onClick={onConfirmUpload}
-            className="bg-gradient-to-r from-teal-500 to-pink-500 hover:from-teal-600 hover:to-pink-600 text-white"
+            variant="glass"
+            className="hover:scale-105 transition-transform"
           >
             <Download className="h-4 w-4 mr-2" />
             Upload Organized Videos
