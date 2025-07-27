@@ -162,11 +162,21 @@ async function extractFromAtomStructure(
 ): Promise<MetadataResult | null> {
   
   console.log(`🔬 Deep atom analysis for ${fileName}`);
-  
-  // Determine optimal chunk size based on file size
-  const chunkSize = Math.min(Math.max(fileSize * 0.1, 1024 * 1024), 10 * 1024 * 1024); // 10% of file, min 1MB, max 10MB
+  console.log(`📁 File: ${fileName} (${fileSize} bytes)`);
   
   try {
+    // First, try to download a larger chunk from the beginning
+    // iPhone videos often have moov atom at the end, so we need more data
+    let chunkSize = Math.min(fileSize, 20 * 1024 * 1024); // Up to 20MB
+    
+    // For smaller files, download everything
+    if (fileSize < 50 * 1024 * 1024) { // < 50MB
+      chunkSize = fileSize;
+      console.log(`📥 Small file detected, downloading entire file (${fileSize} bytes)`);
+    } else {
+      console.log(`📥 Large file, downloading first ${chunkSize} bytes`);
+    }
+
     const downloadResponse = await fetch(
       `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
       {
@@ -191,9 +201,52 @@ async function extractFromAtomStructure(
     const atoms = parser.parseAtomTree();
     
     console.log(`🌳 Found ${atoms.length} top-level atoms`);
+    
+    // Log all atoms for debugging
+    for (const atom of atoms) {
+      const atomName = uint32ToAtomName(atom.type);
+      console.log(`📋 Processing atom: ${atomName} (${atom.size} bytes)`);
+    }
 
     // Extract metadata using comprehensive atom traversal
-    return extractMetadataFromAtoms(atoms, data);
+    const metadata = extractMetadataFromAtoms(atoms, data);
+    
+    if (metadata) {
+      return metadata;
+    }
+    
+    // If we didn't find moov in the beginning and it's a large file,
+    // try downloading from the end where iPhone videos often store moov
+    if (!metadata && fileSize > 50 * 1024 * 1024) {
+      console.log(`🔄 Trying end of file for moov atom`);
+      
+      const endChunkSize = Math.min(10 * 1024 * 1024, fileSize / 2); // Last 10MB
+      const startByte = fileSize - endChunkSize;
+      
+      const endResponse = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Range': `bytes=${startByte}-${fileSize - 1}`
+          }
+        }
+      );
+      
+      if (endResponse.ok) {
+        const endBuffer = await endResponse.arrayBuffer();
+        const endData = new Uint8Array(endBuffer);
+        const endParser = new MOVAtomParser(endData);
+        const endAtoms = endParser.parseAtomTree();
+        
+        console.log(`🌳 Found ${endAtoms.length} atoms at end of file`);
+        
+        const endMetadata = extractMetadataFromAtoms(endAtoms, endData);
+        if (endMetadata) {
+          return endMetadata;
+        }
+      }
+    }
 
   } catch (error) {
     console.error('🚫 Atom extraction failed:', error);
