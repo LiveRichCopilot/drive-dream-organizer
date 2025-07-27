@@ -87,7 +87,7 @@ const VideoOrganizerApp = () => {
         </div>
 
         {/* Hero Section */}
-        <div className="relative z-10 flex items-end justify-center px-8 pt-32 pb-4">
+        <div className="relative z-10 flex items-end justify-center px-8 pt-64 pb-4">
           <div className="text-center max-w-4xl mx-auto">
             <div className="glass-card max-w-2xl mx-auto">
               <div className="mb-8">
