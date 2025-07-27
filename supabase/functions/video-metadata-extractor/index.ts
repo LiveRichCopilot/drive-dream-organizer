@@ -157,14 +157,14 @@ async function extractVideoMetadata(fileId: string, accessToken: string, fileNam
       // Under 50MB: download entire file
       downloadSize = fileSize;
       console.log(`Downloading entire ${Math.floor(fileSize / 1024 / 1024)}MB file: ${fileName}`)
-    } else if (fileSize < 200 * 1024 * 1024) {
-      // 50-200MB: download 100MB to ensure we get metadata
-      downloadSize = Math.min(100 * 1024 * 1024, fileSize);
+    } else if (fileSize < 100 * 1024 * 1024) {
+      // 50-100MB: download 40MB to stay within compute limits
+      downloadSize = Math.min(40 * 1024 * 1024, fileSize);
       console.log(`Downloading ${Math.floor(downloadSize / 1024 / 1024)}MB of ${Math.floor(fileSize / 1024 / 1024)}MB file: ${fileName}`)
     } else {
-      // Over 200MB: download 50MB first, but metadata might be deeper
-      downloadSize = 50 * 1024 * 1024;
-      console.log(`Large file (${Math.floor(fileSize / 1024 / 1024)}MB), downloading first 50MB: ${fileName}`)
+      // Over 100MB: download only 20MB to avoid worker limits
+      downloadSize = 20 * 1024 * 1024;
+      console.log(`Large file (${Math.floor(fileSize / 1024 / 1024)}MB), downloading first 20MB: ${fileName}`)
     }
     
     // Special logging for edited files
