@@ -68,9 +68,12 @@ serve(async (req) => {
         originalDate = await extractVideoMetadata(fileId, accessToken, fileData.name, parseInt(fileData.size || '0'))
       } catch (error) {
         console.error('Metadata extraction failed:', error.message)
-        // Check if it's a resource limit error
+        // Check if it's a resource limit error - don't re-throw, just proceed to sequence inference
         if (error.message.includes('WORKER_LIMIT') || error.message.includes('compute resources')) {
           console.log('⚠️ Resource limit reached for large file, proceeding to sequence inference...')
+        } else {
+          // Only re-throw non-resource-limit errors
+          console.log('⚠️ Extraction failed, proceeding to sequence inference...')
         }
       }
       
@@ -78,10 +81,17 @@ serve(async (req) => {
       if (!originalDate) {
         console.log('Trying sequence-based inference as fallback...')
         try {
-          originalDate = await inferDateFromSequence(fileData.name, fileId, accessToken)
-          if (originalDate) {
-            inferredFromSequence = true
-            console.log('📅 Date successfully inferred from file sequence')
+          const sequenceResult = await inferDateFromSequence(fileData.name, fileId, accessToken)
+          if (sequenceResult) {
+            // Validate the inferred date is reasonable
+            const isValid = validateInferredDate(sequenceResult, fileData.name)
+            if (isValid) {
+              originalDate = sequenceResult
+              inferredFromSequence = true
+              console.log('📅 Date successfully inferred from file sequence and validated')
+            } else {
+              console.log('⚠️ Inferred date failed validation, rejecting')
+            }
           }
         } catch (seqError) {
           console.error('Sequence inference also failed:', seqError.message)
@@ -827,5 +837,44 @@ async function extractVideoMetadataLightweight(fileId: string, accessToken: stri
   } catch (error) {
     console.error('Lightweight extraction failed:', error);
     return null;
+  }
+}
+
+// Date validation function to ensure inferred dates are reasonable
+function validateInferredDate(inferredDate: string, fileName: string): boolean {
+  try {
+    const date = new Date(inferredDate);
+    const currentDate = new Date();
+    
+    // Basic sanity checks
+    if (isNaN(date.getTime())) {
+      console.log('Invalid date format');
+      return false;
+    }
+    
+    // Date should be between 2000 and current date + 1 year
+    const minDate = new Date('2000-01-01');
+    const maxDate = new Date(currentDate.getFullYear() + 1, 11, 31);
+    
+    if (date < minDate || date > maxDate) {
+      console.log(`Date ${inferredDate} outside valid range (${minDate.toISOString()} - ${maxDate.toISOString()})`);
+      return false;
+    }
+    
+    // For iPhone sequences (IMG_XXXX), dates should be reasonable for photography
+    // Most people don't take videos before 2007 (iPhone launch) or in the far future
+    if (fileName.includes('IMG_')) {
+      const iphoneLaunch = new Date('2007-01-01');
+      if (date < iphoneLaunch) {
+        console.log(`iPhone file date ${inferredDate} before iPhone launch (2007)`);
+        return false;
+      }
+    }
+    
+    console.log(`✓ Date ${inferredDate} passed validation for ${fileName}`);
+    return true;
+  } catch (error) {
+    console.error('Error validating date:', error);
+    return false;
   }
 }
