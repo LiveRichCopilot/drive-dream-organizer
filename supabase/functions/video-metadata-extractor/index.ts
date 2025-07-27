@@ -147,30 +147,27 @@ function extractDateFromFilename(fileName: string): string | null {
 
 async function extractVideoMetadata(fileId: string, accessToken: string, fileName: string, fileSize: number): Promise<string | null> {
   try {
-    // Smart download strategy based on file characteristics
-    let downloadSize: number;
+    // Smart streaming approach - read files in chunks to avoid memory limits
+    console.log(`Starting streaming metadata extraction for ${fileName} (${Math.floor(fileSize / 1024 / 1024)}MB)`)
     
     // Check if this is an edited file
     const isEdited = fileName.includes('.TRIM') || fileName.includes('(1)') || fileName.includes('(2)') || fileName.includes('(3)');
-    
-    if (fileSize < 50 * 1024 * 1024) {
-      // Under 50MB: download entire file
-      downloadSize = fileSize;
-      console.log(`Downloading entire ${Math.floor(fileSize / 1024 / 1024)}MB file: ${fileName}`)
-    } else if (fileSize < 100 * 1024 * 1024) {
-      // 50-100MB: download 40MB to stay within compute limits
-      downloadSize = Math.min(40 * 1024 * 1024, fileSize);
-      console.log(`Downloading ${Math.floor(downloadSize / 1024 / 1024)}MB of ${Math.floor(fileSize / 1024 / 1024)}MB file: ${fileName}`)
-    } else {
-      // Over 100MB: download only 20MB to avoid worker limits
-      downloadSize = 20 * 1024 * 1024;
-      console.log(`Large file (${Math.floor(fileSize / 1024 / 1024)}MB), downloading first 20MB: ${fileName}`)
-    }
-    
-    // Special logging for edited files
     if (isEdited) {
       console.log(`⚠️ EDITED FILE DETECTED: ${fileName} - metadata might be stripped during editing`)
     }
+
+    // For large files, try streaming approach to read more data without memory issues
+    if (fileSize > 100 * 1024 * 1024) {
+      console.log(`Large file detected, using streaming approach for ${fileName}`)
+      return await extractVideoMetadataStreaming(fileId, accessToken, fileName, fileSize)
+    }
+
+    // For smaller files, download more data at once
+    const downloadSize = fileSize < 50 * 1024 * 1024 
+      ? fileSize  // Download entire file if under 50MB
+      : Math.min(50 * 1024 * 1024, fileSize)  // Otherwise 50MB max
+    
+    console.log(`Downloading ${Math.floor(downloadSize / 1024 / 1024)}MB for metadata extraction...`)
     
     console.log(`Downloading ${Math.floor(downloadSize / 1024 / 1024)}MB for metadata extraction...`)
     
@@ -230,6 +227,73 @@ async function extractVideoMetadata(fileId: string, accessToken: string, fileNam
     
   } catch (error) {
     console.error('Error extracting video metadata:', error)
+    return null
+  }
+}
+
+async function extractVideoMetadataStreaming(fileId: string, accessToken: string, fileName: string, fileSize: number): Promise<string | null> {
+  try {
+    console.log(`Streaming ${fileName} (${Math.floor(fileSize / 1024 / 1024)}MB) for metadata extraction...`)
+    
+    // Stream in chunks to avoid memory limits
+    const chunkSize = 10 * 1024 * 1024; // 10MB chunks
+    let buffer = new Uint8Array(0)
+    let offset = 0
+    let foundDate = null
+    
+    // Read file in chunks, keeping only what we need in memory
+    while (offset < fileSize && !foundDate && offset < 100 * 1024 * 1024) { // Read up to 100MB
+      const endByte = Math.min(offset + chunkSize - 1, fileSize - 1)
+      
+      console.log(`Reading chunk: bytes ${offset}-${endByte}`)
+      
+      const response = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Range': `bytes=${offset}-${endByte}`
+          }
+        }
+      )
+      
+      if (!response.ok) {
+        console.error(`Failed to download chunk at offset ${offset}:`, response.status)
+        break
+      }
+      
+      const chunkData = new Uint8Array(await response.arrayBuffer())
+      
+      // Append new chunk to buffer
+      const newBuffer = new Uint8Array(buffer.length + chunkData.length)
+      newBuffer.set(buffer)
+      newBuffer.set(chunkData, buffer.length)
+      buffer = newBuffer
+      
+      // Try to extract metadata from current buffer
+      foundDate = extractQuickTimeMetadata(buffer)
+      
+      if (foundDate) {
+        console.log('Found metadata via streaming!', foundDate)
+        break
+      }
+      
+      // If buffer gets too large, keep only the most recent part
+      if (buffer.length > 20 * 1024 * 1024) {
+        console.log('Buffer too large, keeping recent 15MB')
+        buffer = buffer.slice(buffer.length - 15 * 1024 * 1024)
+      }
+      
+      offset += chunkSize
+    }
+    
+    if (!foundDate) {
+      console.log('No metadata found via streaming')
+    }
+    
+    return foundDate
+  } catch (error) {
+    console.error('Streaming extraction failed:', error)
     return null
   }
 }
