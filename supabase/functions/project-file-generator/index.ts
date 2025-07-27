@@ -311,16 +311,30 @@ function generateUUID(): string {
 
 async function createDownloadableFile(content: string, type: string): Promise<string> {
   try {
-    // Use TextEncoder for better performance with large strings
+    const mimeType = type === 'capcut' ? 'application/json' : 'text/xml'
+    
+    // For large content, use URL encoding instead of base64 to avoid stack overflow
+    if (content.length > 50000) {
+      console.log(`Large content detected (${content.length} chars), using URL encoding`)
+      return `data:${mimeType};charset=utf-8,${encodeURIComponent(content)}`
+    }
+    
+    // For smaller content, use base64 with chunked processing
     const encoder = new TextEncoder()
     const data = encoder.encode(content)
     
-    // Use btoa with chunked processing to avoid stack overflow
-    const base64 = btoa(String.fromCharCode.apply(null, Array.from(data)))
+    // Process in chunks to avoid stack overflow
+    const chunkSize = 8192
+    let binaryString = ''
     
-    const mimeType = type === 'capcut' ? 'application/json' : 'text/xml'
+    for (let i = 0; i < data.length; i += chunkSize) {
+      const chunk = data.slice(i, i + chunkSize)
+      binaryString += String.fromCharCode.apply(null, Array.from(chunk))
+    }
     
+    const base64 = btoa(binaryString)
     return `data:${mimeType};base64,${base64}`
+    
   } catch (error) {
     console.error('Error creating downloadable file:', error)
     // Fallback: return the content as a simple data URL

@@ -653,7 +653,7 @@ async function inferFromSequence(fileName: string, fileId: string, accessToken: 
       : "name contains 'IMG_'";
     
     const searchResponse = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(searchQuery)}&fields=files(id,name,modifiedTime)&pageSize=50`,
+      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(searchQuery)}&fields=files(id,name,modifiedTime)&pageSize=100`,
       { headers: { 'Authorization': `Bearer ${accessToken}` } }
     );
     
@@ -670,7 +670,8 @@ async function inferFromSequence(fileName: string, fileId: string, accessToken: 
         const seqNum = parseInt(match[1]);
         const date = new Date(file.modifiedTime);
         
-        if (Math.abs(seqNum - sequenceNumber) <= 1000) {
+        // Only include files with reasonable dates (not future dates)
+        if (date <= new Date() && date.getFullYear() >= 2020) {
           sequences.push({ number: seqNum, date });
         }
       }
@@ -679,7 +680,7 @@ async function inferFromSequence(fileName: string, fileId: string, accessToken: 
     if (sequences.length >= 2) {
       sequences.sort((a, b) => a.number - b.number);
       
-      // Find surrounding sequences
+      // Find surrounding sequences or closest neighbors
       let beforeSeq = null;
       let afterSeq = null;
       
@@ -692,16 +693,42 @@ async function inferFromSequence(fileName: string, fileId: string, accessToken: 
         }
       }
       
+      // If we have both before and after, interpolate
       if (beforeSeq && afterSeq) {
-        // Interpolate
         const ratio = (sequenceNumber - beforeSeq.number) / (afterSeq.number - beforeSeq.number);
         const timeDiff = afterSeq.date.getTime() - beforeSeq.date.getTime();
         const interpolatedTime = beforeSeq.date.getTime() + (timeDiff * ratio);
+        const interpolatedDate = new Date(interpolatedTime);
         
+        // Sanity check - don't return future dates
+        if (interpolatedDate <= new Date() && interpolatedDate.getFullYear() >= 2020) {
+          console.log(`📊 Interpolated between IMG_${beforeSeq.number} (${beforeSeq.date.toISOString()}) and IMG_${afterSeq.number} (${afterSeq.date.toISOString()})`);
+          return {
+            originalDate: interpolatedDate.toISOString(),
+            extractionMethod: 'sequence-interpolation',
+            confidence: 'medium'
+          };
+        }
+      }
+      
+      // If we only have before sequence, use it as reference
+      if (beforeSeq && !afterSeq) {
+        // Use the most recent date from before sequences
+        console.log(`📊 Using closest before sequence IMG_${beforeSeq.number} (${beforeSeq.date.toISOString()})`);
         return {
-          originalDate: new Date(interpolatedTime).toISOString(),
-          extractionMethod: 'sequence-interpolation',
-          confidence: 'medium'
+          originalDate: beforeSeq.date.toISOString(),
+          extractionMethod: 'sequence-approximation',
+          confidence: 'low'
+        };
+      }
+      
+      // If we only have after sequence, use it as reference  
+      if (afterSeq && !beforeSeq) {
+        console.log(`📊 Using closest after sequence IMG_${afterSeq.number} (${afterSeq.date.toISOString()})`);
+        return {
+          originalDate: afterSeq.date.toISOString(),
+          extractionMethod: 'sequence-approximation',
+          confidence: 'low'
         };
       }
     }
