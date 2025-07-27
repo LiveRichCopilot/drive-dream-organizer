@@ -148,8 +148,8 @@ function extractDateFromFilename(fileName: string): string | null {
 async function extractVideoMetadata(fileId: string, accessToken: string, fileName: string, fileSize: number): Promise<string | null> {
   try {
     // For MOV files, we need to look deeper into the file
-    // Download up to 10MB to ensure we get the metadata atoms
-    const downloadSize = Math.min(10 * 1024 * 1024, fileSize)
+    // Download up to 20MB to ensure we get the metadata atoms
+    const downloadSize = Math.min(20 * 1024 * 1024, fileSize)
     
     console.log(`Downloading ${Math.floor(downloadSize / 1024 / 1024)}MB for metadata extraction...`)
     
@@ -172,6 +172,13 @@ async function extractVideoMetadata(fileId: string, accessToken: string, fileNam
     const data = new Uint8Array(arrayBuffer)
     
     console.log(`Downloaded ${data.length} bytes for analysis`)
+    
+    // Add better debugging
+    console.log('File header (first 32 bytes):', 
+      Array.from(data.slice(0, 32))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join(' ')
+    )
     
     // Try multiple extraction methods
     let extractedDate = null
@@ -208,71 +215,105 @@ async function extractVideoMetadata(fileId: string, accessToken: string, fileNam
 
 function extractQuickTimeMetadata(data: Uint8Array): string | null {
   try {
-    // QuickTime files have a specific structure with atoms
-    // Look for 'mvhd' (movie header) atom which contains creation time
-    const mvhdSignature = [0x6D, 0x76, 0x68, 0x64] // "mvhd"
+    console.log('Starting QuickTime atom parsing...')
     
-    for (let i = 0; i < data.length - 32; i++) {
-      if (data[i] === mvhdSignature[0] && 
-          data[i+1] === mvhdSignature[1] && 
-          data[i+2] === mvhdSignature[2] && 
-          data[i+3] === mvhdSignature[3]) {
-        
-        console.log('Found mvhd atom at position:', i)
-        
-        // The creation time is 4 bytes after the version/flags (which is 4 bytes after mvhd)
-        // For version 0, it's a 32-bit value
-        // For version 1, it's a 64-bit value
-        const version = data[i + 8]
-        let creationTime: number
-        
-        if (version === 0) {
-          // 32-bit creation time (version 0)
-          creationTime = new DataView(data.buffer, data.byteOffset + i + 12, 4).getUint32(0, false)
-        } else if (version === 1) {
-          // 64-bit creation time (version 1)
-          const high = new DataView(data.buffer, data.byteOffset + i + 16, 4).getUint32(0, false)
-          const low = new DataView(data.buffer, data.byteOffset + i + 20, 4).getUint32(0, false)
-          creationTime = high * 0x100000000 + low
-        } else {
-          console.log('Unknown mvhd version:', version)
-          continue
-        }
-        
-        // QuickTime epoch starts at January 1, 1904
-        // Unix epoch starts at January 1, 1970
-        // Difference is 2082844800 seconds
-        const unixTime = creationTime - 2082844800
-        
-        // Validate the timestamp
-        if (unixTime > 946684800 && unixTime < 1735689600) { // Between 2000 and 2025
-          const date = new Date(unixTime * 1000)
-          return date.toISOString()
-        }
+    // First, verify this is a QuickTime/MP4 file
+    const ftypStr = String.fromCharCode(data[4], data[5], data[6], data[7])
+    console.log('File type:', ftypStr)
+    
+    let offset = 0
+    
+    // Parse atoms until we find moov
+    while (offset < data.length - 8) {
+      // Read atom size (4 bytes) and type (4 bytes)
+      const atomSize = new DataView(data.buffer, data.byteOffset + offset, 4).getUint32(0, false)
+      const atomType = String.fromCharCode(
+        data[offset + 4],
+        data[offset + 5], 
+        data[offset + 6],
+        data[offset + 7]
+      )
+      
+      console.log(`Found atom: ${atomType} at offset ${offset}, size: ${atomSize}`)
+      
+      if (atomSize === 0 || atomSize > data.length - offset) {
+        console.log('Invalid atom size, stopping')
+        break
       }
-    }
-    
-    // Also look for 'creation_time' in metadata atoms
-    const creationTimeBytes = Array.from('creation_time').map(c => c.charCodeAt(0))
-    for (let i = 0; i < data.length - 100; i++) {
-      let match = true
-      for (let j = 0; j < creationTimeBytes.length; j++) {
-        if (data[i + j] !== creationTimeBytes[j]) {
-          match = false
-          break
+      
+      if (atomType === 'moov') {
+        // Found moov atom, now look for mvhd inside it
+        console.log('Found moov atom, searching for mvhd inside...')
+        
+        let moovOffset = offset + 8 // Skip moov header
+        const moovEnd = offset + atomSize
+        
+        while (moovOffset < moovEnd && moovOffset < data.length - 8) {
+          const subAtomSize = new DataView(data.buffer, data.byteOffset + moovOffset, 4).getUint32(0, false)
+          const subAtomType = String.fromCharCode(
+            data[moovOffset + 4],
+            data[moovOffset + 5],
+            data[moovOffset + 6], 
+            data[moovOffset + 7]
+          )
+          
+          console.log(`  Found sub-atom: ${subAtomType} at offset ${moovOffset}, size: ${subAtomSize}`)
+          
+          if (subAtomType === 'mvhd') {
+            console.log('Found mvhd atom!')
+            
+            // mvhd structure:
+            // 0-3: size
+            // 4-7: 'mvhd'
+            // 8: version (1 byte)
+            // 9-11: flags (3 bytes)
+            // 12+: creation time (4 bytes for v0, 8 bytes for v1)
+            
+            const version = data[moovOffset + 8]
+            console.log('mvhd version:', version)
+            
+            let creationTime: number
+            
+            if (version === 0) {
+              // 32-bit creation time
+              creationTime = new DataView(data.buffer, data.byteOffset + moovOffset + 12, 4).getUint32(0, false)
+            } else if (version === 1) {
+              // 64-bit creation time  
+              const high = new DataView(data.buffer, data.byteOffset + moovOffset + 16, 4).getUint32(0, false)
+              const low = new DataView(data.buffer, data.byteOffset + moovOffset + 20, 4).getUint32(0, false)
+              creationTime = high * 0x100000000 + low
+            } else {
+              console.log('Unknown mvhd version:', version)
+              return null
+            }
+            
+            console.log('Raw creation time:', creationTime)
+            
+            // Convert from Mac epoch (1904) to Unix epoch (1970)
+            const unixTime = creationTime - 2082844800
+            console.log('Unix timestamp:', unixTime)
+            
+            // Validate and convert to date
+            if (unixTime > 946684800 && unixTime < 1735689600) { // 2000-2025
+              const date = new Date(unixTime * 1000)
+              console.log('Extracted date:', date.toISOString())
+              return date.toISOString()
+            } else {
+              console.log('Date outside valid range')
+            }
+          }
+          
+          moovOffset += subAtomSize
+          if (subAtomSize === 0) break
         }
       }
       
-      if (match) {
-        // Found "creation_time", now look for the date string after it
-        const dateStr = extractDateStringAfterPosition(data, i + creationTimeBytes.length)
-        if (dateStr) {
-          return dateStr
-        }
-      }
+      offset += atomSize
     }
     
+    console.log('No mvhd atom found in proper structure')
     return null
+    
   } catch (error) {
     console.error('Error in extractQuickTimeMetadata:', error)
     return null
