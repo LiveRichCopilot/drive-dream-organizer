@@ -149,108 +149,160 @@ const VideoOrganizerApp = () => {
           </div>
         </div>
 
-        {/* Who Benefits Section - SEPARATE from glass box */}
-        <div className="relative z-10 px-8 pb-16 pt-8">
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-2xl font-semibold text-white text-center mb-12">Who benefits?</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="flex items-start gap-4 p-4">
-                <div className="w-10 h-10 rounded-full glass-card flex items-center justify-center flex-shrink-0">
-                  <Camera className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-medium text-white mb-1">Wedding & Event Videographers</h3>
-                  <p className="text-sm text-white/70">Hours of footage become perfectly sequenced</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start gap-4 p-4">
-                <div className="w-10 h-10 rounded-full glass-card flex items-center justify-center flex-shrink-0">
-                  <MapPin className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-medium text-white mb-1">Travel Vloggers & Adventurers</h3>
-                  <p className="text-sm text-white/70">Trips sorted by the actual shot date</p>
+        {/* Who Benefits Section */}
+        <div className="relative z-10 px-8 pb-24 pt-16">
+          <div className="max-w-6xl mx-auto">
+            <h2 className="text-3xl font-semibold text-white text-center mb-16">
+              Who benefits?
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {/* Wedding Videographers */}
+              <div className="glass-card p-8 hover:scale-105 transition-all duration-300">
+                <div className="flex flex-col items-center text-center">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
+                    <Camera className="h-10 w-10 text-white" />
+                  </div>
+                  <h3 className="font-semibold text-white text-xl mb-3">
+                    Wedding & Event Videographers
+                  </h3>
+                  <p className="text-white/80 leading-relaxed">
+                    Hours of footage become perfectly sequenced
+                  </p>
                 </div>
               </div>
               
-              <div className="flex items-start gap-4 p-4">
-                <div className="w-10 h-10 rounded-full glass-card flex items-center justify-center flex-shrink-0">
-                  <Building2 className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-medium text-white mb-1">Corporate Storytellers</h3>
-                  <p className="text-sm text-white/70">Brand videos arranged in logical order</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start gap-4 p-4">
-                <div className="w-10 h-10 rounded-full glass-card flex items-center justify-center flex-shrink-0">
-                  <Film className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-medium text-white mb-1">Documentary & Indie Film Producers</h3>
-                  <p className="text-sm text-white/70">Multi-day shoots auto-organised</p>
+              {/* Travel Vloggers */}
+              <div className="glass-card p-8 hover:scale-105 transition-all duration-300">
+                <div className="flex flex-col items-center text-center">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
+                    <MapPin className="h-10 w-10 text-white" />
+                  </div>
+                  <h3 className="font-semibold text-white text-xl mb-3">
+                    Travel Vloggers & Adventurers
+                  </h3>
+                  <p className="text-white/80 leading-relaxed">
+                    Trips sorted by the actual shot date
+                  </p>
                 </div>
               </div>
               
-              <div className="flex items-start gap-4 p-4">
-                <div className="w-10 h-10 rounded-full glass-card flex items-center justify-center flex-shrink-0">
-                  <Smartphone className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-medium text-white mb-1">Social Media Creators</h3>
-                  <p className="text-sm text-white/70">Batch clips ready for editing on YouTube, TikTok & Reels</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start gap-4 p-4">
-                <div className="w-10 h-10 rounded-full glass-card flex items-center justify-center flex-shrink-0">
-                  <Lock className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-medium text-white mb-1">Subscription Platforms</h3>
-                  <p className="text-sm text-white/70">Episodes organised for OFTV, Patreon & paying subscribers</p>
+              {/* Corporate */}
+              <div className="glass-card p-8 hover:scale-105 transition-all duration-300">
+                <div className="flex flex-col items-center text-center">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
+                    <Building2 className="h-10 w-10 text-white" />
+                  </div>
+                  <h3 className="font-semibold text-white text-xl mb-3">
+                    Corporate Storytellers
+                  </h3>
+                  <p className="text-white/80 leading-relaxed">
+                    Brand videos arranged in logical order
+                  </p>
                 </div>
               </div>
               
-              <div className="flex items-start gap-4 p-4">
-                <div className="w-10 h-10 rounded-full glass-card flex items-center justify-center flex-shrink-0">
-                  <Mic className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-medium text-white mb-1">Podcasters & Vodcast Teams</h3>
-                  <p className="text-sm text-white/70">Audio/video aligned by capture time</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start gap-4 p-4">
-                <div className="w-10 h-10 rounded-full glass-card flex items-center justify-center flex-shrink-0">
-                  <GraduationCap className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-medium text-white mb-1">Educators & Course Creators</h3>
-                  <p className="text-sm text-white/70">Lessons and demos stay in sequence</p>
+              {/* Documentary */}
+              <div className="glass-card p-8 hover:scale-105 transition-all duration-300">
+                <div className="flex flex-col items-center text-center">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
+                    <Film className="h-10 w-10 text-white" />
+                  </div>
+                  <h3 className="font-semibold text-white text-xl mb-3">
+                    Documentary & Indie Film Producers
+                  </h3>
+                  <p className="text-white/80 leading-relaxed">
+                    Multi-day shoots auto-organised
+                  </p>
                 </div>
               </div>
               
-              <div className="flex items-start gap-4 p-4">
-                <div className="w-10 h-10 rounded-full glass-card flex items-center justify-center flex-shrink-0">
-                  <Users className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-medium text-white mb-1">Family Archivists</h3>
-                  <p className="text-sm text-white/70">Home videos and photos preserved in order</p>
+              {/* Social Media */}
+              <div className="glass-card p-8 hover:scale-105 transition-all duration-300">
+                <div className="flex flex-col items-center text-center">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
+                    <Smartphone className="h-10 w-10 text-white" />
+                  </div>
+                  <h3 className="font-semibold text-white text-xl mb-3">
+                    Social Media Creators
+                  </h3>
+                  <p className="text-white/80 leading-relaxed">
+                    Batch clips ready for editing on YouTube, TikTok & Reels
+                  </p>
                 </div>
               </div>
               
-              <div className="flex items-start gap-4 p-4">
-                <div className="w-10 h-10 rounded-full glass-card flex items-center justify-center flex-shrink-0">
-                  <Home className="h-5 w-5 text-white" />
+              {/* Subscription */}
+              <div className="glass-card p-8 hover:scale-105 transition-all duration-300">
+                <div className="flex flex-col items-center text-center">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
+                    <Lock className="h-10 w-10 text-white" />
+                  </div>
+                  <h3 className="font-semibold text-white text-xl mb-3">
+                    Subscription Platforms
+                  </h3>
+                  <p className="text-white/80 leading-relaxed">
+                    Episodes organised for OFTV, Patreon & paying subscribers
+                  </p>
                 </div>
-                <div>
-                  <h3 className="font-medium text-white mb-1">Real Estate & Property Marketers</h3>
-                  <p className="text-sm text-white/70">Room-by-room footage turned into walkthroughs</p>
+              </div>
+              
+              {/* Podcasters */}
+              <div className="glass-card p-8 hover:scale-105 transition-all duration-300">
+                <div className="flex flex-col items-center text-center">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
+                    <Mic className="h-10 w-10 text-white" />
+                  </div>
+                  <h3 className="font-semibold text-white text-xl mb-3">
+                    Podcasters & Vodcast Teams
+                  </h3>
+                  <p className="text-white/80 leading-relaxed">
+                    Audio/video aligned by capture time
+                  </p>
+                </div>
+              </div>
+              
+              {/* Educators */}
+              <div className="glass-card p-8 hover:scale-105 transition-all duration-300">
+                <div className="flex flex-col items-center text-center">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
+                    <GraduationCap className="h-10 w-10 text-white" />
+                  </div>
+                  <h3 className="font-semibold text-white text-xl mb-3">
+                    Educators & Course Creators
+                  </h3>
+                  <p className="text-white/80 leading-relaxed">
+                    Lessons and demos stay in sequence
+                  </p>
+                </div>
+              </div>
+              
+              {/* Family */}
+              <div className="glass-card p-8 hover:scale-105 transition-all duration-300">
+                <div className="flex flex-col items-center text-center">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
+                    <Users className="h-10 w-10 text-white" />
+                  </div>
+                  <h3 className="font-semibold text-white text-xl mb-3">
+                    Family Archivists
+                  </h3>
+                  <p className="text-white/80 leading-relaxed">
+                    Home videos and photos preserved in order
+                  </p>
+                </div>
+              </div>
+              
+              {/* Real Estate */}
+              <div className="glass-card p-8 hover:scale-105 transition-all duration-300">
+                <div className="flex flex-col items-center text-center">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
+                    <Home className="h-10 w-10 text-white" />
+                  </div>
+                  <h3 className="font-semibold text-white text-xl mb-3">
+                    Real Estate & Property Marketers
+                  </h3>
+                  <p className="text-white/80 leading-relaxed">
+                    Room-by-room footage turned into walkthroughs
+                  </p>
                 </div>
               </div>
             </div>
