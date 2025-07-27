@@ -407,11 +407,12 @@ const MetadataVerification: React.FC<MetadataVerificationProps> = ({
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <Monitor className="h-4 w-4 text-white/60" />
-                      <span className="text-white text-sm">
-                        {selectedMetadata.metadata?.videoMetadata?.resolution || 
-                         selectedMetadata.metadata?.resolution || 
-                         '1920×1080'}
-                      </span>
+                       <span className="text-white text-sm">
+                         {selectedMetadata.metadata?.videoMetadata?.width && selectedMetadata.metadata?.videoMetadata?.height 
+                           ? `${selectedMetadata.metadata.videoMetadata.width}×${selectedMetadata.metadata.videoMetadata.height}`
+                           : selectedMetadata.metadata?.resolution || 
+                             'Unknown'}
+                       </span>
                     </div>
                     <p className="text-white/60 text-xs">Resolution</p>
                   </div>
