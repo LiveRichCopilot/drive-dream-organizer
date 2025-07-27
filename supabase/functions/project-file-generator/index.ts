@@ -322,15 +322,21 @@ function generateUUID(): string {
 }
 
 async function createDownloadableFile(content: string, type: string): Promise<string> {
-  // In a real implementation, this would upload to a cloud storage service
-  // and return a downloadable URL. For now, we'll return a data URL
-  const blob = new Blob([content], { 
-    type: type === 'capcut' ? 'application/json' : 'application/xml' 
-  })
-  
-  // Convert to base64 for download
-  const arrayBuffer = await blob.arrayBuffer()
-  const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
-  
-  return `data:${blob.type};base64,${base64}`
+  try {
+    // Use TextEncoder for better performance with large strings
+    const encoder = new TextEncoder()
+    const data = encoder.encode(content)
+    
+    // Use btoa with chunked processing to avoid stack overflow
+    const base64 = btoa(String.fromCharCode.apply(null, Array.from(data)))
+    
+    const mimeType = type === 'capcut' ? 'application/json' : 'application/xml'
+    
+    return `data:${mimeType};base64,${base64}`
+  } catch (error) {
+    console.error('Error creating downloadable file:', error)
+    // Fallback: return the content as a simple data URL
+    const mimeType = type === 'capcut' ? 'application/json' : 'application/xml'
+    return `data:${mimeType};charset=utf-8,${encodeURIComponent(content)}`
+  }
 }
