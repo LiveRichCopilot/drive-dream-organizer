@@ -128,7 +128,10 @@ serve(async (req) => {
     // Set the original date in response
     if (originalDate) {
       response.originalDate = originalDate
-      response.confidence = 'extracted' // vs 'inferred'
+      response.confidence = originalDate.includes('inferred') ? 'inferred' : 'extracted'
+    } else {
+      // This should never happen now with our fallbacks, but just in case
+      console.log('ERROR: No date could be extracted despite fallbacks')
     }
 
     // Try to extract additional metadata (GPS, device info, etc.)
