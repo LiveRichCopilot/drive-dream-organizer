@@ -427,23 +427,25 @@ const VideoOrganizerApp = () => {
           
           <div className="flex items-center gap-2">
             <Button
-              variant={viewMode === "grid" ? "default" : "ghost"}
+              variant={viewMode === "grid" ? "glass" : "ghost"}
               size="sm"
               onClick={() => setViewMode("grid")}
+              className={viewMode === "grid" ? "glass bg-white/10 border-white/20" : "glass hover:bg-white/5"}
             >
               <Grid3X3 className="h-4 w-4" />
             </Button>
             <Button
-              variant={viewMode === "list" ? "default" : "ghost"}
+              variant={viewMode === "list" ? "glass" : "ghost"}
               size="sm"
               onClick={() => setViewMode("list")}
+              className={viewMode === "list" ? "glass bg-white/10 border-white/20" : "glass hover:bg-white/5"}
             >
               <List className="h-4 w-4" />
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="glass" size="sm" className="glass hover:bg-white/5">
               <Filter className="h-4 w-4" />
             </Button>
-            <Button variant="glass" size="sm" onClick={organizeVideos}>
+            <Button variant="glass" size="sm" onClick={organizeVideos} className="glass hover:bg-white/5">
               <Calendar className="h-4 w-4 mr-2" />
               Organize by Date
             </Button>
