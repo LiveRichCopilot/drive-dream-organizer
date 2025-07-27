@@ -65,7 +65,7 @@ serve(async (req) => {
       const premiereProject = generatePremiereProject(videos, settings)
       projectFiles.push({
         type: 'premiere',
-        name: `${settings.projectName}.prproj`,
+        name: `${settings.projectName}.xml`,
         content: premiereProject,
         downloadUrl: await createDownloadableFile(premiereProject, 'premiere')
       })
@@ -118,7 +118,7 @@ function generateCapCutProject(videos: VideoFile[], settings: ProjectSettings) {
           id: `clip_${index}`,
           type: "video",
           source: {
-            file_path: video.path,
+            file_path: video.name, // Use just filename for local reference
             name: video.name,
             duration: video.duration,
             fps: video.fps || 30
@@ -144,7 +144,7 @@ function generateCapCutProject(videos: VideoFile[], settings: ProjectSettings) {
     resources: sortedVideos.map(video => ({
       id: video.id,
       type: "video",
-      path: video.path,
+      path: video.name, // Use just filename for local reference
       name: video.name,
       metadata: {
         duration: video.duration,
@@ -159,7 +159,8 @@ function generateCapCutProject(videos: VideoFile[], settings: ProjectSettings) {
       total_clips: sortedVideos.length,
       total_duration: calculateTotalDuration(sortedVideos),
       creation_date: new Date().toISOString(),
-      organized_by_date: settings.organization.groupByDate
+      organized_by_date: settings.organization.groupByDate,
+      instructions: "Import video files to the same folder as this project file for proper linking"
     }
   }
 
@@ -177,91 +178,137 @@ function generatePremiereProject(videos: VideoFile[], settings: ProjectSettings)
     ? videos.sort((a, b) => new Date(a.originalDate).getTime() - new Date(b.originalDate).getTime())
     : videos
 
-  // Premiere Pro project structure (simplified XML-like structure)
-  const project = {
-    PremiereData: {
-      Version: "1",
-      Project: {
-        Name: settings.projectName,
-        UUID: generateUUID(),
-        
-        // Project settings
-        VideoSettings: {
-          Width: parseInt(settings.timeline.resolution.split('x')[0]),
-          Height: parseInt(settings.timeline.resolution.split('x')[1]),
-          FrameRate: settings.timeline.frameRate,
-          PixelAspectRatio: "1.0"
-        },
+  // Generate proper Premiere Pro XML project file (Final Cut Pro XML format which Premiere can import)
+  const videoClips = sortedVideos.map(video => 
+    `          <clip id="${video.id}">
+            <name>${video.name}</name>
+            <duration>${Math.round(video.duration)}</duration>
+            <rate>
+              <timebase>${settings.timeline.frameRate}</timebase>
+              <ntsc>FALSE</ntsc>
+            </rate>
+            <media>
+              <video>
+                <track>
+                  <clipitem id="${video.id}_item">
+                    <name>${video.name}</name>
+                    <duration>${Math.round(video.duration)}</duration>
+                    <rate>
+                      <timebase>${settings.timeline.frameRate}</timebase>
+                      <ntsc>FALSE</ntsc>
+                    </rate>
+                    <in>0</in>
+                    <out>${Math.round(video.duration)}</out>
+                    <file id="${video.id}_file">
+                      <name>${video.name}</name>
+                      <pathurl>file://localhost/${video.name}</pathurl>
+                      <rate>
+                        <timebase>${settings.timeline.frameRate}</timebase>
+                        <ntsc>FALSE</ntsc>
+                      </rate>
+                      <duration>${Math.round(video.duration)}</duration>
+                      <media>
+                        <video>
+                          <samplecharacteristics>
+                            <rate>
+                              <timebase>${settings.timeline.frameRate}</timebase>
+                              <ntsc>FALSE</ntsc>
+                            </rate>
+                            <width>${parseInt(settings.timeline.resolution.split('x')[0])}</width>
+                            <height>${parseInt(settings.timeline.resolution.split('x')[1])}</height>
+                            <anamorphic>FALSE</anamorphic>
+                            <pixelaspectratio>square</pixelaspectratio>
+                            <fielddominance>none</fielddominance>
+                          </samplecharacteristics>
+                        </video>
+                      </media>
+                    </file>
+                  </clipitem>
+                </track>
+              </video>
+            </media>
+          </clip>`
+  ).join('\n')
 
-        // Media bins
-        ProjectItems: {
-          Bin: {
-            Name: "Imported Media",
-            UUID: generateUUID(),
-            Items: sortedVideos.map(video => ({
-              ProjectItem: {
-                Name: video.name,
-                UUID: generateUUID(),
-                Type: "Video",
-                FilePath: video.path,
-                MediaSource: {
-                  Duration: video.duration,
-                  VideoInfo: {
-                    Width: parseInt(video.resolution.split('x')[0]),
-                    Height: parseInt(video.resolution.split('x')[1]),
-                    FrameRate: video.fps || 30
-                  }
-                },
-                Metadata: {
-                  OriginalDate: video.originalDate,
-                  ImportDate: new Date().toISOString()
-                }
-              }
-            }))
-          }
-        },
+  const timelineClips = sortedVideos.map((video, index) => {
+    const startTime = calculateClipStartTime(sortedVideos, index);
+    return `              <clipitem id="${video.id}_timeline">
+                <name>${video.name}</name>
+                <duration>${Math.round(video.duration)}</duration>
+                <rate>
+                  <timebase>${settings.timeline.frameRate}</timebase>
+                  <ntsc>FALSE</ntsc>
+                </rate>
+                <in>0</in>
+                <out>${Math.round(video.duration)}</out>
+                <start>${Math.round(startTime)}</start>
+                <end>${Math.round(startTime + video.duration)}</end>
+                <file id="${video.id}_file"/>
+              </clipitem>`;
+  }).join('\n')
 
-        // Sequences
-        Sequences: {
-          Sequence: {
-            Name: `${settings.projectName}_Timeline`,
-            UUID: generateUUID(),
-            Duration: calculateTotalDuration(sortedVideos),
-            VideoTracks: {
-              Track: {
-                Id: "V1",
-                Name: "Video 1",
-                Clips: sortedVideos.map((video, index) => ({
-                  Clip: {
-                    Name: video.name,
-                    UUID: generateUUID(),
-                    Start: calculateClipStartTime(sortedVideos, index),
-                    Duration: video.duration,
-                    InPoint: 0,
-                    OutPoint: video.duration,
-                    MediaRef: video.id,
-                    Properties: {
-                      Volume: 100,
-                      Opacity: 100,
-                      Position: { X: 0, Y: 0 },
-                      Scale: 100
-                    }
-                  }
-                }))
-              }
-            }
-          }
-        }
-      }
-    }
-  }
+  const projectXML = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE xmeml>
+<xmeml version="5">
+  <project>
+    <name>${settings.projectName}</name>
+    <children>
+      <bin>
+        <name>Organized Videos</name>
+        <children>
+${videoClips}
+        </children>
+      </bin>
+      <sequence id="${generateUUID()}">
+        <name>${settings.projectName}_Timeline</name>
+        <duration>${calculateTotalDuration(sortedVideos)}</duration>
+        <rate>
+          <timebase>${settings.timeline.frameRate}</timebase>
+          <ntsc>FALSE</ntsc>
+        </rate>
+        <timecode>
+          <rate>
+            <timebase>${settings.timeline.frameRate}</timebase>
+            <ntsc>FALSE</ntsc>
+          </rate>
+          <string>00:00:00:00</string>
+          <frame>0</frame>
+          <source>source</source>
+          <displayformat>NDF</displayformat>
+        </timecode>
+        <media>
+          <video>
+            <format>
+              <samplecharacteristics>
+                <rate>
+                  <timebase>${settings.timeline.frameRate}</timebase>
+                  <ntsc>FALSE</ntsc>
+                </rate>
+                <width>${parseInt(settings.timeline.resolution.split('x')[0])}</width>
+                <height>${parseInt(settings.timeline.resolution.split('x')[1])}</height>
+                <anamorphic>FALSE</anamorphic>
+                <pixelaspectratio>square</pixelaspectratio>
+                <fielddominance>none</fielddominance>
+              </samplecharacteristics>
+            </format>
+            <track>
+${timelineClips}
+            </track>
+          </video>
+        </media>
+      </sequence>
+    </children>
+  </project>
+</xmeml>
 
-  // Add date-based bins if requested
-  if (settings.organization.groupByDate) {
-    project.PremiereData.Project.ProjectItems.DateBins = createDateBasedBins(sortedVideos)
-  }
+<!-- Instructions for use:
+1. Save this XML file as ${settings.projectName}.xml
+2. Place all video files (${sortedVideos.map(v => v.name).join(', ')}) in the same folder as this XML file
+3. Import this XML file into Premiere Pro via File > Import > Project
+4. Files are arranged chronologically by original date
+-->`
 
-  return JSON.stringify(project, null, 2)
+  return projectXML
 }
 
 function createDateBasedSubsequences(videos: VideoFile[]) {
@@ -287,7 +334,7 @@ function createDateBasedBins(videos: VideoFile[]) {
           Name: video.name,
           UUID: generateUUID(),
           Type: "Video",
-          FilePath: video.path
+          FilePath: video.name // Use just filename for local reference
         }
       }))
     }
@@ -330,13 +377,13 @@ async function createDownloadableFile(content: string, type: string): Promise<st
     // Use btoa with chunked processing to avoid stack overflow
     const base64 = btoa(String.fromCharCode.apply(null, Array.from(data)))
     
-    const mimeType = type === 'capcut' ? 'application/json' : 'application/xml'
+    const mimeType = type === 'capcut' ? 'application/json' : 'text/xml'
     
     return `data:${mimeType};base64,${base64}`
   } catch (error) {
     console.error('Error creating downloadable file:', error)
     // Fallback: return the content as a simple data URL
-    const mimeType = type === 'capcut' ? 'application/json' : 'application/xml'
+    const mimeType = type === 'capcut' ? 'application/json' : 'text/xml'
     return `data:${mimeType};charset=utf-8,${encodeURIComponent(content)}`
   }
 }
