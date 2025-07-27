@@ -165,16 +165,16 @@ async function extractFromAtomStructure(
   console.log(`📁 File: ${fileName} (${fileSize} bytes)`);
   
   try {
-    // First, try to download a larger chunk from the beginning
-    // iPhone videos often have moov atom at the end, so we need more data
-    let chunkSize = Math.min(fileSize, 20 * 1024 * 1024); // Up to 20MB
+    // For iPhone videos, ALWAYS download the entire file if it's under 100MB
+    // The moov atom is often at the end and contains the creation date
+    let downloadSize = fileSize;
     
-    // For smaller files, download everything
-    if (fileSize < 50 * 1024 * 1024) { // < 50MB
-      chunkSize = fileSize;
-      console.log(`📥 Small file detected, downloading entire file (${fileSize} bytes)`);
+    if (fileSize > 100 * 1024 * 1024) {
+      // For very large files, try downloading from both ends
+      downloadSize = Math.min(50 * 1024 * 1024, fileSize / 2);
+      console.log(`📥 Large file (${fileSize} bytes), downloading first ${downloadSize} bytes`);
     } else {
-      console.log(`📥 Large file, downloading first ${chunkSize} bytes`);
+      console.log(`📥 Downloading entire file (${fileSize} bytes) to ensure we get moov atom`);
     }
 
     const downloadResponse = await fetch(
@@ -182,7 +182,7 @@ async function extractFromAtomStructure(
       {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'Range': `bytes=0-${chunkSize - 1}`
+          ...(downloadSize < fileSize ? { 'Range': `bytes=0-${downloadSize - 1}` } : {})
         }
       }
     );
