@@ -16,7 +16,7 @@ interface MetadataVerificationProps {
 
 interface VerificationResult {
   video: VideoFile;
-  status: 'pending' | 'success' | 'failed' | 'error';
+  status: 'pending' | 'success' | 'failed' | 'error' | 'warning';
   metadata?: any;
   originalDate?: string;
   error?: string;
@@ -83,13 +83,32 @@ const MetadataVerification: React.FC<MetadataVerificationProps> = ({
         
         // Check if we have a valid originalDate (not null, undefined, or empty string)
         if (metadata.originalDate && metadata.originalDate.trim() !== '') {
-          newResult = {
-            video,
-            status: 'success',
-            metadata,
-            originalDate: metadata.originalDate
-          };
-          console.log(`✅ SUCCESS: ${video.name} has extractable metadata`);
+          // Check if this is actually good metadata or just a fallback
+          const isRealMetadata = metadata.extractionMethod === 'atom-structure' || 
+                                metadata.extractionMethod === 'atom-structure-end' ||
+                                metadata.extractionMethod === 'filename-pattern';
+          
+          const extractedDate = new Date(metadata.originalDate);
+          const isRecentDate = extractedDate > new Date('2023-01-01');
+          
+          if (!isRealMetadata && isRecentDate) {
+            newResult = {
+              video,
+              status: 'warning',
+              metadata,
+              originalDate: metadata.originalDate,
+              error: `SUSPICIOUS: Date from ${metadata.extractionMethod} - likely Google Drive upload date, not original shooting date`
+            };
+            console.log(`⚠️ SUSPICIOUS: ${video.name} has suspicious ${extractedDate.getFullYear()} date from ${metadata.extractionMethod}`);
+          } else {
+            newResult = {
+              video,
+              status: 'success',
+              metadata,
+              originalDate: metadata.originalDate
+            };
+            console.log(`✅ SUCCESS: ${video.name} has extractable metadata via ${metadata.extractionMethod}`);
+          }
         } else {
           newResult = {
             video,
@@ -198,6 +217,8 @@ const MetadataVerification: React.FC<MetadataVerificationProps> = ({
         return <XCircle className="w-4 h-4 text-red-500" />;
       case 'error':
         return <AlertTriangle className="w-4 h-4 text-yellow-500" />;
+      case 'warning':
+        return <AlertTriangle className="w-4 h-4 text-orange-500" />;
       case 'pending':
         return <Clock className="w-4 h-4 text-muted-foreground" />;
     }
@@ -213,6 +234,16 @@ const MetadataVerification: React.FC<MetadataVerificationProps> = ({
             onClick={() => result && setSelectedMetadata({video: result.video, metadata: result.metadata})}
           >
             Has Metadata
+          </Badge>
+        );
+      case 'warning':
+        return (
+          <Badge 
+            variant="default" 
+            className="bg-orange-500 cursor-pointer hover:bg-orange-600 transition-colors"
+            onClick={() => result && setSelectedMetadata({video: result.video, metadata: result.metadata})}
+          >
+            Suspicious Date
           </Badge>
         );
       case 'failed':
