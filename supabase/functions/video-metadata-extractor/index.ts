@@ -143,10 +143,9 @@ serve(async (req) => {
           response.deviceInfo = additionalMetadata.deviceInfo;
           console.log(`✓ Device info: ${additionalMetadata.deviceInfo}`);
         }
-        }
-      } catch (error) {
-        console.log(`Additional metadata extraction failed for ${fileData.name}:`, error);
       }
+    } catch (error) {
+      console.log(`Additional metadata extraction failed for ${fileData.name}:`, error);
     }
 
     console.log(`Metadata extraction complete for ${fileData.name}. Original date: ${originalDate || 'NOT FOUND'}`);
