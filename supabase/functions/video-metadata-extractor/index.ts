@@ -241,32 +241,57 @@ async function extractFromAtomStructure(
   }
 }
 
-// Simplified but WORKING QuickTime parser
+// Fixed QuickTime parser with proper bounds checking
 async function parseQuickTimeAtoms(data: Uint8Array): Promise<MetadataResult | null> {
   let offset = 0;
   
+  console.log(`Parsing ${data.length} bytes of video data`);
+  
   while (offset < data.length - 8) {
-    // Read atom size and type
-    const size = (data[offset] << 24) | (data[offset + 1] << 16) | 
-                 (data[offset + 2] << 8) | data[offset + 3];
-    const type = String.fromCharCode(data[offset + 4], data[offset + 5], 
-                                     data[offset + 6], data[offset + 7]);
+    // Ensure we have enough bytes for atom header
+    if (offset + 8 > data.length) {
+      console.log(`Reached end of data at offset ${offset}`);
+      break;
+    }
+    
+    // Read atom size and type with proper bounds checking
+    const size = (data[offset] << 24) >>> 0 | 
+                 (data[offset + 1] << 16) | 
+                 (data[offset + 2] << 8) | 
+                 data[offset + 3];
+    
+    const type = String.fromCharCode(
+      data[offset + 4], 
+      data[offset + 5], 
+      data[offset + 6], 
+      data[offset + 7]
+    );
     
     console.log(`Found atom: ${type} at offset ${offset}, size ${size}`);
     
-    if (size < 8 || offset + size > data.length) {
+    // Validate atom size
+    if (size < 8) {
+      console.log(`Invalid atom size ${size}, skipping`);
+      offset += 8;
+      continue;
+    }
+    
+    if (offset + size > data.length) {
+      console.log(`Atom extends beyond data length, skipping`);
       offset += 8;
       continue;
     }
     
     // Found moov atom - parse it
     if (type === 'moov') {
+      console.log(`🎯 Found moov atom at offset ${offset}, size ${size}`);
       return parseMoovAtom(data, offset + 8, size - 8);
     }
     
     offset += size;
   }
   
+  console.log('❌ No moov atom found in data');
   return null;
 }
 
