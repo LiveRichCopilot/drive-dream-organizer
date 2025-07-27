@@ -749,16 +749,16 @@ async function inferDateFromSequence(fileName: string, fileId: string, accessTok
     
     if (!parentId) return null;
     
-    // List all video files in the same folder with size info
+    // List all video files in the same folder with creation dates from Google Drive
     const folderResponse = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q='${parentId}' in parents and (mimeType contains 'video')&fields=files(id,name,size,mimeType)&pageSize=100`,
+      `https://www.googleapis.com/drive/v3/files?q='${parentId}' in parents and (mimeType contains 'video')&fields=files(id,name,size,mimeType,createdTime,modifiedTime,videoMediaMetadata)&pageSize=200`,
       { headers: { 'Authorization': `Bearer ${accessToken}` } }
     );
     
     if (!folderResponse.ok) return null;
     const folderData = await folderResponse.json();
     
-    // Look for nearby files in the sequence with dates
+    // Look for nearby files in the sequence
     const nearbyFiles = [];
     
     for (const file of folderData.files) {
@@ -769,7 +769,8 @@ async function inferDateFromSequence(fileName: string, fileId: string, accessTok
       if (fileNumber === currentNumber) continue;
       
       const diff = Math.abs(fileNumber - currentNumber);
-      if (diff <= 50) {
+      // Increase search range and prioritize closer files
+      if (diff <= 100) {
         nearbyFiles.push({
           ...file,
           number: fileNumber,
@@ -779,31 +780,65 @@ async function inferDateFromSequence(fileName: string, fileId: string, accessTok
       }
     }
     
-    // Sort by proximity
+    // Sort by proximity (closest first)
     nearbyFiles.sort((a, b) => a.diff - b.diff);
     
-    // Try to extract metadata from nearby files
+    console.log(`Found ${nearbyFiles.length} nearby files for sequence inference`);
+    
+    // Try to get dates from nearby files using multiple strategies
     for (const nearbyFile of nearbyFiles) {
       console.log(`Checking nearby file ${nearbyFile.name} (${nearbyFile.diff} files away)`);
       
       try {
-        // Try a lightweight metadata extraction first
-        const metadata = await extractVideoMetadataLightweight(
-          nearbyFile.id, 
-          accessToken, 
-          nearbyFile.name, 
-          parseInt(nearbyFile.size || '0')
-        );
+        let inferredDate = null;
         
-        if (metadata) {
-          console.log(`✓ Successfully inferred date from ${nearbyFile.name}`);
-          return metadata;
+        // Strategy 1: Try lightweight metadata extraction
+        try {
+          inferredDate = await extractVideoMetadataLightweight(
+            nearbyFile.id, 
+            accessToken, 
+            nearbyFile.name, 
+            parseInt(nearbyFile.size || '0')
+          );
+          
+          if (inferredDate) {
+            console.log(`✓ Successfully extracted metadata from ${nearbyFile.name}: ${inferredDate}`);
+            
+            // Apply time offset based on file sequence difference
+            const timeDelta = (currentNumber - nearbyFile.number) * 30; // Assume ~30 seconds between files
+            const adjustedDate = new Date(new Date(inferredDate).getTime() + (timeDelta * 1000));
+            
+            console.log(`✓ Adjusted date for sequence position: ${adjustedDate.toISOString()}`);
+            return adjustedDate.toISOString();
+          }
+        } catch (error) {
+          console.log(`Metadata extraction failed for ${nearbyFile.name}, trying next strategy...`);
         }
+        
+        // Strategy 2: Use Google Drive's createdTime as fallback if it looks reasonable
+        if (nearbyFile.createdTime) {
+          const driveDate = new Date(nearbyFile.createdTime);
+          const now = new Date();
+          
+          // Only use if it's within a reasonable range (not too old, not in future)
+          if (driveDate > new Date('2007-01-01') && driveDate <= now) {
+            console.log(`✓ Using Google Drive creation time from ${nearbyFile.name}: ${driveDate.toISOString()}`);
+            
+            // Apply time offset based on file sequence difference  
+            const timeDelta = (currentNumber - nearbyFile.number) * 30; // Assume ~30 seconds between files
+            const adjustedDate = new Date(driveDate.getTime() + (timeDelta * 1000));
+            
+            console.log(`✓ Adjusted date for sequence position: ${adjustedDate.toISOString()}`);
+            return adjustedDate.toISOString();
+          }
+        }
+        
       } catch (error) {
-        console.log(`Failed to extract from ${nearbyFile.name}, trying next...`);
+        console.log(`Failed to process ${nearbyFile.name}, trying next...`);
       }
     }
     
+    console.log('No suitable reference files found for sequence inference');
     return null;
   } catch (error) {
     console.error('Error in sequence-based inference:', error);
