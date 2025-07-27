@@ -325,6 +325,21 @@ const VideoOrganizerApp = () => {
               <FolderOpen className="h-4 w-4 mr-2" />
               Connected ({videos.length} videos)
             </Badge>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => {
+                setProcessingResults(null);
+                setShowProcessor(false);
+                setSearchQuery("");
+                setSelectedFolderId(undefined);
+                loadVideos();
+              }}
+              className="glass border-primary/30 text-primary hover:bg-primary/10"
+            >
+              <Play className="h-4 w-4 mr-2" />
+              New Session
+            </Button>
             <Button variant="outline" size="sm" onClick={() => { setSelectedFolderId(undefined); disconnect(); }} className="glass border-destructive/30 text-destructive hover:bg-destructive/10">
               <LogOut className="h-4 w-4 mr-2" />
               Disconnect
