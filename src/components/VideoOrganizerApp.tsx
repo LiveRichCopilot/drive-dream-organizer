@@ -19,7 +19,17 @@ import {
   Download,
   Edit2,
   LogOut,
-  Cog
+  Cog,
+  Camera,
+  MapPin,
+  Building2,
+  Film,
+  Smartphone,
+  Lock,
+  Mic,
+  GraduationCap,
+  Users,
+  Home
 } from "lucide-react";
 import heroImage from "@/assets/hero-video-bg.jpg";
 import { useGoogleDrive } from "@/hooks/useGoogleDrive";
@@ -131,6 +141,112 @@ const VideoOrganizerApp = () => {
                       <p className="text-sm text-muted-foreground">
                         Extract duration, resolution, and timestamp data
                       </p>
+                    </div>
+                  </div>
+                  
+                  {/* Who Benefits Section */}
+                  <div className="mt-16 max-w-4xl mx-auto">
+                    <h2 className="text-2xl font-semibold text-white text-center mb-12">Who benefits?</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      <div className="flex items-start gap-4 p-4">
+                        <div className="w-10 h-10 rounded-full glass-card flex items-center justify-center flex-shrink-0">
+                          <Camera className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-white mb-1">Wedding & Event Videographers</h3>
+                          <p className="text-sm text-white/70">Hours of footage become perfectly sequenced</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-start gap-4 p-4">
+                        <div className="w-10 h-10 rounded-full glass-card flex items-center justify-center flex-shrink-0">
+                          <MapPin className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-white mb-1">Travel Vloggers & Adventurers</h3>
+                          <p className="text-sm text-white/70">Trips sorted by the actual shot date</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-start gap-4 p-4">
+                        <div className="w-10 h-10 rounded-full glass-card flex items-center justify-center flex-shrink-0">
+                          <Building2 className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-white mb-1">Corporate Storytellers</h3>
+                          <p className="text-sm text-white/70">Brand videos arranged in logical order</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-start gap-4 p-4">
+                        <div className="w-10 h-10 rounded-full glass-card flex items-center justify-center flex-shrink-0">
+                          <Film className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-white mb-1">Documentary & Indie Film Producers</h3>
+                          <p className="text-sm text-white/70">Multi-day shoots auto-organised</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-start gap-4 p-4">
+                        <div className="w-10 h-10 rounded-full glass-card flex items-center justify-center flex-shrink-0">
+                          <Smartphone className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-white mb-1">Social Media Creators</h3>
+                          <p className="text-sm text-white/70">Batch clips ready for editing on YouTube, TikTok & Reels</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-start gap-4 p-4">
+                        <div className="w-10 h-10 rounded-full glass-card flex items-center justify-center flex-shrink-0">
+                          <Lock className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-white mb-1">Subscription Platforms</h3>
+                          <p className="text-sm text-white/70">Episodes organised for OFTV, Patreon & paying subscribers</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-start gap-4 p-4">
+                        <div className="w-10 h-10 rounded-full glass-card flex items-center justify-center flex-shrink-0">
+                          <Mic className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-white mb-1">Podcasters & Vodcast Teams</h3>
+                          <p className="text-sm text-white/70">Audio/video aligned by capture time</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-start gap-4 p-4">
+                        <div className="w-10 h-10 rounded-full glass-card flex items-center justify-center flex-shrink-0">
+                          <GraduationCap className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-white mb-1">Educators & Course Creators</h3>
+                          <p className="text-sm text-white/70">Lessons and demos stay in sequence</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-start gap-4 p-4">
+                        <div className="w-10 h-10 rounded-full glass-card flex items-center justify-center flex-shrink-0">
+                          <Users className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-white mb-1">Family Archivists</h3>
+                          <p className="text-sm text-white/70">Home videos and photos preserved in order</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-start gap-4 p-4">
+                        <div className="w-10 h-10 rounded-full glass-card flex items-center justify-center flex-shrink-0">
+                          <Home className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-white mb-1">Real Estate & Property Marketers</h3>
+                          <p className="text-sm text-white/70">Room-by-room footage turned into walkthroughs</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
