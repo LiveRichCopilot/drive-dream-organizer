@@ -242,6 +242,18 @@ function extractQuickTimeMetadata(data: Uint8Array): string | null {
         break
       }
       
+      // Check for Apple-specific atoms that contain metadata
+      const appleSpecificAtoms = ['©day', '©xyz', 'loci', 'keys', 'ilst', 'meta']
+      
+      if (appleSpecificAtoms.includes(atomType)) {
+        console.log(`Found Apple-specific atom: ${atomType}`)
+        const appleDate = extractAppleMetadata(data, offset, atomSize, atomType)
+        if (appleDate) {
+          console.log('Extracted date from Apple-specific atom:', appleDate)
+          return appleDate
+        }
+      }
+      
       if (atomType === 'moov') {
         // Found moov atom, now look for mvhd inside it
         console.log('Found moov atom, searching for mvhd inside...')
@@ -470,6 +482,80 @@ function searchUdtaAtom(data: Uint8Array, start: number, end: number): string | 
     return null
   } catch (error) {
     console.error('Error in searchUdtaAtom:', error)
+    return null
+  }
+}
+
+function extractAppleMetadata(data: Uint8Array, offset: number, size: number, atomType: string): string | null {
+  try {
+    console.log(`Extracting Apple metadata from ${atomType} atom (size: ${size})`)
+    
+    if (atomType === '©day') {
+      // Apple stores creation date in ©day atom
+      // Format: usually after 8 bytes of header
+      const dataStart = offset + 16
+      const dataEnd = Math.min(offset + size, dataStart + 32)
+      
+      if (dataStart < data.length) {
+        const dateData = data.slice(dataStart, dataEnd)
+        const dateStr = new TextDecoder('utf-8', { fatal: false }).decode(dateData)
+        console.log('©day atom content:', dateStr)
+        
+        const parsed = parseFlexibleDate(dateStr.trim())
+        if (parsed) return parsed
+      }
+    }
+    
+    if (atomType === '©xyz') {
+      // GPS coordinates with timestamp
+      const dataStart = offset + 8
+      const dataEnd = Math.min(offset + size, data.length)
+      
+      if (dataStart < data.length) {
+        const gpsData = data.slice(dataStart, dataEnd)
+        const text = new TextDecoder('utf-8', { fatal: false }).decode(gpsData)
+        console.log('©xyz atom content (first 100 chars):', text.substring(0, 100))
+        
+        // Look for timestamp in GPS data
+        const dateMatch = text.match(/(\d{4}[:\-]\d{2}[:\-]\d{2}[T\s]\d{2}:\d{2}:\d{2})/)
+        if (dateMatch) {
+          return parseFlexibleDate(dateMatch[1])
+        }
+      }
+    }
+    
+    if (atomType === 'meta' || atomType === 'ilst' || atomType === 'keys') {
+      // iTunes-style metadata atoms
+      const dataStart = offset + 8
+      const dataEnd = Math.min(offset + size, data.length)
+      
+      if (dataStart < data.length) {
+        const metaData = data.slice(dataStart, dataEnd)
+        const text = new TextDecoder('utf-8', { fatal: false }).decode(metaData)
+        console.log(`${atomType} atom content (first 200 chars):`, text.substring(0, 200))
+        
+        // Look for Apple QuickTime creation date keys
+        const applePatterns = [
+          /com\.apple\.quicktime\.creationdate[^\d]*(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2})/i,
+          /quicktime\..*creation[^\d]*(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2})/i,
+          /©day[^\d]*(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2})/i,
+          /(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2})/,
+        ]
+        
+        for (const pattern of applePatterns) {
+          const match = text.match(pattern)
+          if (match) {
+            console.log(`Found date in ${atomType} atom:`, match[1])
+            const parsed = parseFlexibleDate(match[1])
+            if (parsed) return parsed
+          }
+        }
+      }
+    }
+    
+    return null
+  } catch (error) {
+    console.error('Error extracting Apple metadata:', error)
     return null
   }
 }
