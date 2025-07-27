@@ -64,15 +64,27 @@ serve(async (req) => {
     if (!originalDate && fileData.mimeType?.includes('video')) {
       // Try metadata extraction from file content
       console.log('Attempting to extract metadata from file content...')
-      originalDate = await extractVideoMetadata(fileId, accessToken, fileData.name, parseInt(fileData.size || '0'))
+      try {
+        originalDate = await extractVideoMetadata(fileId, accessToken, fileData.name, parseInt(fileData.size || '0'))
+      } catch (error) {
+        console.error('Metadata extraction failed:', error.message)
+        // Check if it's a resource limit error
+        if (error.message.includes('WORKER_LIMIT') || error.message.includes('compute resources')) {
+          console.log('⚠️ Resource limit reached for large file, proceeding to sequence inference...')
+        }
+      }
       
-      // If still no date found, try sequence-based inference
+      // If still no date found OR extraction failed, try sequence-based inference
       if (!originalDate) {
-        console.log('Metadata extraction failed, trying sequence-based inference...')
-        originalDate = await inferDateFromSequence(fileData.name, fileId, accessToken)
-        if (originalDate) {
-          inferredFromSequence = true
-          console.log('📅 Date successfully inferred from file sequence')
+        console.log('Trying sequence-based inference as fallback...')
+        try {
+          originalDate = await inferDateFromSequence(fileData.name, fileId, accessToken)
+          if (originalDate) {
+            inferredFromSequence = true
+            console.log('📅 Date successfully inferred from file sequence')
+          }
+        } catch (seqError) {
+          console.error('Sequence inference also failed:', seqError.message)
         }
       }
     }
