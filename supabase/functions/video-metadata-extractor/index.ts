@@ -517,30 +517,55 @@ function extractMvhdCreationTime(mvhdAtom: AtomInfo, data: Uint8Array): string |
     
     const version = data[mvhdAtom.dataOffset];
     let timeOffset = mvhdAtom.dataOffset + 4;
+    let timestamp: number;
     
     if (version === 1) {
-      timeOffset += 4; // Skip to lower 32 bits of 64-bit timestamp
+      // Read 8-byte timestamp (64-bit)
+      const high = (data[timeOffset] << 24) | 
+                   (data[timeOffset + 1] << 16) | 
+                   (data[timeOffset + 2] << 8) | 
+                   data[timeOffset + 3];
+      const low = (data[timeOffset + 4] << 24) | 
+                  (data[timeOffset + 5] << 16) | 
+                  (data[timeOffset + 6] << 8) | 
+                  data[timeOffset + 7];
+      
+      // Combine to 64-bit number, but for dates after 1970, 
+      // the high part should be 0, so we can use just the low part
+      timestamp = low;
+      
+      // If high part is not 0, this might be a different format
+      if (high !== 0) {
+        console.log(`⚠️ Unexpected high timestamp: ${high}, using low: ${low}`);
+      }
+    } else {
+      // Read 4-byte timestamp (32-bit)
+      timestamp = (data[timeOffset] << 24) | 
+                  (data[timeOffset + 1] << 16) | 
+                  (data[timeOffset + 2] << 8) | 
+                  data[timeOffset + 3];
     }
-
-    const timestamp = (data[timeOffset] << 24) | 
-                     (data[timeOffset + 1] << 16) | 
-                     (data[timeOffset + 2] << 8) | 
-                     data[timeOffset + 3];
 
     if (timestamp === 0) {
+      console.log(`⚠️ Zero timestamp found`);
       return null;
     }
+
+    console.log(`🕐 Raw timestamp: ${timestamp} (version ${version})`);
 
     // Convert from Mac epoch (1904) to Unix epoch (1970)
     const unixTimestamp = timestamp - 2082844800;
     
-    // Validate timestamp
+    console.log(`🕐 Unix timestamp: ${unixTimestamp}`);
+    
+    // Validate timestamp (should be between 1970 and now)
     if (unixTimestamp < 0 || unixTimestamp > Date.now() / 1000) {
-      console.log(`⚠️ Invalid timestamp: ${unixTimestamp}`);
+      console.log(`⚠️ Invalid timestamp range: ${unixTimestamp}`);
       return null;
     }
 
     const date = new Date(unixTimestamp * 1000);
+    console.log(`📅 Extracted creation date: ${date.toISOString()}`);
     return date.toISOString();
 
   } catch (error) {
