@@ -56,14 +56,25 @@ serve(async (req) => {
 
     // Enhanced metadata extraction for video files
     let originalDate = null
+    let inferredFromSequence = false
     
     // First, try to extract from filename pattern (iPhone/camera patterns)
     originalDate = extractDateFromFilename(fileData.name)
     
     if (!originalDate && fileData.mimeType?.includes('video')) {
-      // Download more of the file for better metadata extraction
+      // Try metadata extraction from file content
       console.log('Attempting to extract metadata from file content...')
       originalDate = await extractVideoMetadata(fileId, accessToken, fileData.name, parseInt(fileData.size || '0'))
+      
+      // If still no date found, try sequence-based inference
+      if (!originalDate) {
+        console.log('Metadata extraction failed, trying sequence-based inference...')
+        originalDate = await inferDateFromSequence(fileData.name, fileId, accessToken)
+        if (originalDate) {
+          inferredFromSequence = true
+          console.log('📅 Date successfully inferred from file sequence')
+        }
+      }
     }
 
     // Build the response
@@ -93,6 +104,7 @@ serve(async (req) => {
       dateCreated: originalDate ? formatDate(originalDate) : null,
       yearMonth: originalDate ? getYearMonth(originalDate) : null,
       year: originalDate ? getYear(originalDate) : null,
+      inferredFromSequence: inferredFromSequence, // Flag to indicate if date was inferred
     }
 
     console.log(`Metadata extraction complete for ${fileData.name}. Original date: ${originalDate || 'NOT FOUND'}`)
@@ -694,3 +706,108 @@ function getYear(dateString: string): string {
   const date = new Date(dateString)
   return date.getFullYear().toString()
 }
+
+async function inferDateFromSequence(fileName: string, fileId: string, accessToken: string): string | null {
+  try {
+    // Extract number from filename (e.g., IMG_7845.MOV -> 7845)
+    const match = fileName.match(/IMG_(\d+)/);
+    if (!match) return null;
+    
+    const currentNumber = parseInt(match[1]);
+    console.log(`Trying to infer date for ${fileName} (number: ${currentNumber})`);
+    
+    // Get parent folder to find sibling files
+    const fileResponse = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${fileId}?fields=parents`,
+      { headers: { 'Authorization': `Bearer ${accessToken}` } }
+    );
+    
+    if (!fileResponse.ok) return null;
+    const fileData = await fileResponse.json();
+    const parentId = fileData.parents?.[0];
+    
+    if (!parentId) return null;
+    
+    // List all video files in the same folder
+    const folderResponse = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q='${parentId}' in parents and (mimeType contains 'video')&fields=files(id,name,createdTime)`,
+      { headers: { 'Authorization': `Bearer ${accessToken}` } }
+    );
+    
+    if (!folderResponse.ok) return null;
+    const folderData = await folderResponse.json();
+    
+    // Look for nearby files in the sequence with dates
+    let closestBefore = null;
+    let closestAfter = null;
+    
+    for (const file of folderData.files) {
+      const fileMatch = file.name.match(/IMG_(\d+)/);
+      if (!fileMatch) continue;
+      
+      const fileNumber = parseInt(fileMatch[1]);
+      
+      // Skip the current file
+      if (fileNumber === currentNumber) continue;
+      
+      // For now, we'll use the Google Drive createdTime as a proxy
+      // In a full implementation, we'd extract metadata from each file
+      const fileDate = file.createdTime;
+      if (!fileDate) continue;
+      
+      // Find closest file before current
+      if (fileNumber < currentNumber) {
+        const diff = currentNumber - fileNumber;
+        if (diff <= 50 && (!closestBefore || diff < closestBefore.diff)) {
+          closestBefore = { number: fileNumber, date: fileDate, diff: diff, name: file.name };
+        }
+      }
+      
+      // Find closest file after current
+      if (fileNumber > currentNumber) {
+        const diff = fileNumber - currentNumber;
+        if (diff <= 50 && (!closestAfter || diff < closestAfter.diff)) {
+          closestAfter = { number: fileNumber, date: fileDate, diff: diff, name: file.name };
+        }
+      }
+    }
+    
+    // Use the closest file's date (prefer before over after)
+    if (closestBefore && closestBefore.diff <= 10) {
+      console.log(`✓ Inferred date from IMG_${closestBefore.number} (${closestBefore.diff} files before)`);
+      return closestBefore.date;
+    }
+    
+    if (closestAfter && closestAfter.diff <= 10) {
+      console.log(`✓ Inferred date from IMG_${closestAfter.number} (${closestAfter.diff} files after)`);
+      return closestAfter.date;
+    }
+    
+    // For edited files, look for the base file
+    if (fileName.includes('(1)') || fileName.includes('(2)') || fileName.includes('.TRIM')) {
+      const basePattern = fileName.match(/IMG_(\d+)/)?.[1];
+      if (basePattern) {
+        const baseFile = folderData.files.find(f => 
+          f.name.includes(`IMG_${basePattern}`) && 
+          !f.name.includes('(') && 
+          !f.name.includes('.TRIM')
+        );
+        
+        if (baseFile) {
+          console.log(`✓ Edited file: using date from original ${baseFile.name}`);
+          return baseFile.createdTime;
+        }
+      }
+    }
+    
+    // If we have files from both sides within reasonable range, use the before file
+    if (closestBefore && closestBefore.diff <= 50) {
+      console.log(`✓ Fallback: using date from IMG_${closestBefore.number} (${closestBefore.diff} files before)`);
+      return closestBefore.date;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error in sequence-based inference:', error);
+    return null;
+  }
