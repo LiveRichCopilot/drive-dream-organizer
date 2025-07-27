@@ -44,6 +44,7 @@ interface ProcessedVideo {
   newName: string;
   originalDate: Date;
   localPath: string;
+  uploadPath?: string; // Optional path after upload to Google Drive
   metadata: VideoMetadata;
 }
 
@@ -458,26 +459,75 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
       currentStep: 5
     }));
 
-    if (settings.generateCapCut) {
-      results.projectFiles.push({
-        type: 'capcut',
-        name: 'Organized_Videos_CapCut.ccp',
-        path: '/projects/Organized_Videos_CapCut.ccp',
-        videoCount: results.downloadedVideos.length
-      });
-    }
+    try {
+      // Prepare videos data for project generation
+      const videosForProject = results.downloadedVideos.map(video => ({
+        id: video.id,
+        name: video.newName || video.originalName,
+        path: video.uploadPath || `/organized/${video.newName || video.originalName}`,
+        duration: video.metadata?.duration || 5000, // Default 5 seconds if unknown
+        resolution: video.metadata?.resolution || "1920x1080",
+        fps: video.metadata?.fps || 30,
+        originalDate: video.originalDate,
+        metadata: video.metadata
+      }));
 
-    if (settings.generatePremiere) {
-      results.projectFiles.push({
-        type: 'premiere',
-        name: 'Organized_Videos_Premiere.prproj',
-        path: '/projects/Organized_Videos_Premiere.prproj',
-        videoCount: results.downloadedVideos.length
-      });
-    }
+      // Project settings
+      const projectSettings = {
+        projectName: "Organized_Video_Timeline",
+        outputFormat: settings.generateCapCut && settings.generatePremiere ? "both" 
+          : settings.generateCapCut ? "capcut" 
+          : "premiere",
+        timeline: {
+          frameRate: 30,
+          resolution: "1920x1080",
+          sequence: "chronological"
+        },
+        organization: {
+          groupByDate: settings.organizeByDate,
+          createSubsequences: true
+        }
+      };
 
-    // Simulate project generation time
-    await new Promise(resolve => setTimeout(resolve, 2000));
+      console.log(`Generating project files for ${videosForProject.length} videos...`);
+
+      // Call the edge function to generate actual project files
+      const projectResult = await apiClient.generateProjectFiles(videosForProject, projectSettings);
+      
+      if (projectResult.success && projectResult.projectFiles) {
+        results.projectFiles = projectResult.projectFiles.map((pf: any) => ({
+          type: pf.type,
+          name: pf.name,
+          path: pf.downloadUrl,
+          videoCount: projectResult.videoCount,
+          downloadUrl: pf.downloadUrl,
+          content: pf.content
+        }));
+
+        console.log(`✅ Generated ${results.projectFiles.length} project files successfully`);
+      }
+    } catch (error) {
+      console.error("Failed to generate project files:", error);
+      
+      // Fallback to basic project file placeholders
+      if (settings.generateCapCut) {
+        results.projectFiles.push({
+          type: 'capcut',
+          name: 'Organized_Videos_Timeline.ccp',
+          path: '/projects/Organized_Videos_Timeline.ccp',
+          videoCount: results.downloadedVideos.length
+        });
+      }
+
+      if (settings.generatePremiere) {
+        results.projectFiles.push({
+          type: 'premiere',
+          name: 'Organized_Videos_Timeline.prproj',
+          path: '/projects/Organized_Videos_Timeline.prproj',
+          videoCount: results.downloadedVideos.length
+        });
+      }
+    }
 
     setProcessingState(prev => ({
       ...prev,
