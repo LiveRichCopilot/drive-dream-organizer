@@ -147,10 +147,30 @@ function extractDateFromFilename(fileName: string): string | null {
 
 async function extractVideoMetadata(fileId: string, accessToken: string, fileName: string, fileSize: number): Promise<string | null> {
   try {
-    // For small files, download entirely. For large files, download more data for better metadata extraction
-    const downloadSize = fileSize < 50 * 1024 * 1024 
-      ? fileSize  // Download entire file if under 50MB
-      : Math.min(30 * 1024 * 1024, fileSize)  // Otherwise 30MB max
+    // Smart download strategy based on file characteristics
+    let downloadSize: number;
+    
+    // Check if this is an edited file
+    const isEdited = fileName.includes('.TRIM') || fileName.includes('(1)') || fileName.includes('(2)') || fileName.includes('(3)');
+    
+    if (fileSize < 50 * 1024 * 1024) {
+      // Under 50MB: download entire file
+      downloadSize = fileSize;
+      console.log(`Downloading entire ${Math.floor(fileSize / 1024 / 1024)}MB file: ${fileName}`)
+    } else if (fileSize < 200 * 1024 * 1024) {
+      // 50-200MB: download 100MB to ensure we get metadata
+      downloadSize = Math.min(100 * 1024 * 1024, fileSize);
+      console.log(`Downloading ${Math.floor(downloadSize / 1024 / 1024)}MB of ${Math.floor(fileSize / 1024 / 1024)}MB file: ${fileName}`)
+    } else {
+      // Over 200MB: download 50MB first, but metadata might be deeper
+      downloadSize = 50 * 1024 * 1024;
+      console.log(`Large file (${Math.floor(fileSize / 1024 / 1024)}MB), downloading first 50MB: ${fileName}`)
+    }
+    
+    // Special logging for edited files
+    if (isEdited) {
+      console.log(`⚠️ EDITED FILE DETECTED: ${fileName} - metadata might be stripped during editing`)
+    }
     
     console.log(`Downloading ${Math.floor(downloadSize / 1024 / 1024)}MB for metadata extraction...`)
     
