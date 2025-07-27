@@ -125,24 +125,24 @@ serve(async (req) => {
     };
 
     // Extract additional metadata from file content for ALL videos with dates
-    if (originalDate) {
-      try {
-        console.log(`Extracting additional metadata (GPS/device) from ${fileData.name}...`);
-        const additionalMetadata = await extractAdditionalVideoMetadata(fileData.id, accessToken, fileData.name, parseInt(fileData.size || '0'));
-        
-        if (additionalMetadata) {
-          if (additionalMetadata.gpsCoordinates) {
-            response.gpsCoordinates = additionalMetadata.gpsCoordinates;
-            response.locationInfo = additionalMetadata.locationInfo;
-            console.log(`✓ GPS coordinates found: ${additionalMetadata.gpsCoordinates.latitude}, ${additionalMetadata.gpsCoordinates.longitude}`);
-            if (additionalMetadata.locationInfo) {
-              console.log(`✓ Location: ${additionalMetadata.locationInfo}`);
-            }
+    // Always attempt to extract GPS and device metadata, regardless of date extraction success
+    try {
+      console.log(`Extracting additional metadata (GPS/device) from ${fileData.name}...`);
+      const additionalMetadata = await extractAdditionalVideoMetadata(fileData.id, accessToken, fileData.name, parseInt(fileData.size || '0'));
+      
+      if (additionalMetadata) {
+        if (additionalMetadata.gpsCoordinates) {
+          response.gpsCoordinates = additionalMetadata.gpsCoordinates;
+          response.locationInfo = additionalMetadata.locationInfo;
+          console.log(`✓ GPS coordinates found: ${additionalMetadata.gpsCoordinates.latitude}, ${additionalMetadata.gpsCoordinates.longitude}`);
+          if (additionalMetadata.locationInfo) {
+            console.log(`✓ Location: ${additionalMetadata.locationInfo}`);
           }
-          if (additionalMetadata.deviceInfo) {
-            response.deviceInfo = additionalMetadata.deviceInfo;
-            console.log(`✓ Device info: ${additionalMetadata.deviceInfo}`);
-          }
+        }
+        if (additionalMetadata.deviceInfo) {
+          response.deviceInfo = additionalMetadata.deviceInfo;
+          console.log(`✓ Device info: ${additionalMetadata.deviceInfo}`);
+        }
         }
       } catch (error) {
         console.log(`Additional metadata extraction failed for ${fileData.name}:`, error);
