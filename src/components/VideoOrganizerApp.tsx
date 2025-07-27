@@ -166,7 +166,7 @@ const VideoOrganizerApp = () => {
                     Wedding & Event Videographers
                   </h3>
                   <p className="text-white/80 leading-relaxed">
-                    Transform hours of ceremony footage into perfectly sequenced timelines. Extract original timestamps from multiple cameras and automatically organize reception clips for quick editing.
+                    Transform hours of ceremony footage into perfectly sequenced timelines with automatic organization.
                   </p>
                 </div>
               </div>
@@ -181,7 +181,7 @@ const VideoOrganizerApp = () => {
                     Travel Vloggers & Adventurers
                   </h3>
                   <p className="text-white/80 leading-relaxed">
-                    Keep your travel stories authentic with chronological organization by actual shot dates, not upload times. Organize multi-day adventures and maintain the true timeline of your journey.
+                    Keep travel stories authentic with chronological organization by actual shot dates, not upload times.
                   </p>
                 </div>
               </div>
@@ -196,7 +196,7 @@ const VideoOrganizerApp = () => {
                     Corporate Storytellers
                   </h3>
                   <p className="text-white/80 leading-relaxed">
-                    Streamline corporate video production with intelligent organization. Sort product launches, testimonials, and brand content by creation date for consistent storytelling.
+                    Streamline corporate video production with intelligent organization by creation date for consistent storytelling.
                   </p>
                 </div>
               </div>
@@ -211,7 +211,7 @@ const VideoOrganizerApp = () => {
                     Documentary & Indie Film Producers
                   </h3>
                   <p className="text-white/80 leading-relaxed">
-                    Organize complex multi-day shoots automatically. Sort interviews, B-roll, and documentary footage by actual filming dates to preserve narrative flow and streamline post-production.
+                    Organize complex multi-day shoots automatically to preserve narrative flow and streamline post-production.
                   </p>
                 </div>
               </div>
@@ -226,7 +226,7 @@ const VideoOrganizerApp = () => {
                     Social Media Creators
                   </h3>
                   <p className="text-white/80 leading-relaxed">
-                    Batch process content clips with chronological precision. Organize phone footage, camera clips, and screen recordings by actual creation time for optimized YouTube, TikTok, and Instagram content.
+                    Batch process content clips with chronological precision for optimized YouTube, TikTok, and Instagram content.
                   </p>
                 </div>
               </div>
@@ -241,7 +241,7 @@ const VideoOrganizerApp = () => {
                     Subscription Platforms
                   </h3>
                   <p className="text-white/80 leading-relaxed">
-                    Organize premium content episodes in perfect chronological order for subscription platforms. Maintain episode sequences for OFTV, Patreon, and exclusive subscriber content with accurate timestamps.
+                    Organize premium content episodes in perfect chronological order for OFTV, Patreon, and subscriber platforms.
                   </p>
                 </div>
               </div>
@@ -256,7 +256,7 @@ const VideoOrganizerApp = () => {
                     Podcasters & Vodcast Teams
                   </h3>
                   <p className="text-white/80 leading-relaxed">
-                    Synchronize multi-camera podcast recordings automatically. Align video feeds, audio tracks, and screen shares by precise capture timestamps for seamless video podcasts with perfect A/V sync.
+                    Synchronize multi-camera podcast recordings automatically for seamless video podcasts with perfect A/V sync.
                   </p>
                 </div>
               </div>
@@ -271,7 +271,7 @@ const VideoOrganizerApp = () => {
                     Educators & Course Creators
                   </h3>
                   <p className="text-white/80 leading-relaxed">
-                    Maintain educational content in logical learning sequences. Organize course modules, tutorial videos, and lecture recordings by creation date to preserve lesson flow and student comprehension.
+                    Maintain educational content in logical learning sequences to preserve lesson flow and comprehension.
                   </p>
                 </div>
               </div>
@@ -286,7 +286,7 @@ const VideoOrganizerApp = () => {
                     Family Archivists
                   </h3>
                   <p className="text-white/80 leading-relaxed">
-                    Preserve precious family memories in true chronological order. Organize birthday parties, holidays, and milestones by actual recording dates to tell your story exactly as it happened.
+                    Preserve precious family memories in true chronological order by actual recording dates.
                   </p>
                 </div>
               </div>
@@ -301,7 +301,7 @@ const VideoOrganizerApp = () => {
                     Real Estate & Property Marketers
                   </h3>
                   <p className="text-white/80 leading-relaxed">
-                    Transform property footage into compelling virtual tours. Organize room-by-room videos, exterior shots, and drone footage in logical viewing sequences for professional presentations.
+                    Transform property footage into compelling virtual tours with logical viewing sequences.
                   </p>
                 </div>
               </div>
