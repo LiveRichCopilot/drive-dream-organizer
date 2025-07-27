@@ -81,7 +81,8 @@ const MetadataVerification: React.FC<MetadataVerificationProps> = ({
         console.log(`Verifying metadata for ${video.name}...`);
         const metadata = await apiClient.extractVideoMetadata(video.id);
         
-        if (metadata.originalDate) {
+        // Check if we have a valid originalDate (not null, undefined, or empty string)
+        if (metadata.originalDate && metadata.originalDate.trim() !== '') {
           newResult = {
             video,
             status: 'success',
