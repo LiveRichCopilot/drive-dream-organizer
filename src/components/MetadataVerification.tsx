@@ -39,65 +39,94 @@ const MetadataVerification: React.FC<MetadataVerificationProps> = ({
     })));
   }, [videos]);
 
-  const startVerification = async () => {
+  const startVerification = async (onlyFailed = false) => {
     setIsVerifying(true);
     setProgress(0);
     
-    const newResults: VerificationResult[] = [];
+    // Get videos to verify
+    const videosToVerify = onlyFailed 
+      ? videos.filter((video, index) => {
+          const result = results[index];
+          return result && (result.status === 'failed' || result.status === 'error');
+        })
+      : videos;
     
-    for (let i = 0; i < videos.length; i++) {
-      const video = videos[i];
+    if (onlyFailed && videosToVerify.length === 0) {
+      toast({
+        title: "No Failed Videos",
+        description: "There are no failed videos to re-verify.",
+        variant: "default"
+      });
+      setIsVerifying(false);
+      return;
+    }
+    
+    console.log(`${onlyFailed ? 'Re-verifying' : 'Verifying'} ${videosToVerify.length} videos...`);
+    
+    for (let i = 0; i < videosToVerify.length; i++) {
+      const video = videosToVerify[i];
       setCurrentVideo(video.name);
-      setProgress(((i) / videos.length) * 100);
+      setProgress(((i) / videosToVerify.length) * 100);
+      
+      let newResult: VerificationResult;
       
       try {
         console.log(`Verifying metadata for ${video.name}...`);
         const metadata = await apiClient.extractVideoMetadata(video.id);
         
         if (metadata.originalDate) {
-          newResults.push({
+          newResult = {
             video,
             status: 'success',
             metadata,
             originalDate: metadata.originalDate
-          });
+          };
           console.log(`✅ SUCCESS: ${video.name} has extractable metadata`);
         } else {
-          newResults.push({
+          newResult = {
             video,
             status: 'failed',
             metadata,
             error: 'No original shooting date found in metadata'
-          });
+          };
           console.log(`❌ FAILED: ${video.name} has no extractable original date`);
         }
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          
-          // Check if it's an authentication error and provide clear guidance
-          if (errorMessage.includes('authentication expired') || errorMessage.includes('re-authenticate') || 
-              errorMessage.includes('Invalid Credentials') || errorMessage.includes('UNAUTHENTICATED')) {
-            toast({
-              title: "Google Drive Authentication Expired",
-              description: "Please go back and click 'Authenticate with Google Drive' to get a fresh access token, then retry verification.",
-              variant: "destructive"
-            });
-            setIsVerifying(false);
-            return; // Stop the verification process
-          }
-          
-          newResults.push({
-            video,
-            status: 'error',
-            error: errorMessage
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        
+        // Check if it's an authentication error and provide clear guidance
+        if (errorMessage.includes('authentication expired') || errorMessage.includes('re-authenticate') || 
+            errorMessage.includes('Invalid Credentials') || errorMessage.includes('UNAUTHENTICATED')) {
+          toast({
+            title: "Google Drive Authentication Expired",
+            description: "Please go back and click 'Authenticate with Google Drive' to get a fresh access token, then retry verification.",
+            variant: "destructive"
           });
-          console.log(`💥 ERROR: ${video.name} metadata extraction failed:`, error);
+          setIsVerifying(false);
+          return; // Stop the verification process
         }
+        
+        newResult = {
+          video,
+          status: 'error',
+          error: errorMessage
+        };
+        console.log(`💥 ERROR: ${video.name} metadata extraction failed:`, error);
+      }
       
       // Update results progressively
       setResults(prev => {
         const updated = [...prev];
-        updated[i] = newResults[i];
+        if (onlyFailed) {
+          // For failed-only verification, update the specific video's result
+          const originalIndex = videos.findIndex(v => v.id === video.id);
+          if (originalIndex !== -1) {
+            updated[originalIndex] = newResult;
+          }
+        } else {
+          // For full verification, update normally
+          updated[i] = newResult;
+        }
         return updated;
       });
     }
@@ -106,16 +135,31 @@ const MetadataVerification: React.FC<MetadataVerificationProps> = ({
     setCurrentVideo('');
     setIsVerifying(false);
     
-    const successCount = newResults.filter(r => r.status === 'success').length;
-    const failedCount = newResults.filter(r => r.status === 'failed').length;
-    const errorCount = newResults.filter(r => r.status === 'error').length;
+    // Count results from current state
+    const currentResults = results.map((result, index) => {
+      if (onlyFailed) {
+        const video = videos[index];
+        const wasUpdated = videosToVerify.some(v => v.id === video.id);
+        return wasUpdated ? result : result; // Will be updated by setResults above
+      }
+      return result;
+    });
+    
+    const successCount = currentResults.filter(r => r.status === 'success').length;
+    const failedCount = currentResults.filter(r => r.status === 'failed').length;
+    const errorCount = currentResults.filter(r => r.status === 'error').length;
     
     toast({
       title: "Metadata Verification Complete",
-      description: `${successCount} videos have extractable metadata, ${failedCount + errorCount} do not.`,
+      description: onlyFailed 
+        ? `Re-verified ${videosToVerify.length} failed videos` 
+        : `${successCount} videos have extractable metadata, ${failedCount + errorCount} do not.`,
       variant: successCount > 0 ? "default" : "destructive"
     });
   };
+
+  const startFailedVerification = () => startVerification(true);
+  const startFullVerification = () => startVerification(false);
 
   const proceedWithVerified = () => {
     const verifiedVideos = results
@@ -225,7 +269,7 @@ const MetadataVerification: React.FC<MetadataVerificationProps> = ({
           {/* Action Buttons */}
           <div className="flex gap-3">
             {!isVerifying && results.every(r => r.status === 'pending') && (
-              <Button onClick={startVerification} className="flex-1">
+              <Button onClick={startFullVerification} className="flex-1">
                 Start Metadata Verification
               </Button>
             )}
@@ -237,9 +281,16 @@ const MetadataVerification: React.FC<MetadataVerificationProps> = ({
             )}
             
             {!isVerifying && !results.every(r => r.status === 'pending') && (
-              <Button variant="outline" onClick={startVerification}>
-                Re-verify All
-              </Button>
+              <>
+                <Button variant="outline" onClick={startFullVerification}>
+                  Re-verify All
+                </Button>
+                {(failedCount > 0 || errorCount > 0) && (
+                  <Button variant="secondary" onClick={startFailedVerification}>
+                    Re-verify Failed Only ({failedCount + errorCount})
+                  </Button>
+                )}
+              </>
             )}
           </div>
         </CardContent>
