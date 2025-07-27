@@ -241,57 +241,39 @@ async function extractFromAtomStructure(
   }
 }
 
-// Fixed QuickTime parser with proper bounds checking
+// Completely rewritten QuickTime parser
 async function parseQuickTimeAtoms(data: Uint8Array): Promise<MetadataResult | null> {
-  let offset = 0;
+  console.log(`🎬 Parsing ${data.length} bytes for QuickTime atoms`);
   
-  console.log(`Parsing ${data.length} bytes of video data`);
+  // Search for moov atom signature in the entire data
+  const moovSignature = new Uint8Array([0x6D, 0x6F, 0x6F, 0x76]); // 'moov'
   
-  while (offset < data.length - 8) {
-    // Ensure we have enough bytes for atom header
-    if (offset + 8 > data.length) {
-      console.log(`Reached end of data at offset ${offset}`);
-      break;
+  for (let i = 0; i <= data.length - 8; i++) {
+    // Check if we found the moov signature
+    if (data[i] === moovSignature[0] && 
+        data[i + 1] === moovSignature[1] && 
+        data[i + 2] === moovSignature[2] && 
+        data[i + 3] === moovSignature[3]) {
+      
+      // Found moov, now get the size (4 bytes before the signature)
+      if (i >= 4) {
+        const sizeOffset = i - 4;
+        const size = (data[sizeOffset] << 24) | 
+                     (data[sizeOffset + 1] << 16) | 
+                     (data[sizeOffset + 2] << 8) | 
+                     data[sizeOffset + 3];
+        
+        console.log(`🎯 Found moov atom at offset ${sizeOffset}, size ${size}`);
+        
+        // Validate size makes sense
+        if (size > 8 && size < data.length && sizeOffset + size <= data.length) {
+          return parseMoovAtom(data, i + 4, size - 8); // Skip moov header
+        }
+      }
     }
-    
-    // Read atom size and type with proper bounds checking
-    const size = (data[offset] << 24) >>> 0 | 
-                 (data[offset + 1] << 16) | 
-                 (data[offset + 2] << 8) | 
-                 data[offset + 3];
-    
-    const type = String.fromCharCode(
-      data[offset + 4], 
-      data[offset + 5], 
-      data[offset + 6], 
-      data[offset + 7]
-    );
-    
-    console.log(`Found atom: ${type} at offset ${offset}, size ${size}`);
-    
-    // Validate atom size
-    if (size < 8) {
-      console.log(`Invalid atom size ${size}, skipping`);
-      offset += 8;
-      continue;
-    }
-    
-    if (offset + size > data.length) {
-      console.log(`Atom extends beyond data length, skipping`);
-      offset += 8;
-      continue;
-    }
-    
-    // Found moov atom - parse it
-    if (type === 'moov') {
-      console.log(`🎯 Found moov atom at offset ${offset}, size ${size}`);
-      return parseMoovAtom(data, offset + 8, size - 8);
-    }
-    
-    offset += size;
   }
   
-  console.log('❌ No moov atom found in data');
+  console.log('❌ No valid moov atom found');
   return null;
 }
 
@@ -371,24 +353,36 @@ function parseMoovAtom(data: Uint8Array, moovStart: number, moovSize: number): M
       
       console.log(`Raw QuickTime timestamp: ${timestamp}`);
       
+      // Validate timestamp is reasonable (not 0 or negative)
+      if (timestamp <= 0 || timestamp > 4294967295) {
+        console.error(`Invalid timestamp: ${timestamp}`);
+        return null;
+      }
+      
       // Convert from Mac epoch (1904-01-01 00:00:00) to Unix epoch
       const MAC_EPOCH_TO_UNIX = 2082844800;
       const unixTimestamp = timestamp - MAC_EPOCH_TO_UNIX;
       
       console.log(`Unix timestamp: ${unixTimestamp}`);
       
+      // Validate unix timestamp is reasonable
+      if (unixTimestamp < 0 || unixTimestamp > Date.now() / 1000) {
+        console.error(`Invalid unix timestamp: ${unixTimestamp}`);
+        return null;
+      }
+      
       const date = new Date(unixTimestamp * 1000);
       console.log(`Converted date: ${date.toISOString()} (${date.toLocaleString()})`);
       
-      // Validate the date
-      if (date.getFullYear() >= 2000 && date.getFullYear() <= new Date().getFullYear()) {
+      // Validate the date is reasonable
+      if (date.getFullYear() >= 2000 && date.getFullYear() <= new Date().getFullYear() && !isNaN(date.getTime())) {
         return {
           originalDate: date.toISOString(),
           extractionMethod: 'mvhd-atom',
           confidence: 'high'
         };
       } else {
-        console.error(`Invalid date year: ${date.getFullYear()}`);
+        console.error(`Invalid date: ${date.toISOString()}, year: ${date.getFullYear()}`);
       }
     }
     
