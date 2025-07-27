@@ -147,9 +147,10 @@ function extractDateFromFilename(fileName: string): string | null {
 
 async function extractVideoMetadata(fileId: string, accessToken: string, fileName: string, fileSize: number): Promise<string | null> {
   try {
-    // For MOV files, we need to look deeper into the file
-    // Download up to 20MB to ensure we get the metadata atoms
-    const downloadSize = Math.min(20 * 1024 * 1024, fileSize)
+    // For small files, download entirely. For large files, download more data for better metadata extraction
+    const downloadSize = fileSize < 50 * 1024 * 1024 
+      ? fileSize  // Download entire file if under 50MB
+      : Math.min(30 * 1024 * 1024, fileSize)  // Otherwise 30MB max
     
     console.log(`Downloading ${Math.floor(downloadSize / 1024 / 1024)}MB for metadata extraction...`)
     
@@ -306,6 +307,14 @@ function extractQuickTimeMetadata(data: Uint8Array): string | null {
           moovOffset += subAtomSize
           if (subAtomSize === 0) break
         }
+      } else if (atomType === 'udta') {
+        // User data atom - common for iPhone metadata
+        console.log('Found udta atom, searching for date metadata...')
+        const udtaDate = searchUdtaAtom(data, offset + 8, offset + atomSize)
+        if (udtaDate) {
+          console.log('Found date in udta atom:', udtaDate)
+          return udtaDate
+        }
       }
       
       offset += atomSize
@@ -423,6 +432,44 @@ function extractDateStringAfterPosition(data: Uint8Array, position: number): str
     return null
   } catch (error) {
     console.error('Error extracting date string:', error)
+    return null
+  }
+}
+
+function searchUdtaAtom(data: Uint8Array, start: number, end: number): string | null {
+  try {
+    // Search for creation_time and other date strings in udta atom
+    const searchData = data.slice(start, Math.min(end, data.length))
+    const text = new TextDecoder('utf-8', { fatal: false }).decode(searchData)
+    
+    console.log('Searching udta atom for dates, first 200 chars:', text.substring(0, 200))
+    
+    // iPhone often stores dates as strings in udta atoms
+    const patterns = [
+      /(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2})/,
+      /(\d{4}:\d{2}:\d{2}\s\d{2}:\d{2}:\d{2})/,
+      /creation[_\s]?time[:\s]+([^\s\n\r"']+)/i,
+      /(\d{4}[\/\-]\d{2}[\/\-]\d{2})/,
+      // Look for iOS specific metadata
+      /com\.apple\.quicktime\.creation\.date[^\d]*(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2})/i,
+    ]
+    
+    for (const pattern of patterns) {
+      const match = text.match(pattern)
+      if (match) {
+        const dateStr = match[1]
+        console.log('Found potential date in udta:', dateStr)
+        const parsed = parseFlexibleDate(dateStr)
+        if (parsed) {
+          console.log('Successfully parsed udta date:', parsed)
+          return parsed
+        }
+      }
+    }
+    
+    return null
+  } catch (error) {
+    console.error('Error in searchUdtaAtom:', error)
     return null
   }
 }
