@@ -601,19 +601,69 @@ function getYear(dateString: string): string {
 
 async function inferDateFromSequence(fileName: string, fileId: string, accessToken: string): Promise<string | null> {
   try {
-    // Extract sequence number from filename
+    // Extract sequence number from filename - support various patterns
+    let sequenceNumber: number | null = null
+    let pattern = ''
+    
+    // Try iPhone pattern IMG_XXXX
     const imgMatch = fileName.match(/IMG_(\d{4,})/)
-    if (!imgMatch) {
-      console.log('No IMG sequence number found')
+    if (imgMatch) {
+      sequenceNumber = parseInt(imgMatch[1])
+      pattern = 'IMG_'
+    }
+    
+    // Try numbered files like 1.mov, 2.mov, etc.
+    if (!sequenceNumber) {
+      const numMatch = fileName.match(/^(\d+)\./)
+      if (numMatch) {
+        sequenceNumber = parseInt(numMatch[1])
+        pattern = 'numbered'
+      }
+    }
+    
+    if (!sequenceNumber) {
+      console.log('No sequence number found in filename')
       return null
     }
     
-    const sequenceNumber = parseInt(imgMatch[1])
-    console.log(`Found sequence number: ${sequenceNumber}`)
+    console.log(`Found sequence number: ${sequenceNumber} (pattern: ${pattern})`)
+    
+    // First, get the parent folder of the current file
+    const fileResponse = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${fileId}?fields=parents`,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      }
+    )
+    
+    let searchQuery = ''
+    if (fileResponse.ok) {
+      const fileData = await fileResponse.json()
+      const parentId = fileData.parents?.[0]
+      
+      if (parentId) {
+        // Search within the same folder
+        if (pattern === 'IMG_') {
+          searchQuery = `name contains 'IMG_' and '${parentId}' in parents`
+        } else {
+          // For numbered files, search for video files in the same folder
+          searchQuery = `mimeType contains 'video' and '${parentId}' in parents`
+        }
+      }
+    }
+    
+    // Fallback to global search if folder-specific search fails
+    if (!searchQuery) {
+      searchQuery = pattern === 'IMG_' ? "name contains 'IMG_'" : "mimeType contains 'video'"
+    }
+    
+    console.log(`Searching with query: ${searchQuery}`)
     
     // Get a list of nearby files to establish sequence pattern
     const searchResponse = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=name contains 'IMG_'&fields=files(id,name,createdTime)&pageSize=100`,
+      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(searchQuery)}&fields=files(id,name,createdTime,modifiedTime)&pageSize=100`,
       {
         headers: {
           'Authorization': `Bearer ${accessToken}`
@@ -629,18 +679,36 @@ async function inferDateFromSequence(fileName: string, fileId: string, accessTok
     const searchData = await searchResponse.json()
     const sequenceFiles = searchData.files || []
     
+    console.log(`Found ${sequenceFiles.length} potential sequence files`)
+    
     // Extract sequence numbers and dates
     const sequences: Array<{number: number, date: Date}> = []
     
     for (const file of sequenceFiles) {
-      const match = file.name.match(/IMG_(\d{4,})/)
-      if (match) {
-        const seqNum = parseInt(match[1])
-        const createdDate = new Date(file.createdTime)
+      let seqNum: number | null = null
+      
+      if (pattern === 'IMG_') {
+        const match = file.name.match(/IMG_(\d{4,})/)
+        if (match) {
+          seqNum = parseInt(match[1])
+        }
+      } else if (pattern === 'numbered') {
+        const match = file.name.match(/^(\d+)\./)
+        if (match) {
+          seqNum = parseInt(match[1])
+        }
+      }
+      
+      if (seqNum !== null) {
+        // Use modifiedTime if available, fallback to createdTime
+        const dateToUse = file.modifiedTime || file.createdTime
+        const date = new Date(dateToUse)
         
         // Only include files with reasonable sequence numbers (within range)
-        if (Math.abs(seqNum - sequenceNumber) <= 1000) {
-          sequences.push({ number: seqNum, date: createdDate })
+        const maxRange = pattern === 'IMG_' ? 1000 : 100
+        if (Math.abs(seqNum - sequenceNumber) <= maxRange) {
+          sequences.push({ number: seqNum, date })
+          console.log(`Added sequence ${seqNum} with date ${date.toISOString()}`)
         }
       }
     }
