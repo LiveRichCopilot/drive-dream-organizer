@@ -164,28 +164,49 @@ async function extractFromAtomStructure(
   console.log(`🎬 Extracting metadata for ${fileName} (${fileSize} bytes)`);
   
   try {
-    // CRITICAL: For MOV files, the moov atom is often at the END
-    // Download BOTH beginning and end of file
-    const chunks = [];
-    
-    // Get first 5MB
-    const startSize = Math.min(5 * 1024 * 1024, fileSize);
-    const startResponse = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-      {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Range': `bytes=0-${startSize - 1}`
+    // For small files (< 10MB), download the whole thing
+    if (fileSize < 10 * 1024 * 1024) {
+      console.log('Small file - downloading entire file');
+      const response = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        }
+      );
+      
+      if (response.ok) {
+        const data = new Uint8Array(await response.arrayBuffer());
+        const result = await parseQuickTimeAtoms(data);
+        if (result?.originalDate) {
+          console.log(`✅ Found creation date: ${result.originalDate}`);
+          return result;
         }
       }
-    );
-    
-    if (startResponse.ok) {
-      chunks.push(new Uint8Array(await startResponse.arrayBuffer()));
-    }
-    
-    // Get last 5MB (where iPhone often puts moov atom)
-    if (fileSize > startSize) {
+    } else {
+      // For larger files, try both ends
+      // CRITICAL: For MOV files, the moov atom is often at the END
+      // Download BOTH beginning and end of file
+      const chunks = [];
+      
+      // Get first 5MB
+      const startSize = Math.min(5 * 1024 * 1024, fileSize);
+      const startResponse = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Range': `bytes=0-${startSize - 1}`
+          }
+        }
+      );
+      
+      if (startResponse.ok) {
+        chunks.push(new Uint8Array(await startResponse.arrayBuffer()));
+      }
+      
+      // Get last 5MB (where iPhone often puts moov atom)
       const endSize = Math.min(5 * 1024 * 1024, fileSize);
       const endResponse = await fetch(
         `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
@@ -200,14 +221,14 @@ async function extractFromAtomStructure(
       if (endResponse.ok) {
         chunks.push(new Uint8Array(await endResponse.arrayBuffer()));
       }
-    }
-    
-    // Try to find metadata in each chunk
-    for (const data of chunks) {
-      const result = await parseQuickTimeAtoms(data);
-      if (result?.originalDate) {
-        console.log(`✅ Found creation date: ${result.originalDate}`);
-        return result;
+      
+      // Try to find metadata in each chunk
+      for (const data of chunks) {
+        const result = await parseQuickTimeAtoms(data);
+        if (result?.originalDate) {
+          console.log(`✅ Found creation date: ${result.originalDate}`);
+          return result;
+        }
       }
     }
     
@@ -253,52 +274,96 @@ function parseMoovAtom(data: Uint8Array, moovStart: number, moovSize: number): M
   let offset = moovStart;
   const moovEnd = moovStart + moovSize;
   
-  while (offset < moovEnd - 8) {
-    const size = (data[offset] << 24) | (data[offset + 1] << 16) | 
-                 (data[offset + 2] << 8) | data[offset + 3];
-    const type = String.fromCharCode(data[offset + 4], data[offset + 5], 
-                                     data[offset + 6], data[offset + 7]);
+  while (offset < moovEnd - 8 && offset < data.length - 8) {
+    // CRITICAL: Ensure we don't read past array bounds
+    if (offset + 8 > data.length) break;
     
-    if (size < 8 || offset + size > moovEnd) break;
+    const size = (data[offset] << 24) >>> 0 | 
+                 (data[offset + 1] << 16) | 
+                 (data[offset + 2] << 8) | 
+                 data[offset + 3];
+    const type = String.fromCharCode(
+      data[offset + 4], 
+      data[offset + 5], 
+      data[offset + 6], 
+      data[offset + 7]
+    );
     
-    // Found mvhd atom - this has creation time!
+    console.log(`Atom ${type} at offset ${offset}, size ${size}`);
+    
+    if (size < 8 || offset + size > data.length) break;
+    
+    // Found mvhd atom
     if (type === 'mvhd') {
-      const version = data[offset + 8];
-      const creationTimeOffset = offset + 12; // After 8-byte header + 4-byte version/flags
+      // CRITICAL FIX: mvhd is INSIDE moov, so offset is relative to data array
+      const mvhdDataStart = offset + 8; // Skip atom header
+      
+      if (mvhdDataStart + 4 > data.length) {
+        console.error('mvhd atom too small');
+        break;
+      }
+      
+      const version = data[mvhdDataStart];
+      const flags = (data[mvhdDataStart + 1] << 16) | 
+                    (data[mvhdDataStart + 2] << 8) | 
+                    data[mvhdDataStart + 3];
+      
+      console.log(`mvhd version: ${version}, flags: ${flags}`);
+      
+      // CRITICAL: Creation time starts after version/flags
+      const timestampOffset = mvhdDataStart + 4;
       
       let timestamp;
       if (version === 0) {
         // 32-bit timestamp
-        timestamp = (data[creationTimeOffset] << 24) >>> 0 | 
-                   (data[creationTimeOffset + 1] << 16) | 
-                   (data[creationTimeOffset + 2] << 8) | 
-                   data[creationTimeOffset + 3];
+        if (timestampOffset + 4 > data.length) break;
+        
+        timestamp = (data[timestampOffset] << 24) >>> 0 | 
+                   (data[timestampOffset + 1] << 16) | 
+                   (data[timestampOffset + 2] << 8) | 
+                   data[timestampOffset + 3];
+                   
+        console.log(`32-bit raw bytes: ${Array.from(data.slice(timestampOffset, timestampOffset + 4)).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
       } else {
-        // 64-bit timestamp - skip high bytes for dates after 2001
-        timestamp = (data[creationTimeOffset + 4] << 24) >>> 0 | 
-                   (data[creationTimeOffset + 5] << 16) | 
-                   (data[creationTimeOffset + 6] << 8) | 
-                   data[creationTimeOffset + 7];
+        // 64-bit timestamp
+        if (timestampOffset + 8 > data.length) break;
+        
+        // For 64-bit, we need to handle both parts
+        const high = (data[timestampOffset] << 24) >>> 0 | 
+                    (data[timestampOffset + 1] << 16) | 
+                    (data[timestampOffset + 2] << 8) | 
+                    data[timestampOffset + 3];
+        const low = (data[timestampOffset + 4] << 24) >>> 0 | 
+                   (data[timestampOffset + 5] << 16) | 
+                   (data[timestampOffset + 6] << 8) | 
+                   data[timestampOffset + 7];
+        
+        // Combine high and low parts
+        timestamp = (high * 0x100000000) + low;
+        
+        console.log(`64-bit timestamp - high: ${high}, low: ${low}, combined: ${timestamp}`);
       }
       
-      // Convert from Mac epoch (1904) to Unix epoch (1970)
-      // Mac epoch starts at Jan 1, 1904 00:00:00
-      // Unix epoch starts at Jan 1, 1970 00:00:00
-      // Difference is 2082844800 seconds
-      const unixTimestamp = timestamp - 2082844800;
-      const date = new Date(unixTimestamp * 1000);
+      console.log(`Raw QuickTime timestamp: ${timestamp}`);
       
-      console.log(`Raw timestamp: ${timestamp}`);
+      // Convert from Mac epoch (1904-01-01 00:00:00) to Unix epoch
+      const MAC_EPOCH_TO_UNIX = 2082844800;
+      const unixTimestamp = timestamp - MAC_EPOCH_TO_UNIX;
+      
       console.log(`Unix timestamp: ${unixTimestamp}`);
-      console.log(`Parsed date: ${date.toISOString()}`);
+      
+      const date = new Date(unixTimestamp * 1000);
+      console.log(`Converted date: ${date.toISOString()} (${date.toLocaleString()})`);
       
       // Validate the date
-      if (date.getFullYear() >= 2000 && date.getFullYear() <= 2025) {
+      if (date.getFullYear() >= 2000 && date.getFullYear() <= new Date().getFullYear()) {
         return {
           originalDate: date.toISOString(),
           extractionMethod: 'mvhd-atom',
           confidence: 'high'
         };
+      } else {
+        console.error(`Invalid date year: ${date.getFullYear()}`);
       }
     }
     
