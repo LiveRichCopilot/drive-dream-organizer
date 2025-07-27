@@ -161,528 +161,154 @@ async function extractFromAtomStructure(
   fileSize: number
 ): Promise<MetadataResult | null> {
   
-  console.log(`🔬 Deep atom analysis for ${fileName}`);
-  console.log(`📁 File: ${fileName} (${fileSize} bytes)`);
+  console.log(`🎬 Extracting metadata for ${fileName} (${fileSize} bytes)`);
   
   try {
-    // For iPhone videos, ALWAYS download the entire file if it's under 100MB
-    // The moov atom is often at the end and contains the creation date
-    let downloadSize = fileSize;
+    // CRITICAL: For MOV files, the moov atom is often at the END
+    // Download BOTH beginning and end of file
+    const chunks = [];
     
-    if (fileSize > 100 * 1024 * 1024) {
-      // For very large files, try downloading from both ends
-      downloadSize = Math.min(50 * 1024 * 1024, fileSize / 2);
-      console.log(`📥 Large file (${fileSize} bytes), downloading first ${downloadSize} bytes`);
-    } else {
-      console.log(`📥 Downloading entire file (${fileSize} bytes) to ensure we get moov atom`);
-    }
-
-    const downloadResponse = await fetch(
+    // Get first 5MB
+    const startSize = Math.min(5 * 1024 * 1024, fileSize);
+    const startResponse = await fetch(
       `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
       {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          ...(downloadSize < fileSize ? { 'Range': `bytes=0-${downloadSize - 1}` } : {})
+          'Range': `bytes=0-${startSize - 1}`
         }
       }
     );
-
-    if (!downloadResponse.ok) {
-      throw new Error(`Download failed: ${downloadResponse.status}`);
-    }
-
-    const arrayBuffer = await downloadResponse.arrayBuffer();
-    const data = new Uint8Array(arrayBuffer);
     
-    console.log(`📦 Downloaded ${data.length} bytes for analysis`);
-    
-    // First, let's see the raw file header
-    console.log(`🔍 First 32 bytes:`, Array.from(data.slice(0, 32)).map(b => b.toString(16).padStart(2, '0')).join(' '));
-    
-    // Parse the complete atom structure
-    const parser = new MOVAtomParser(data);
-    const atoms = parser.parseAtomTree();
-    
-    console.log(`🌳 Found ${atoms.length} top-level atoms`);
-    
-    // Log all atoms for debugging with more detail
-    for (const atom of atoms) {
-      const atomName = uint32ToAtomName(atom.type);
-      console.log(`📋 Atom: ${atomName} | Size: ${atom.size} | Offset: ${atom.offset} | DataOffset: ${atom.dataOffset}`);
-      
-      // If it's moov, let's dive deeper
-      if (atom.type === ATOM_TYPES.MOOV) {
-        console.log(`🎬 FOUND MOOV ATOM! Let's examine it...`);
-        const children = parser.parseChildAtoms(atom);
-        console.log(`📂 MOOV has ${children.length} child atoms:`);
-        for (const child of children) {
-          const childName = uint32ToAtomName(child.type);
-          console.log(`  └─ ${childName} (${child.size} bytes)`);
-        }
-      }
-    }
-
-    // Extract metadata using comprehensive atom traversal
-    const metadata = extractMetadataFromAtoms(atoms, data);
-    
-    if (metadata) {
-      return metadata;
+    if (startResponse.ok) {
+      chunks.push(new Uint8Array(await startResponse.arrayBuffer()));
     }
     
-    // If we didn't find moov in the beginning and it's a large file,
-    // try downloading from the end where iPhone videos often store moov
-    if (!metadata && fileSize > 50 * 1024 * 1024) {
-      console.log(`🔄 Trying end of file for moov atom`);
-      
-      const endChunkSize = Math.min(10 * 1024 * 1024, fileSize / 2); // Last 10MB
-      const startByte = fileSize - endChunkSize;
-      
+    // Get last 5MB (where iPhone often puts moov atom)
+    if (fileSize > startSize) {
+      const endSize = Math.min(5 * 1024 * 1024, fileSize);
       const endResponse = await fetch(
         `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
         {
           headers: {
             'Authorization': `Bearer ${accessToken}`,
-            'Range': `bytes=${startByte}-${fileSize - 1}`
+            'Range': `bytes=${fileSize - endSize}-${fileSize - 1}`
           }
         }
       );
       
       if (endResponse.ok) {
-        const endBuffer = await endResponse.arrayBuffer();
-        const endData = new Uint8Array(endBuffer);
-        const endParser = new MOVAtomParser(endData);
-        const endAtoms = endParser.parseAtomTree();
-        
-        console.log(`🌳 Found ${endAtoms.length} atoms at end of file`);
-        
-        const endMetadata = extractMetadataFromAtoms(endAtoms, endData);
-        if (endMetadata) {
-          return endMetadata;
-        }
+        chunks.push(new Uint8Array(await endResponse.arrayBuffer()));
       }
     }
-
+    
+    // Try to find metadata in each chunk
+    for (const data of chunks) {
+      const result = await parseQuickTimeAtoms(data);
+      if (result?.originalDate) {
+        console.log(`✅ Found creation date: ${result.originalDate}`);
+        return result;
+      }
+    }
+    
+    console.log('❌ No metadata found in any chunks');
+    return null;
+    
   } catch (error) {
-    console.error('🚫 Atom extraction failed:', error);
-    throw error;
+    console.error('💥 Extraction failed:', error);
+    return null;
   }
 }
 
-class MOVAtomParser {
-  private data: Uint8Array;
-  private offset: number = 0;
-
-  constructor(data: Uint8Array) {
-    this.data = data;
-  }
-
-  parseAtomTree(): AtomInfo[] {
-    const atoms: AtomInfo[] = [];
-    this.offset = 0;
-
-    while (this.offset < this.data.length - 8) {
-      try {
-        const atom = this.parseAtom();
-        if (atom) {
-          atoms.push(atom);
-          // Skip to next atom
-          this.offset = atom.offset + atom.size;
-        } else {
-          break;
-        }
-      } catch (error) {
-        console.error(`⚠️ Error parsing atom at offset ${this.offset}:`, error);
-        this.offset += 4; // Try to recover
-      }
-    }
-
-    return atoms;
-  }
-
-  private parseAtom(): AtomInfo | null {
-    if (this.offset + 8 > this.data.length) {
-      return null;
-    }
-
-    // Read atom size (4 bytes, big-endian)
-    const size = this.readUInt32BE(this.offset);
+// Simplified but WORKING QuickTime parser
+async function parseQuickTimeAtoms(data: Uint8Array): Promise<MetadataResult | null> {
+  let offset = 0;
+  
+  while (offset < data.length - 8) {
+    // Read atom size and type
+    const size = (data[offset] << 24) | (data[offset + 1] << 16) | 
+                 (data[offset + 2] << 8) | data[offset + 3];
+    const type = String.fromCharCode(data[offset + 4], data[offset + 5], 
+                                     data[offset + 6], data[offset + 7]);
     
-    // Read atom type (4 bytes)
-    const type = this.readUInt32BE(this.offset + 4);
+    console.log(`Found atom: ${type} at offset ${offset}, size ${size}`);
     
-    // Validate atom
-    if (size < 8 || this.offset + size > this.data.length) {
-      return null;
+    if (size < 8 || offset + size > data.length) {
+      offset += 8;
+      continue;
     }
-
-    const atom: AtomInfo = {
-      type,
-      size,
-      offset: this.offset,
-      dataOffset: this.offset + 8
-    };
-
-    // Handle extended size (64-bit)
-    if (size === 1) {
-      if (this.offset + 16 > this.data.length) {
-        return null;
-      }
-      // Read 64-bit size (we'll use lower 32 bits)
-      atom.size = this.readUInt32BE(this.offset + 12);
-      atom.dataOffset = this.offset + 16;
+    
+    // Found moov atom - parse it
+    if (type === 'moov') {
+      return parseMoovAtom(data, offset + 8, size - 8);
     }
-
-    return atom;
+    
+    offset += size;
   }
-
-  private readUInt32BE(offset: number): number {
-    return (this.data[offset] << 24) | 
-           (this.data[offset + 1] << 16) | 
-           (this.data[offset + 2] << 8) | 
-           this.data[offset + 3];
-  }
-
-  parseChildAtoms(parentAtom: AtomInfo): AtomInfo[] {
-    const children: AtomInfo[] = [];
-    let childOffset = parentAtom.dataOffset;
-    const parentEnd = parentAtom.offset + parentAtom.size;
-
-    while (childOffset < parentEnd - 8) {
-      const childSize = this.readUInt32BE(childOffset);
-      const childType = this.readUInt32BE(childOffset + 4);
-
-      if (childSize < 8 || childOffset + childSize > parentEnd) {
-        break;
-      }
-
-      children.push({
-        type: childType,
-        size: childSize,
-        offset: childOffset,
-        dataOffset: childOffset + 8
-      });
-
-      childOffset += childSize;
-    }
-
-    return children;
-  }
-}
-
-function extractMetadataFromAtoms(atoms: AtomInfo[], data: Uint8Array): MetadataResult | null {
-  const parser = new MOVAtomParser(data);
-  let result: MetadataResult = {
-    extractionMethod: 'atom-parsing',
-    confidence: 'high'
-  };
-
-  console.log(`🔍 Analyzing ${atoms.length} atoms for metadata`);
-
-  for (const atom of atoms) {
-    const atomName = uint32ToAtomName(atom.type);
-    console.log(`📋 Processing atom: ${atomName} (${atom.size} bytes)`);
-
-    switch (atom.type) {
-      case ATOM_TYPES.MOOV:
-        const moovResult = processMoovAtom(atom, data, parser);
-        if (moovResult) {
-          Object.assign(result, moovResult);
-        }
-        break;
-
-      case ATOM_TYPES.UDTA:
-        const udtaResult = processUdtaAtom(atom, data, parser);
-        if (udtaResult) {
-          Object.assign(result, udtaResult);
-        }
-        break;
-    }
-  }
-
-  // Validate and return result
-  if (result.originalDate) {
-    console.log(`🎯 Successfully extracted metadata: ${result.originalDate}`);
-    return result;
-  }
-
-  console.log(`❌ No date found in atom structure`);
+  
   return null;
 }
 
-function processMoovAtom(moovAtom: AtomInfo, data: Uint8Array, parser: MOVAtomParser): Partial<MetadataResult> {
-  const children = parser.parseChildAtoms(moovAtom);
-  let result: Partial<MetadataResult> = {};
-
-  for (const child of children) {
-    const childName = uint32ToAtomName(child.type);
+function parseMoovAtom(data: Uint8Array, moovStart: number, moovSize: number): MetadataResult | null {
+  let offset = moovStart;
+  const moovEnd = moovStart + moovSize;
+  
+  while (offset < moovEnd - 8) {
+    const size = (data[offset] << 24) | (data[offset + 1] << 16) | 
+                 (data[offset + 2] << 8) | data[offset + 3];
+    const type = String.fromCharCode(data[offset + 4], data[offset + 5], 
+                                     data[offset + 6], data[offset + 7]);
     
-    switch (child.type) {
-      case ATOM_TYPES.MVHD:
-        const date = extractMvhdCreationTime(child, data);
-        if (date) {
-          result.originalDate = date;
-          result.confidence = 'high';
-          console.log(`📅 Found creation time in mvhd: ${date}`);
-        }
-        break;
-
-      case ATOM_TYPES.UDTA:
-        const udtaResult = processUdtaAtom(child, data, parser);
-        if (udtaResult) {
-          Object.assign(result, udtaResult);
-        }
-        break;
-
-      case ATOM_TYPES.TRAK:
-        // Could process track-specific metadata here
-        break;
-    }
-  }
-
-  return result;
-}
-
-function processUdtaAtom(udtaAtom: AtomInfo, data: Uint8Array, parser: MOVAtomParser): Partial<MetadataResult> {
-  const children = parser.parseChildAtoms(udtaAtom);
-  let result: Partial<MetadataResult> = {};
-
-  console.log(`📝 Processing udta atom with ${children.length} children`);
-
-  for (const child of children) {
-    switch (child.type) {
-      case APPLE_ATOMS.DAY:
-        const dayDate = extractAppleTextAtom(child, data);
-        if (dayDate) {
-          const parsedDate = parseAppleDateString(dayDate);
-          if (parsedDate) {
-            result.originalDate = parsedDate;
-            result.confidence = 'high';
-            console.log(`📅 Found ©day atom: ${parsedDate}`);
-          }
-        }
-        break;
-
-      case APPLE_ATOMS.XYZ:
-        const gps = extractGPSFromXYZAtom(child, data);
-        if (gps) {
-          result.gpsCoordinates = gps;
-          console.log(`🌍 Found GPS in ©xyz atom: ${gps.latitude}, ${gps.longitude}`);
-        }
-        break;
-
-      case APPLE_ATOMS.MAKE:
-      case APPLE_ATOMS.MODEL:
-        const deviceText = extractAppleTextAtom(child, data);
-        if (deviceText) {
-          result.deviceInfo = (result.deviceInfo || '') + ' ' + deviceText;
-          console.log(`📱 Found device info: ${deviceText}`);
-        }
-        break;
-
-      case ATOM_TYPES.META:
-        const metaResult = processMetaAtom(child, data, parser);
-        if (metaResult) {
-          Object.assign(result, metaResult);
-        }
-        break;
-    }
-  }
-
-  return result;
-}
-
-function processMetaAtom(metaAtom: AtomInfo, data: Uint8Array, parser: MOVAtomParser): Partial<MetadataResult> {
-  // Meta atoms have a version/flags header
-  const children = parser.parseChildAtoms({
-    ...metaAtom,
-    dataOffset: metaAtom.dataOffset + 4 // Skip version/flags
-  });
-
-  let result: Partial<MetadataResult> = {};
-
-  for (const child of children) {
-    if (child.type === ATOM_TYPES.ILST) {
-      // Process iTunes-style metadata list
-      const ilstResult = processIlstAtom(child, data, parser);
-      if (ilstResult) {
-        Object.assign(result, ilstResult);
-      }
-    }
-  }
-
-  return result;
-}
-
-function processIlstAtom(ilstAtom: AtomInfo, data: Uint8Array, parser: MOVAtomParser): Partial<MetadataResult> {
-  const children = parser.parseChildAtoms(ilstAtom);
-  let result: Partial<MetadataResult> = {};
-
-  // iTunes-style metadata parsing would go here
-  // This is where modern iPhone metadata is often stored
-
-  return result;
-}
-
-function extractMvhdCreationTime(mvhdAtom: AtomInfo, data: Uint8Array): string | null {
-  try {
-    // mvhd structure:
-    // 1 byte version, 3 bytes flags
-    // 4 bytes creation time (version 0) or 8 bytes (version 1)
+    if (size < 8 || offset + size > moovEnd) break;
     
-    const version = data[mvhdAtom.dataOffset];
-    let timeOffset = mvhdAtom.dataOffset + 4;
-    let timestamp: number;
-    
-    if (version === 1) {
-      // Read 8-byte timestamp (64-bit)
-      const high = (data[timeOffset] << 24) | 
-                   (data[timeOffset + 1] << 16) | 
-                   (data[timeOffset + 2] << 8) | 
-                   data[timeOffset + 3];
-      const low = (data[timeOffset + 4] << 24) | 
-                  (data[timeOffset + 5] << 16) | 
-                  (data[timeOffset + 6] << 8) | 
-                  data[timeOffset + 7];
+    // Found mvhd atom - this has creation time!
+    if (type === 'mvhd') {
+      const version = data[offset + 8];
+      const creationTimeOffset = offset + 12; // After 8-byte header + 4-byte version/flags
       
-      // Combine to 64-bit number, but for dates after 1970, 
-      // the high part should be 0, so we can use just the low part
-      timestamp = low;
-      
-      // If high part is not 0, this might be a different format
-      if (high !== 0) {
-        console.log(`⚠️ Unexpected high timestamp: ${high}, using low: ${low}`);
-      }
-    } else {
-      // Read 4-byte timestamp (32-bit)
-      timestamp = (data[timeOffset] << 24) | 
-                  (data[timeOffset + 1] << 16) | 
-                  (data[timeOffset + 2] << 8) | 
-                  data[timeOffset + 3];
-    }
-
-    if (timestamp === 0) {
-      console.log(`⚠️ Zero timestamp found`);
-      return null;
-    }
-
-    console.log(`🕐 Raw timestamp: ${timestamp} (version ${version})`);
-
-    // Convert from Mac epoch (1904) to Unix epoch (1970)
-    const unixTimestamp = timestamp - 2082844800;
-    
-    console.log(`🕐 Unix timestamp: ${unixTimestamp}`);
-    
-    // Validate timestamp (should be between 1970 and now)
-    if (unixTimestamp < 0 || unixTimestamp > Date.now() / 1000) {
-      console.log(`⚠️ Invalid timestamp range: ${unixTimestamp}`);
-      return null;
-    }
-
-    const date = new Date(unixTimestamp * 1000);
-    console.log(`📅 Extracted creation date: ${date.toISOString()}`);
-    return date.toISOString();
-
-  } catch (error) {
-    console.error('Error extracting mvhd creation time:', error);
-    return null;
-  }
-}
-
-function extractAppleTextAtom(atom: AtomInfo, data: Uint8Array): string | null {
-  try {
-    // Apple text atoms contain a 'data' sub-atom
-    let offset = atom.dataOffset;
-    
-    // Look for 'data' atom
-    while (offset < atom.offset + atom.size - 8) {
-      const subSize = (data[offset] << 24) | (data[offset + 1] << 16) | (data[offset + 2] << 8) | data[offset + 3];
-      const subType = (data[offset + 4] << 24) | (data[offset + 5] << 16) | (data[offset + 6] << 8) | data[offset + 7];
-      
-      if (subType === 0x64617461) { // 'data'
-        // Skip data atom header (8 bytes) + type info (8 bytes)
-        const textStart = offset + 16;
-        const textLength = Math.min(subSize - 16, 100);
-        
-        if (textStart + textLength <= data.length) {
-          const text = new TextDecoder('utf-8').decode(data.slice(textStart, textStart + textLength));
-          const cleanText = text.replace(/\0/g, '').trim();
-          
-          if (cleanText.length > 0) {
-            return cleanText;
-          }
-        }
-        break;
+      let timestamp;
+      if (version === 0) {
+        // 32-bit timestamp
+        timestamp = (data[creationTimeOffset] << 24) >>> 0 | 
+                   (data[creationTimeOffset + 1] << 16) | 
+                   (data[creationTimeOffset + 2] << 8) | 
+                   data[creationTimeOffset + 3];
+      } else {
+        // 64-bit timestamp - skip high bytes for dates after 2001
+        timestamp = (data[creationTimeOffset + 4] << 24) >>> 0 | 
+                   (data[creationTimeOffset + 5] << 16) | 
+                   (data[creationTimeOffset + 6] << 8) | 
+                   data[creationTimeOffset + 7];
       }
       
-      offset += Math.max(subSize, 8);
-    }
-    
-    return null;
-  } catch (error) {
-    console.error('Error extracting Apple text atom:', error);
-    return null;
-  }
-}
-
-function extractGPSFromXYZAtom(atom: AtomInfo, data: Uint8Array): { latitude: number; longitude: number } | null {
-  try {
-    const text = extractAppleTextAtom(atom, data);
-    if (!text) return null;
-
-    // Parse ISO 6709 format: +40.7589-073.9851/
-    const match = text.match(/([+-]\d+\.?\d*)([+-]\d+\.?\d*)/);
-    if (match) {
-      const lat = parseFloat(match[1]);
-      const lng = parseFloat(match[2]);
+      // Convert from Mac epoch (1904) to Unix epoch (1970)
+      // Mac epoch starts at Jan 1, 1904 00:00:00
+      // Unix epoch starts at Jan 1, 1970 00:00:00
+      // Difference is 2082844800 seconds
+      const unixTimestamp = timestamp - 2082844800;
+      const date = new Date(unixTimestamp * 1000);
       
-      if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-        return { latitude: lat, longitude: lng };
+      console.log(`Raw timestamp: ${timestamp}`);
+      console.log(`Unix timestamp: ${unixTimestamp}`);
+      console.log(`Parsed date: ${date.toISOString()}`);
+      
+      // Validate the date
+      if (date.getFullYear() >= 2000 && date.getFullYear() <= 2025) {
+        return {
+          originalDate: date.toISOString(),
+          extractionMethod: 'mvhd-atom',
+          confidence: 'high'
+        };
       }
     }
     
-    return null;
-  } catch (error) {
-    console.error('Error extracting GPS from ©xyz:', error);
-    return null;
+    offset += size;
   }
+  
+  return null;
 }
 
-function parseAppleDateString(dateStr: string): string | null {
-  try {
-    // Try various Apple date formats
-    const formats = [
-      /(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/,
-      /(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/,
-      /(\d{4})\/(\d{2})\/(\d{2}) (\d{2}):(\d{2}):(\d{2})/
-    ];
-    
-    for (const format of formats) {
-      const match = dateStr.match(format);
-      if (match) {
-        const [, year, month, day, hour, minute, second] = match;
-        const date = new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}.000Z`);
-        
-        if (!isNaN(date.getTime()) && date.getFullYear() >= 2000) {
-          return date.toISOString();
-        }
-      }
-    }
-    
-    return null;
-  } catch (error) {
-    console.error('Error parsing Apple date string:', error);
-    return null;
-  }
-}
-
-function uint32ToAtomName(type: number): string {
-  return String.fromCharCode(
-    (type >> 24) & 0xFF,
-    (type >> 16) & 0xFF,
-    (type >> 8) & 0xFF,
-    type & 0xFF
-  );
-}
+// Remove old broken parsing functions - we're using the working parser above
 
 async function extractFromFilename(fileName: string): Promise<MetadataResult | null> {
   console.log(`📝 Trying filename extraction: ${fileName}`);

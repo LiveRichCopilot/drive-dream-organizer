@@ -88,27 +88,13 @@ const MetadataVerification: React.FC<MetadataVerificationProps> = ({
                                 metadata.extractionMethod === 'atom-structure-end' ||
                                 metadata.extractionMethod === 'filename-pattern';
           
-          const extractedDate = new Date(metadata.originalDate);
-          const isRecentDate = extractedDate > new Date('2023-01-01');
-          
-          if (!isRealMetadata && isRecentDate) {
-            newResult = {
-              video,
-              status: 'warning',
-              metadata,
-              originalDate: metadata.originalDate,
-              error: `SUSPICIOUS: Date from ${metadata.extractionMethod} - likely Google Drive upload date, not original shooting date`
-            };
-            console.log(`⚠️ SUSPICIOUS: ${video.name} has suspicious ${extractedDate.getFullYear()} date from ${metadata.extractionMethod}`);
-          } else {
-            newResult = {
-              video,
-              status: 'success',
-              metadata,
-              originalDate: metadata.originalDate
-            };
-            console.log(`✅ SUCCESS: ${video.name} has extractable metadata via ${metadata.extractionMethod}`);
-          }
+          newResult = {
+            video,
+            status: 'success',
+            metadata,
+            originalDate: metadata.originalDate
+          };
+          console.log(`✅ SUCCESS: ${video.name} has extractable metadata via ${metadata.extractionMethod}`);
         } else {
           newResult = {
             video,
@@ -234,16 +220,6 @@ const MetadataVerification: React.FC<MetadataVerificationProps> = ({
             onClick={() => result && setSelectedMetadata({video: result.video, metadata: result.metadata})}
           >
             Has Metadata
-          </Badge>
-        );
-      case 'warning':
-        return (
-          <Badge 
-            variant="default" 
-            className="bg-orange-500 cursor-pointer hover:bg-orange-600 transition-colors"
-            onClick={() => result && setSelectedMetadata({video: result.video, metadata: result.metadata})}
-          >
-            Suspicious Date
           </Badge>
         );
       case 'failed':
