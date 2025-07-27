@@ -811,3 +811,4 @@ async function inferDateFromSequence(fileName: string, fileId: string, accessTok
     console.error('Error in sequence-based inference:', error);
     return null;
   }
+}
