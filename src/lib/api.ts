@@ -249,7 +249,7 @@ class APIClient {
     return response.json();
   }
 
-  async uploadOrganizedVideos(processedVideos: any[], destinationFolderName: string, organizationStructure: any, sourceFolderId?: string): Promise<any> {
+  async uploadOrganizedVideos(processedVideos: any[], destinationFolderName: string, organizationStructure: any, sourceFolderId?: string, projectFiles?: any[]): Promise<any> {
     const response = await fetch(`${this.baseURL}/google-drive-upload`, {
       method: 'POST',
       headers: {
@@ -261,7 +261,8 @@ class APIClient {
         processedVideos, 
         destinationFolderName,
         organizationStructure,
-        sourceFolderId
+        sourceFolderId,
+        projectFiles
       }),
     });
 

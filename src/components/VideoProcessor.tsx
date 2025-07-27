@@ -571,7 +571,8 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
         results.downloadedVideos,
         settings.destinationFolderName || 'Organized_Videos',
         results.organizationStructure,
-        folderId // Pass the source folder ID so it organizes within the same folder
+        folderId, // Pass the source folder ID so it organizes within the same folder
+        results.projectFiles // Include project files for upload to Google Drive
       );
 
       setProcessingState(prev => ({

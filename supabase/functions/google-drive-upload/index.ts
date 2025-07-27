@@ -25,7 +25,8 @@ serve(async (req) => {
       processedVideos, 
       destinationFolderName,
       organizationStructure,
-      sourceFolderId 
+      sourceFolderId,
+      projectFiles 
     } = await req.json()
     
     if (!processedVideos || !destinationFolderName) {
@@ -192,17 +193,76 @@ serve(async (req) => {
       }
     }
 
-    // Step 4: Return results
+    // Step 4: Upload project files to the main organized folder
+    const uploadedProjectFiles = []
+    if (projectFiles && projectFiles.length > 0) {
+      console.log(`Uploading ${projectFiles.length} project files to Google Drive...`)
+      
+      for (const projectFile of projectFiles) {
+        try {
+          // Convert project file content to a blob and upload
+          const content = typeof projectFile.content === 'string' 
+            ? new TextEncoder().encode(projectFile.content)
+            : projectFile.content
+
+          // Create the project file in Google Drive
+          const fileResponse = await fetch(
+            'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'multipart/related; boundary="foo_bar_baz"'
+              },
+              body: [
+                '--foo_bar_baz',
+                'Content-Type: application/json; charset=UTF-8',
+                '',
+                JSON.stringify({
+                  name: projectFile.name,
+                  parents: [mainFolder.id],
+                  description: `Project file for organized videos - Generated on ${new Date().toISOString()}`
+                }),
+                '--foo_bar_baz',
+                `Content-Type: ${projectFile.type === 'premiere' ? 'application/octet-stream' : 'application/json'}`,
+                '',
+                projectFile.content,
+                '--foo_bar_baz--'
+              ].join('\r\n')
+            }
+          )
+
+          if (fileResponse.ok) {
+            const uploadedFile = await fileResponse.json()
+            uploadedProjectFiles.push({
+              ...projectFile,
+              googleDriveId: uploadedFile.id,
+              webViewLink: `https://drive.google.com/file/d/${uploadedFile.id}/view`,
+              downloadLink: `https://drive.google.com/uc?id=${uploadedFile.id}`
+            })
+            console.log(`✅ Uploaded project file: ${projectFile.name}`)
+          } else {
+            console.error(`❌ Failed to upload project file: ${projectFile.name}`)
+          }
+        } catch (error) {
+          console.error(`Error uploading project file ${projectFile.name}:`, error)
+        }
+      }
+    }
+
+    // Step 5: Return results
     const results = {
       success: true,
       mainFolderId: mainFolder.id,
       mainFolderName: destinationFolderName,
       uploadedVideos,
+      uploadedProjectFiles,
       statistics: {
         totalVideos: processedVideos.length,
         successCount,
         errorCount,
-        successRate: Math.round((successCount / processedVideos.length) * 100)
+        successRate: Math.round((successCount / processedVideos.length) * 100),
+        projectFilesUploaded: uploadedProjectFiles.length
       },
       folderStructure: {
         mainFolder: {
