@@ -159,8 +159,8 @@ const VideoOrganizerApp = () => {
               {/* Wedding Videographers */}
               <div className="glass-card p-8 hover:scale-105 transition-all duration-300">
                 <div className="flex flex-col items-center text-center">
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
-                    <Camera className="h-10 w-10 text-white" />
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
+                    <Camera className="h-4 w-4 text-white" />
                   </div>
                   <h3 className="font-semibold text-white text-xl mb-3">
                     Wedding & Event Videographers
@@ -174,8 +174,8 @@ const VideoOrganizerApp = () => {
               {/* Travel Vloggers */}
               <div className="glass-card p-8 hover:scale-105 transition-all duration-300">
                 <div className="flex flex-col items-center text-center">
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
-                    <MapPin className="h-10 w-10 text-white" />
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
+                    <MapPin className="h-4 w-4 text-white" />
                   </div>
                   <h3 className="font-semibold text-white text-xl mb-3">
                     Travel Vloggers & Adventurers
@@ -189,8 +189,8 @@ const VideoOrganizerApp = () => {
               {/* Corporate */}
               <div className="glass-card p-8 hover:scale-105 transition-all duration-300">
                 <div className="flex flex-col items-center text-center">
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
-                    <Building2 className="h-10 w-10 text-white" />
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
+                    <Building2 className="h-4 w-4 text-white" />
                   </div>
                   <h3 className="font-semibold text-white text-xl mb-3">
                     Corporate Storytellers
@@ -204,8 +204,8 @@ const VideoOrganizerApp = () => {
               {/* Documentary */}
               <div className="glass-card p-8 hover:scale-105 transition-all duration-300">
                 <div className="flex flex-col items-center text-center">
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
-                    <Film className="h-10 w-10 text-white" />
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
+                    <Film className="h-4 w-4 text-white" />
                   </div>
                   <h3 className="font-semibold text-white text-xl mb-3">
                     Documentary & Indie Film Producers
@@ -219,8 +219,8 @@ const VideoOrganizerApp = () => {
               {/* Social Media */}
               <div className="glass-card p-8 hover:scale-105 transition-all duration-300">
                 <div className="flex flex-col items-center text-center">
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
-                    <Smartphone className="h-10 w-10 text-white" />
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
+                    <Smartphone className="h-4 w-4 text-white" />
                   </div>
                   <h3 className="font-semibold text-white text-xl mb-3">
                     Social Media Creators
@@ -234,8 +234,8 @@ const VideoOrganizerApp = () => {
               {/* Subscription */}
               <div className="glass-card p-8 hover:scale-105 transition-all duration-300">
                 <div className="flex flex-col items-center text-center">
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
-                    <Lock className="h-10 w-10 text-white" />
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
+                    <Lock className="h-4 w-4 text-white" />
                   </div>
                   <h3 className="font-semibold text-white text-xl mb-3">
                     Subscription Platforms
@@ -249,8 +249,8 @@ const VideoOrganizerApp = () => {
               {/* Podcasters */}
               <div className="glass-card p-8 hover:scale-105 transition-all duration-300">
                 <div className="flex flex-col items-center text-center">
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
-                    <Mic className="h-10 w-10 text-white" />
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
+                    <Mic className="h-4 w-4 text-white" />
                   </div>
                   <h3 className="font-semibold text-white text-xl mb-3">
                     Podcasters & Vodcast Teams
@@ -264,8 +264,8 @@ const VideoOrganizerApp = () => {
               {/* Educators */}
               <div className="glass-card p-8 hover:scale-105 transition-all duration-300">
                 <div className="flex flex-col items-center text-center">
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
-                    <GraduationCap className="h-10 w-10 text-white" />
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
+                    <GraduationCap className="h-4 w-4 text-white" />
                   </div>
                   <h3 className="font-semibold text-white text-xl mb-3">
                     Educators & Course Creators
@@ -279,8 +279,8 @@ const VideoOrganizerApp = () => {
               {/* Family */}
               <div className="glass-card p-8 hover:scale-105 transition-all duration-300">
                 <div className="flex flex-col items-center text-center">
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
-                    <Users className="h-10 w-10 text-white" />
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
+                    <Users className="h-4 w-4 text-white" />
                   </div>
                   <h3 className="font-semibold text-white text-xl mb-3">
                     Family Archivists
@@ -294,8 +294,8 @@ const VideoOrganizerApp = () => {
               {/* Real Estate */}
               <div className="glass-card p-8 hover:scale-105 transition-all duration-300">
                 <div className="flex flex-col items-center text-center">
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
-                    <Home className="h-10 w-10 text-white" />
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
+                    <Home className="h-4 w-4 text-white" />
                   </div>
                   <h3 className="font-semibold text-white text-xl mb-3">
                     Real Estate & Property Marketers
