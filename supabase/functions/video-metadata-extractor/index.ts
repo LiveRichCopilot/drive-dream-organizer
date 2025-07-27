@@ -719,16 +719,15 @@ function getYear(dateString: string): string {
   return date.getFullYear().toString()
 }
 
-async function inferDateFromSequence(fileName: string, fileId: string, accessToken: string): string | null {
+async function inferDateFromSequence(fileName: string, fileId: string, accessToken: string): Promise<string | null> {
   try {
-    // Extract number from filename (e.g., IMG_7845.MOV -> 7845)
     const match = fileName.match(/IMG_(\d+)/);
     if (!match) return null;
     
     const currentNumber = parseInt(match[1]);
     console.log(`Trying to infer date for ${fileName} (number: ${currentNumber})`);
     
-    // Get parent folder to find sibling files
+    // Get parent folder
     const fileResponse = await fetch(
       `https://www.googleapis.com/drive/v3/files/${fileId}?fields=parents`,
       { headers: { 'Authorization': `Bearer ${accessToken}` } }
@@ -740,9 +739,9 @@ async function inferDateFromSequence(fileName: string, fileId: string, accessTok
     
     if (!parentId) return null;
     
-    // List all video files in the same folder
+    // List all video files in the same folder with size info
     const folderResponse = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q='${parentId}' in parents and (mimeType contains 'video')&fields=files(id,name,createdTime)`,
+      `https://www.googleapis.com/drive/v3/files?q='${parentId}' in parents and (mimeType contains 'video')&fields=files(id,name,size,mimeType)&pageSize=100`,
       { headers: { 'Authorization': `Bearer ${accessToken}` } }
     );
     
@@ -750,77 +749,83 @@ async function inferDateFromSequence(fileName: string, fileId: string, accessTok
     const folderData = await folderResponse.json();
     
     // Look for nearby files in the sequence with dates
-    let closestBefore = null;
-    let closestAfter = null;
+    const nearbyFiles = [];
     
     for (const file of folderData.files) {
       const fileMatch = file.name.match(/IMG_(\d+)/);
       if (!fileMatch) continue;
       
       const fileNumber = parseInt(fileMatch[1]);
-      
-      // Skip the current file
       if (fileNumber === currentNumber) continue;
       
-      // For now, we'll use the Google Drive createdTime as a proxy
-      // In a full implementation, we'd extract metadata from each file
-      const fileDate = file.createdTime;
-      if (!fileDate) continue;
-      
-      // Find closest file before current
-      if (fileNumber < currentNumber) {
-        const diff = currentNumber - fileNumber;
-        if (diff <= 50 && (!closestBefore || diff < closestBefore.diff)) {
-          closestBefore = { number: fileNumber, date: fileDate, diff: diff, name: file.name };
-        }
-      }
-      
-      // Find closest file after current
-      if (fileNumber > currentNumber) {
-        const diff = fileNumber - currentNumber;
-        if (diff <= 50 && (!closestAfter || diff < closestAfter.diff)) {
-          closestAfter = { number: fileNumber, date: fileDate, diff: diff, name: file.name };
-        }
+      const diff = Math.abs(fileNumber - currentNumber);
+      if (diff <= 50) {
+        nearbyFiles.push({
+          ...file,
+          number: fileNumber,
+          diff: diff,
+          isBefore: fileNumber < currentNumber
+        });
       }
     }
     
-    // Use the closest file's date (prefer before over after)
-    if (closestBefore && closestBefore.diff <= 10) {
-      console.log(`✓ Inferred date from IMG_${closestBefore.number} (${closestBefore.diff} files before)`);
-      return closestBefore.date;
-    }
+    // Sort by proximity
+    nearbyFiles.sort((a, b) => a.diff - b.diff);
     
-    if (closestAfter && closestAfter.diff <= 10) {
-      console.log(`✓ Inferred date from IMG_${closestAfter.number} (${closestAfter.diff} files after)`);
-      return closestAfter.date;
-    }
-    
-    // For edited files, look for the base file
-    if (fileName.includes('(1)') || fileName.includes('(2)') || fileName.includes('.TRIM')) {
-      const basePattern = fileName.match(/IMG_(\d+)/)?.[1];
-      if (basePattern) {
-        const baseFile = folderData.files.find(f => 
-          f.name.includes(`IMG_${basePattern}`) && 
-          !f.name.includes('(') && 
-          !f.name.includes('.TRIM')
+    // Try to extract metadata from nearby files
+    for (const nearbyFile of nearbyFiles) {
+      console.log(`Checking nearby file ${nearbyFile.name} (${nearbyFile.diff} files away)`);
+      
+      try {
+        // Try a lightweight metadata extraction first
+        const metadata = await extractVideoMetadataLightweight(
+          nearbyFile.id, 
+          accessToken, 
+          nearbyFile.name, 
+          parseInt(nearbyFile.size || '0')
         );
         
-        if (baseFile) {
-          console.log(`✓ Edited file: using date from original ${baseFile.name}`);
-          return baseFile.createdTime;
+        if (metadata) {
+          console.log(`✓ Successfully inferred date from ${nearbyFile.name}`);
+          return metadata;
         }
+      } catch (error) {
+        console.log(`Failed to extract from ${nearbyFile.name}, trying next...`);
       }
-    }
-    
-    // If we have files from both sides within reasonable range, use the before file
-    if (closestBefore && closestBefore.diff <= 50) {
-      console.log(`✓ Fallback: using date from IMG_${closestBefore.number} (${closestBefore.diff} files before)`);
-      return closestBefore.date;
     }
     
     return null;
   } catch (error) {
     console.error('Error in sequence-based inference:', error);
+    return null;
+  }
+}
+
+// Add a lightweight extraction function that only reads the minimum needed
+async function extractVideoMetadataLightweight(fileId: string, accessToken: string, fileName: string, fileSize: number): Promise<string | null> {
+  try {
+    // Only download first 10MB for metadata
+    const downloadSize = Math.min(10 * 1024 * 1024, fileSize);
+    
+    const response = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Range': `bytes=0-${downloadSize - 1}`
+        }
+      }
+    );
+    
+    if (!response.ok) return null;
+    
+    const arrayBuffer = await response.arrayBuffer();
+    const data = new Uint8Array(arrayBuffer);
+    
+    // Try QuickTime metadata extraction
+    return extractQuickTimeMetadata(data);
+  } catch (error) {
+    console.error('Lightweight extraction failed:', error);
     return null;
   }
 }
