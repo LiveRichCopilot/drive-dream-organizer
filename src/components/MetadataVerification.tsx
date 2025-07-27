@@ -452,14 +452,29 @@ const MetadataVerification: React.FC<MetadataVerificationProps> = ({
               </div>
 
               {/* Location if available */}
-              {selectedMetadata.metadata?.locationInfo && (
+              {selectedMetadata.metadata?.gpsCoordinates && (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <MapPin className="h-4 w-4 text-white/60" />
-                    <span className="text-white text-sm">{selectedMetadata.metadata.locationInfo}</span>
+                    <span className="text-white text-sm">
+                      {selectedMetadata.metadata.locationInfo || 
+                       `${selectedMetadata.metadata.gpsCoordinates.latitude.toFixed(4)}, ${selectedMetadata.metadata.gpsCoordinates.longitude.toFixed(4)}`}
+                    </span>
                   </div>
-                  <div className="bg-blue-500/20 rounded-lg h-24 flex items-center justify-center">
-                    <MapPin className="h-6 w-6 text-blue-400" />
+                  <div className="bg-blue-500/20 rounded-lg h-24 flex items-center justify-center relative overflow-hidden">
+                    {selectedMetadata.metadata.gpsCoordinates ? (
+                      <div className="text-center">
+                        <MapPin className="h-6 w-6 text-blue-400 mx-auto mb-1" />
+                        <div className="text-xs text-blue-300">
+                          {selectedMetadata.metadata.gpsCoordinates.latitude.toFixed(4)}°, {selectedMetadata.metadata.gpsCoordinates.longitude.toFixed(4)}°
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center">
+                        <MapPin className="h-6 w-6 text-blue-400 mx-auto mb-1" />
+                        <div className="text-xs text-blue-300">Location</div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -469,6 +484,9 @@ const MetadataVerification: React.FC<MetadataVerificationProps> = ({
                 <div className="text-xs text-white/60 bg-green-500/10 p-3 rounded-lg border border-green-500/20">
                   <Info className="h-3 w-3 inline mr-1" />
                   Original shooting date successfully extracted from video metadata
+                  {selectedMetadata.metadata?.inferredFromSequence && (
+                    <span className="ml-1 text-yellow-300">(inferred from sequence)</span>
+                  )}
                 </div>
               )}
             </div>

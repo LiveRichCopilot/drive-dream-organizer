@@ -99,18 +99,14 @@ serve(async (req) => {
       }
     }
 
-    // Build the response
-    const metadata = {
+    // Return comprehensive metadata including location info
+    const response = {
       id: fileData.id,
       name: fileData.name,
       size: parseInt(fileData.size || '0'),
       mimeType: fileData.mimeType,
-      
-      // Timestamps
       createdTime: fileData.createdTime,
       modifiedTime: fileData.modifiedTime,
-      
-      // Video metadata
       videoMetadata: fileData.videoMediaMetadata ? {
         width: fileData.videoMediaMetadata.width,
         height: fileData.videoMediaMetadata.height,
@@ -118,23 +114,41 @@ serve(async (req) => {
         resolution: `${fileData.videoMediaMetadata.width}x${fileData.videoMediaMetadata.height}`,
         duration: formatDuration(parseInt(fileData.videoMediaMetadata.durationMillis || '0'))
       } : null,
-
-      // Original creation date - the most important field
-      originalDate: originalDate,
-      
-      // Formatted versions
+      originalDate,
       dateCreated: originalDate ? formatDate(originalDate) : null,
       yearMonth: originalDate ? getYearMonth(originalDate) : null,
       year: originalDate ? getYear(originalDate) : null,
-      inferredFromSequence: inferredFromSequence, // Flag to indicate if date was inferred
+      inferredFromSequence: inferredFromSequence,
+      locationInfo: null, // Will be populated by GPS extraction
+      gpsCoordinates: null, // Will be populated by GPS extraction
+      deviceInfo: null // Will be populated by device extraction
+    };
+
+    // Extract additional metadata from file content if we have the original date
+    if (originalDate && !inferredFromSequence) {
+      try {
+        console.log(`Extracting additional metadata from ${fileData.name}...`);
+        const additionalMetadata = await extractAdditionalVideoMetadata(fileData.id, accessToken, fileData.name, parseInt(fileData.size || '0'));
+        
+        if (additionalMetadata) {
+          if (additionalMetadata.gpsCoordinates) {
+            response.gpsCoordinates = additionalMetadata.gpsCoordinates;
+            response.locationInfo = additionalMetadata.locationInfo;
+          }
+          if (additionalMetadata.deviceInfo) {
+            response.deviceInfo = additionalMetadata.deviceInfo;
+          }
+        }
+      } catch (error) {
+        console.log(`Additional metadata extraction failed for ${fileData.name}:`, error);
+      }
     }
 
-    console.log(`Metadata extraction complete for ${fileData.name}. Original date: ${originalDate || 'NOT FOUND'}`)
+    console.log(`Metadata extraction complete for ${fileData.name}. Original date: ${originalDate || 'NOT FOUND'}`);
 
-    return new Response(
-      JSON.stringify(metadata),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    return new Response(JSON.stringify(response), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   } catch (error) {
     console.error('Error in video-metadata-extractor:', error)
     return new Response(
@@ -842,6 +856,413 @@ async function inferDateFromSequence(fileName: string, fileId: string, accessTok
     return null;
   } catch (error) {
     console.error('Error in sequence-based inference:', error);
+    return null;
+}
+
+// Extract additional metadata including GPS and device info
+async function extractAdditionalVideoMetadata(fileId: string, accessToken: string, fileName: string, fileSize: number): Promise<{
+  gpsCoordinates?: { latitude: number, longitude: number },
+  locationInfo?: string,
+  deviceInfo?: string
+} | null> {
+  try {
+    console.log(`Starting additional metadata extraction for ${fileName}...`);
+    
+    // Download a larger chunk to get more metadata
+    const chunkSize = Math.min(10 * 1024 * 1024, fileSize); // 10MB max
+    const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&range=bytes=0-${chunkSize}`, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to download file chunk: ${response.status}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const data = new Uint8Array(arrayBuffer);
+    
+    console.log(`Downloaded ${data.length} bytes for additional metadata extraction`);
+    
+    // Extract GPS coordinates and device info
+    const gpsInfo = extractGPSCoordinates(data);
+    const deviceInfo = extractDeviceInfo(data);
+    
+    let locationInfo = null;
+    if (gpsInfo) {
+      // Convert coordinates to location name using reverse geocoding
+      try {
+        locationInfo = await reverseGeocode(gpsInfo.latitude, gpsInfo.longitude);
+      } catch (error) {
+        console.log('Reverse geocoding failed:', error);
+      }
+    }
+    
+    return {
+      gpsCoordinates: gpsInfo,
+      locationInfo,
+      deviceInfo
+    };
+    
+  } catch (error) {
+    console.error('Error extracting additional metadata:', error);
+    return null;
+  }
+}
+
+// Extract GPS coordinates from video metadata
+function extractGPSCoordinates(data: Uint8Array): { latitude: number, longitude: number } | null {
+  try {
+    console.log('Searching for GPS coordinates in metadata...');
+    
+    // Look for various GPS metadata formats in QuickTime/MP4 files
+    
+    // Method 1: Search for ©xyz atom (GPS coordinates)
+    const xyzCoords = searchForGPSInXYZAtom(data);
+    if (xyzCoords) {
+      console.log('Found GPS coordinates in ©xyz atom:', xyzCoords);
+      return xyzCoords;
+    }
+    
+    // Method 2: Search for standard GPS atoms
+    const standardGPS = searchForStandardGPSAtoms(data);
+    if (standardGPS) {
+      console.log('Found GPS coordinates in standard GPS atoms:', standardGPS);
+      return standardGPS;
+    }
+    
+    // Method 3: Search for embedded EXIF GPS data
+    const exifGPS = searchForEXIFGPS(data);
+    if (exifGPS) {
+      console.log('Found GPS coordinates in EXIF data:', exifGPS);
+      return exifGPS;
+    }
+    
+    console.log('No GPS coordinates found in metadata');
+    return null;
+    
+  } catch (error) {
+    console.error('Error extracting GPS coordinates:', error);
+    return null;
+  }
+}
+
+// Search for GPS coordinates in ©xyz atom
+function searchForGPSInXYZAtom(data: Uint8Array): { latitude: number, longitude: number } | null {
+  try {
+    // Search for ©xyz atom
+    for (let i = 0; i < data.length - 4; i++) {
+      if (data[i] === 0xA9 && // © character
+          data[i+1] === 0x78 && // x
+          data[i+2] === 0x79 && // y  
+          data[i+3] === 0x7A) { // z
+        
+        // Found ©xyz atom, extract GPS data
+        const atomStart = i - 4; // Atom size is 4 bytes before
+        if (atomStart >= 0) {
+          const atomSize = (data[atomStart] << 24) | (data[atomStart+1] << 16) | (data[atomStart+2] << 8) | data[atomStart+3];
+          const atomEnd = Math.min(atomStart + atomSize, data.length);
+          
+          if (atomEnd > i + 8) {
+            const gpsData = data.slice(i + 8, atomEnd);
+            const text = new TextDecoder('utf-8', { fatal: false }).decode(gpsData);
+            
+            // Parse GPS coordinates from text
+            // Format: +37.7749-122.4194 or similar
+            const coordMatch = text.match(/([+-]?\d+\.?\d*)\s*([+-]?\d+\.?\d*)/);
+            if (coordMatch) {
+              const lat = parseFloat(coordMatch[1]);
+              const lng = parseFloat(coordMatch[2]);
+              
+              if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+                return { latitude: lat, longitude: lng };
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error in searchForGPSInXYZAtom:', error);
+    return null;
+  }
+}
+
+// Search for standard GPS atoms
+function searchForStandardGPSAtoms(data: Uint8Array): { latitude: number, longitude: number } | null {
+  try {
+    // Look for GPS-related atoms like 'gps ', 'loci', etc.
+    const gpsSignatures = [
+      [0x67, 0x70, 0x73, 0x20], // 'gps '
+      [0x6C, 0x6F, 0x63, 0x69], // 'loci'
+      [0x6C, 0x6F, 0x63, 0x6E]  // 'locn'
+    ];
+    
+    for (const signature of gpsSignatures) {
+      for (let i = 0; i < data.length - signature.length - 20; i++) {
+        if (signature.every((byte, idx) => data[i + idx] === byte)) {
+          // Found GPS atom, try to extract coordinates
+          const coords = parseGPSFromBinaryData(data, i + signature.length);
+          if (coords) return coords;
+        }
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error in searchForStandardGPSAtoms:', error);
+    return null;
+  }
+}
+
+// Parse GPS coordinates from binary data
+function parseGPSFromBinaryData(data: Uint8Array, offset: number): { latitude: number, longitude: number } | null {
+  try {
+    // Try different parsing methods for binary GPS data
+    
+    // Method 1: IEEE 754 double precision (8 bytes each)
+    if (offset + 16 <= data.length) {
+      const view = new DataView(data.buffer, data.byteOffset + offset, 16);
+      
+      try {
+        const lat1 = view.getFloat64(0, false); // Big endian
+        const lng1 = view.getFloat64(8, false);
+        
+        if (lat1 >= -90 && lat1 <= 90 && lng1 >= -180 && lng1 <= 180) {
+          return { latitude: lat1, longitude: lng1 };
+        }
+        
+        const lat2 = view.getFloat64(0, true); // Little endian
+        const lng2 = view.getFloat64(8, true);
+        
+        if (lat2 >= -90 && lat2 <= 90 && lng2 >= -180 && lng2 <= 180) {
+          return { latitude: lat2, longitude: lng2 };
+        }
+      } catch (e) {}
+    }
+    
+    // Method 2: IEEE 754 single precision (4 bytes each)
+    if (offset + 8 <= data.length) {
+      const view = new DataView(data.buffer, data.byteOffset + offset, 8);
+      
+      try {
+        const lat1 = view.getFloat32(0, false);
+        const lng1 = view.getFloat32(4, false);
+        
+        if (lat1 >= -90 && lat1 <= 90 && lng1 >= -180 && lng1 <= 180) {
+          return { latitude: lat1, longitude: lng1 };
+        }
+        
+        const lat2 = view.getFloat32(0, true);
+        const lng2 = view.getFloat32(4, true);
+        
+        if (lat2 >= -90 && lat2 <= 90 && lng2 >= -180 && lng2 <= 180) {
+          return { latitude: lat2, longitude: lng2 };
+        }
+      } catch (e) {}
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error parsing GPS from binary data:', error);
+    return null;
+  }
+}
+
+// Search for EXIF GPS data
+function searchForEXIFGPS(data: Uint8Array): { latitude: number, longitude: number } | null {
+  try {
+    // Look for EXIF headers in the data
+    for (let i = 0; i < data.length - 10; i++) {
+      // Look for EXIF signature
+      if (data[i] === 0x45 && data[i+1] === 0x78 && data[i+2] === 0x69 && data[i+3] === 0x66) { // "Exif"
+        // Found EXIF data, look for GPS tags
+        const coords = parseEXIFGPSData(data, i);
+        if (coords) return coords;
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error in searchForEXIFGPS:', error);
+    return null;
+  }
+}
+
+// Parse EXIF GPS data
+function parseEXIFGPSData(data: Uint8Array, exifStart: number): { latitude: number, longitude: number } | null {
+  try {
+    // This is a simplified EXIF GPS parser
+    // In a full implementation, you'd parse the TIFF structure properly
+    
+    // Look for GPS latitude/longitude tags in the nearby data
+    const searchArea = data.slice(exifStart, Math.min(exifStart + 1000, data.length));
+    const text = new TextDecoder('utf-8', { fatal: false }).decode(searchArea);
+    
+    // Look for coordinate patterns
+    const coordPatterns = [
+      /(\d+\.?\d*)[°\s]+(\d+\.?\d*)['\s]+(\d+\.?\d*)["\s]*([NS])[,\s]*(\d+\.?\d*)[°\s]+(\d+\.?\d*)['\s]+(\d+\.?\d*)["\s]*([EW])/,
+      /([+-]?\d+\.?\d+)[,\s]+([+-]?\d+\.?\d+)/
+    ];
+    
+    for (const pattern of coordPatterns) {
+      const match = text.match(pattern);
+      if (match) {
+        if (match.length === 9) { // DMS format
+          const latDeg = parseFloat(match[1]);
+          const latMin = parseFloat(match[2]);
+          const latSec = parseFloat(match[3]);
+          const latDir = match[4];
+          const lngDeg = parseFloat(match[5]);
+          const lngMin = parseFloat(match[6]);
+          const lngSec = parseFloat(match[7]);
+          const lngDir = match[8];
+          
+          let lat = latDeg + latMin/60 + latSec/3600;
+          let lng = lngDeg + lngMin/60 + lngSec/3600;
+          
+          if (latDir === 'S') lat = -lat;
+          if (lngDir === 'W') lng = -lng;
+          
+          if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+            return { latitude: lat, longitude: lng };
+          }
+        } else if (match.length === 3) { // Decimal format
+          const lat = parseFloat(match[1]);
+          const lng = parseFloat(match[2]);
+          
+          if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+            return { latitude: lat, longitude: lng };
+          }
+        }
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error parsing EXIF GPS data:', error);
+    return null;
+  }
+}
+
+// Extract device information
+function extractDeviceInfo(data: Uint8Array): string | null {
+  try {
+    console.log('Searching for device information in metadata...');
+    
+    // Look for device-related metadata atoms
+    const deviceAtoms = ['make', 'modl', 'vers', '©too', '©nam'];
+    
+    for (const atomName of deviceAtoms) {
+      const atomBytes = Array.from(atomName).map(c => c.charCodeAt(0));
+      
+      for (let i = 0; i < data.length - atomBytes.length - 10; i++) {
+        if (atomBytes.every((byte, idx) => data[i + idx] === byte)) {
+          // Found device atom
+          const deviceInfo = extractStringFromAtom(data, i - 4);
+          if (deviceInfo && deviceInfo.length > 0) {
+            console.log(`Found device info in ${atomName} atom:`, deviceInfo);
+            return deviceInfo;
+          }
+        }
+      }
+    }
+    
+    // Look for iPhone/Apple device signatures
+    const appleSignatures = [
+      'iPhone', 'iPad', 'Apple', 'iOS'
+    ];
+    
+    const text = new TextDecoder('utf-8', { fatal: false }).decode(data.slice(0, Math.min(10000, data.length)));
+    
+    for (const signature of appleSignatures) {
+      const index = text.indexOf(signature);
+      if (index !== -1) {
+        // Extract surrounding text for more context
+        const start = Math.max(0, index - 20);
+        const end = Math.min(text.length, index + signature.length + 20);
+        const context = text.slice(start, end).trim();
+        
+        // Look for model information
+        const modelMatch = context.match(/(iPhone \d+[^\s]*|iPad[^\s]*|Apple[^\s]*)/);
+        if (modelMatch) {
+          console.log('Found device info:', modelMatch[1]);
+          return modelMatch[1];
+        }
+      }
+    }
+    
+    console.log('No device information found');
+    return null;
+    
+  } catch (error) {
+    console.error('Error extracting device info:', error);
+    return null;
+  }
+}
+
+// Helper function to extract string from atom
+function extractStringFromAtom(data: Uint8Array, atomStart: number): string | null {
+  try {
+    if (atomStart < 0 || atomStart + 8 >= data.length) return null;
+    
+    const size = (data[atomStart] << 24) | (data[atomStart+1] << 16) | (data[atomStart+2] << 8) | data[atomStart+3];
+    const dataStart = atomStart + 8;
+    const dataEnd = Math.min(atomStart + size, data.length);
+    
+    if (dataStart >= dataEnd) return null;
+    
+    const stringData = data.slice(dataStart, dataEnd);
+    const text = new TextDecoder('utf-8', { fatal: false }).decode(stringData);
+    
+    return text.replace(/\0/g, '').trim();
+  } catch (error) {
+    return null;
+  }
+}
+
+// Reverse geocoding to get location name from coordinates
+async function reverseGeocode(latitude: number, longitude: number): Promise<string | null> {
+  try {
+    console.log(`Reverse geocoding coordinates: ${latitude}, ${longitude}`);
+    
+    // Use a free geocoding service (OpenStreetMap Nominatim)
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10&addressdetails=1`,
+      {
+        headers: {
+          'User-Agent': 'VideoOrganizerApp/1.0'
+        }
+      }
+    );
+    
+    if (!response.ok) {
+      throw new Error(`Geocoding failed: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (data && data.address) {
+      // Build a nice location string
+      const parts = [];
+      
+      if (data.address.city) parts.push(data.address.city);
+      else if (data.address.town) parts.push(data.address.town);
+      else if (data.address.village) parts.push(data.address.village);
+      
+      if (data.address.state) parts.push(data.address.state);
+      if (data.address.country) parts.push(data.address.country);
+      
+      const locationString = parts.join(', ');
+      console.log('Reverse geocoding result:', locationString);
+      
+      return locationString || data.display_name;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error in reverse geocoding:', error);
     return null;
   }
 }
