@@ -52,91 +52,75 @@ serve(async (req) => {
     }
 
     const fileData = await fileResponse.json()
-    console.log('File metadata retrieved:', fileData.name, 'Size:', fileData.size)
+    console.log('File metadata:', JSON.stringify(fileData, null, 2))
 
-    // Enhanced metadata extraction for video files
-    let originalDate = null
-    let inferredFromSequence = false
-    
-    // First, try to extract from filename pattern (iPhone/camera patterns)
+    // Build response with all available metadata
+    const response: any = {
+      fileId: fileData.id,
+      fileName: fileData.name,
+      fileSize: fileData.size,
+      mimeType: fileData.mimeType,
+      googleCreatedTime: fileData.createdTime,
+      googleModifiedTime: fileData.modifiedTime,
+      originalDate: null // Will be set if we find it
+    }
+
+    // Add video metadata if available
+    if (fileData.videoMediaMetadata) {
+      response.videoMetadata = fileData.videoMediaMetadata
+      console.log('Google Drive video metadata:', JSON.stringify(fileData.videoMediaMetadata, null, 2))
+    }
+
+    // Try multiple approaches to find the original shooting date
+    let originalDate: string | null = null
+
+    // 1. Extract from filename patterns first (most reliable for iPhone/cameras)
+    console.log(`Trying filename extraction for: ${fileData.name}`)
     originalDate = extractDateFromFilename(fileData.name)
     
-    if (!originalDate && fileData.mimeType?.includes('video')) {
-      // Try metadata extraction from file content
-      console.log('Attempting to extract metadata from file content...')
-      try {
-        originalDate = await extractVideoMetadata(fileId, accessToken, fileData.name, parseInt(fileData.size || '0'))
-      } catch (error) {
-        console.error('Metadata extraction failed:', error.message)
-        // Check if it's a resource limit error - don't re-throw, just proceed to sequence inference
-        if (error.message.includes('WORKER_LIMIT') || error.message.includes('compute resources')) {
-          console.log('⚠️ Resource limit reached for large file, proceeding to sequence inference...')
-        } else {
-          // Only re-throw non-resource-limit errors
-          console.log('⚠️ Extraction failed, proceeding to sequence inference...')
-        }
-      }
+    if (originalDate) {
+      console.log(`✓ SUCCESS: Extracted date from filename: ${originalDate}`)
+    } else {
+      console.log('✗ No date found in filename, trying video file metadata extraction...')
       
-      // If still no date found OR extraction failed, try sequence-based inference
-      if (!originalDate) {
-        console.log('Trying sequence-based inference as fallback...')
-        try {
-          const sequenceResult = await inferDateFromSequence(fileData.name, fileId, accessToken)
-          if (sequenceResult) {
-            // Validate the inferred date is reasonable
-            const isValid = validateInferredDate(sequenceResult, fileData.name)
-            if (isValid) {
-              originalDate = sequenceResult
-              inferredFromSequence = true
-              console.log('📅 Date successfully inferred from file sequence and validated')
-            } else {
-              console.log('⚠️ Inferred date failed validation, rejecting')
-            }
-          }
-        } catch (seqError) {
-          console.error('Sequence inference also failed:', seqError.message)
+      // 2. Download and analyze actual file metadata (EXIF, QuickTime atoms)
+      originalDate = await extractVideoMetadata(fileId, accessToken, fileData.name, parseInt(fileData.size || '0'))
+      
+      if (originalDate) {
+        console.log(`✓ SUCCESS: Extracted date from file metadata: ${originalDate}`)
+      } else {
+        console.log('✗ No date found in file metadata, trying sequence inference...')
+        
+        // 3. Try sequence-based inference (risky but sometimes works)
+        originalDate = await inferDateFromSequence(fileData.name, fileId, accessToken)
+        
+        if (originalDate) {
+          console.log(`✓ SUCCESS: Inferred date from sequence: ${originalDate}`)
+        } else {
+          console.log('✗ FAILED: Could not determine original shooting date')
         }
       }
     }
 
-    // Return comprehensive metadata including location info
-    const response = {
-      id: fileData.id,
-      name: fileData.name,
-      size: parseInt(fileData.size || '0'),
-      mimeType: fileData.mimeType,
-      createdTime: fileData.createdTime,
-      modifiedTime: fileData.modifiedTime,
-      videoMetadata: fileData.videoMediaMetadata ? {
-        width: fileData.videoMediaMetadata.width,
-        height: fileData.videoMediaMetadata.height,
-        durationMillis: fileData.videoMediaMetadata.durationMillis,
-        resolution: `${fileData.videoMediaMetadata.width}x${fileData.videoMediaMetadata.height}`,
-        duration: formatDuration(parseInt(fileData.videoMediaMetadata.durationMillis || '0'))
-      } : null,
-      originalDate,
-      dateCreated: originalDate ? formatDate(originalDate) : null,
-      yearMonth: originalDate ? getYearMonth(originalDate) : null,
-      year: originalDate ? getYear(originalDate) : null,
-      inferredFromSequence: inferredFromSequence,
-      locationInfo: null, // Will be populated by GPS extraction
-      gpsCoordinates: null, // Will be populated by GPS extraction
-      deviceInfo: null // Will be populated by device extraction
-    };
+    // Set the original date in response
+    if (originalDate) {
+      response.originalDate = originalDate
+      response.confidence = 'extracted' // vs 'inferred'
+    }
 
-    // Extract additional metadata from file content for ALL videos with dates
-    // Always attempt to extract GPS and device metadata, regardless of date extraction success
+    // Try to extract additional metadata (GPS, device info, etc.)
     try {
-      console.log(`Extracting additional metadata (GPS/device) from ${fileData.name}...`);
-      const additionalMetadata = await extractAdditionalVideoMetadata(fileData.id, accessToken, fileData.name, parseInt(fileData.size || '0'));
+      console.log(`Extracting additional metadata for ${fileData.name}...`)
+      const additionalMetadata = await extractAdditionalVideoMetadata(fileId, accessToken, fileData.name, parseInt(fileData.size || '0'))
       
       if (additionalMetadata) {
         if (additionalMetadata.gpsCoordinates) {
           response.gpsCoordinates = additionalMetadata.gpsCoordinates;
-          response.locationInfo = additionalMetadata.locationInfo;
-          console.log(`✓ GPS coordinates found: ${additionalMetadata.gpsCoordinates.latitude}, ${additionalMetadata.gpsCoordinates.longitude}`);
-          if (additionalMetadata.locationInfo) {
-            console.log(`✓ Location: ${additionalMetadata.locationInfo}`);
+          console.log(`✓ GPS coordinates: ${additionalMetadata.gpsCoordinates.latitude}, ${additionalMetadata.gpsCoordinates.longitude}`);
+          
+          if (additionalMetadata.locationName) {
+            response.locationName = additionalMetadata.locationName;
+            console.log(`✓ Location: ${additionalMetadata.locationName}`);
           }
         }
         if (additionalMetadata.deviceInfo) {
@@ -168,115 +152,99 @@ function extractDateFromFilename(fileName: string): string | null {
     // IMG_7812.MOV pattern - extract from the number (photos are often sequential by date)
     /IMG_(\d{4,})/,  // This won't give us the date directly
     // More specific date patterns
-    /(\d{4})[_-](\d{2})[_-](\d{2})[_\s](\d{2})[_-](\d{2})[_-](\d{2})/,
-    /(\d{4})(\d{2})(\d{2})[_-](\d{2})(\d{2})(\d{2})/,
-    /VID[_-](\d{4})(\d{2})(\d{2})[_-](\d{2})(\d{2})(\d{2})/,
+    /(\d{4})[_-](\d{2})[_-](\d{2})[_\s-](\d{2})[_-](\d{2})[_-](\d{2})/, // YYYY-MM-DD_HH-MM-SS
+    /(\d{4})(\d{2})(\d{2})[_-]?(\d{2})(\d{2})(\d{2})/, // YYYYMMDD_HHMMSS
+    /VID[_-](\d{4})(\d{2})(\d{2})[_-](\d{2})(\d{2})(\d{2})/, // VID_YYYYMMDD_HHMMSS
+    /(\d{2})[_-](\d{2})[_-](\d{4})[_\s-](\d{2})[_-](\d{2})[_-](\d{2})/, // DD-MM-YYYY_HH-MM-SS
+    /(\d{4})[_-](\d{1,2})[_-](\d{1,2})/, // Basic YYYY-MM-DD
   ]
-  
+
   for (const pattern of patterns) {
     const match = fileName.match(pattern)
-    if (match && match.length >= 4) {
+    if (match) {
       try {
-        const year = parseInt(match[1])
-        const month = parseInt(match[2])
-        const day = parseInt(match[3])
-        const hour = match[4] ? parseInt(match[4]) : 0
-        const minute = match[5] ? parseInt(match[5]) : 0
-        const second = match[6] ? parseInt(match[6]) : 0
+        if (pattern === patterns[0]) {
+          // IMG_XXXX pattern - skip for now as it needs sequence analysis
+          continue
+        }
         
-        if (year >= 2000 && year <= 2024 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-          const date = new Date(year, month - 1, day, hour, minute, second)
+        let year, month, day, hour = '12', minute = '00', second = '00'
+        
+        if (pattern === patterns[1]) {
+          [, year, month, day, hour, minute, second] = match
+        } else if (pattern === patterns[2]) {
+          [, year, month, day, hour, minute, second] = match
+        } else if (pattern === patterns[3]) {
+          [, year, month, day, hour, minute, second] = match
+        } else if (pattern === patterns[4]) {
+          [, day, month, year, hour, minute, second] = match
+        } else if (pattern === patterns[5]) {
+          [, year, month, day] = match
+        }
+
+        const date = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${hour.padStart(2, '0')}:${minute.padStart(2, '0')}:${second.padStart(2, '0')}.000Z`)
+        if (!isNaN(date.getTime())) {
           return date.toISOString()
         }
-      } catch (e) {
-        console.error('Error parsing date from filename:', e)
+      } catch (error) {
+        console.error('Error parsing date from filename:', error)
       }
     }
   }
-  
+
   return null
 }
 
 async function extractVideoMetadata(fileId: string, accessToken: string, fileName: string, fileSize: number): Promise<string | null> {
   try {
-    // Smart streaming approach - read files in chunks to avoid memory limits
-    console.log(`Starting streaming metadata extraction for ${fileName} (${Math.floor(fileSize / 1024 / 1024)}MB)`)
+    console.log(`Attempting metadata extraction for ${fileName} (${fileSize} bytes)`)
     
-    // Check if this is an edited file
-    const isEdited = fileName.includes('.TRIM') || fileName.includes('(1)') || fileName.includes('(2)') || fileName.includes('(3)');
-    if (isEdited) {
-      console.log(`⚠️ EDITED FILE DETECTED: ${fileName} - metadata might be stripped during editing`)
-    }
-
-    // For large files, try streaming approach to read more data without memory issues
-    if (fileSize > 100 * 1024 * 1024) {
-      console.log(`Large file detected, using streaming approach for ${fileName}`)
+    // For large files, try streaming approach
+    if (fileSize > 50 * 1024 * 1024) { // 50MB
+      console.log('Large file detected, using streaming extraction')
       return await extractVideoMetadataStreaming(fileId, accessToken, fileName, fileSize)
     }
-
-    // For smaller files, download more data at once
-    const downloadSize = fileSize < 50 * 1024 * 1024 
-      ? fileSize  // Download entire file if under 50MB
-      : Math.min(50 * 1024 * 1024, fileSize)  // Otherwise 50MB max
     
-    console.log(`Downloading ${Math.floor(downloadSize / 1024 / 1024)}MB for metadata extraction...`)
-    
-    console.log(`Downloading ${Math.floor(downloadSize / 1024 / 1024)}MB for metadata extraction...`)
-    
-    const response = await fetch(
+    // For smaller files, download and analyze
+    const downloadResponse = await fetch(
       `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
       {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'Range': `bytes=0-${downloadSize - 1}`
+          'Range': 'bytes=0-1048576' // First 1MB should contain metadata
         }
       }
     )
-    
-    if (!response.ok) {
-      console.error('Failed to download file content:', response.status)
+
+    if (!downloadResponse.ok) {
+      console.error(`Failed to download file: ${downloadResponse.status}`)
       return null
     }
-    
-    const arrayBuffer = await response.arrayBuffer()
+
+    const arrayBuffer = await downloadResponse.arrayBuffer()
     const data = new Uint8Array(arrayBuffer)
     
     console.log(`Downloaded ${data.length} bytes for analysis`)
+
+    // Try different extraction methods
+    let extractedDate = extractQuickTimeMetadata(data)
     
-    // Add better debugging
-    console.log('File header (first 32 bytes):', 
-      Array.from(data.slice(0, 32))
-        .map(b => b.toString(16).padStart(2, '0'))
-        .join(' ')
-    )
-    
-    // Try multiple extraction methods
-    let extractedDate = null
-    
-    // Method 1: Look for QuickTime atoms
-    extractedDate = extractQuickTimeMetadata(data)
-    if (extractedDate) {
-      console.log('Extracted date from QuickTime metadata:', extractedDate)
-      return extractedDate
+    if (!extractedDate) {
+      extractedDate = findCreationTimeString(data)
     }
     
-    // Method 2: Look for creation_time strings in the file
-    extractedDate = findCreationTimeString(data)
+    if (!extractedDate) {
+      extractedDate = findGPSDateStamp(data)
+    }
+
     if (extractedDate) {
-      console.log('Extracted date from creation_time string:', extractedDate)
+      console.log(`✓ Successfully extracted date: ${extractedDate}`)
       return extractedDate
     }
-    
-    // Method 3: Look for GPS date stamps (common in iPhone videos)
-    extractedDate = findGPSDateStamp(data)
-    if (extractedDate) {
-      console.log('Extracted date from GPS metadata:', extractedDate)
-      return extractedDate
-    }
-    
-    console.log('No metadata found in file content')
+
+    console.log('✗ No creation date found in file metadata')
     return null
-    
+
   } catch (error) {
     console.error('Error extracting video metadata:', error)
     return null
@@ -285,405 +253,285 @@ async function extractVideoMetadata(fileId: string, accessToken: string, fileNam
 
 async function extractVideoMetadataStreaming(fileId: string, accessToken: string, fileName: string, fileSize: number): Promise<string | null> {
   try {
-    console.log(`Streaming ${fileName} (${Math.floor(fileSize / 1024 / 1024)}MB) for metadata extraction...`)
+    console.log(`Streaming metadata extraction for large file: ${fileName}`)
     
-    // Stream in chunks to avoid memory limits
-    const chunkSize = 10 * 1024 * 1024; // 10MB chunks
-    let buffer = new Uint8Array(0)
-    let offset = 0
-    let foundDate = null
-    
-    // Read file in chunks, keeping only what we need in memory
-    while (offset < fileSize && !foundDate && offset < 100 * 1024 * 1024) { // Read up to 100MB
-      const endByte = Math.min(offset + chunkSize - 1, fileSize - 1)
-      
-      console.log(`Reading chunk: bytes ${offset}-${endByte}`)
-      
-      const response = await fetch(
-        `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-        {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Range': `bytes=${offset}-${endByte}`
-          }
+    // Download only the first 2MB for metadata analysis
+    const chunkSize = 2 * 1024 * 1024 // 2MB
+    const downloadResponse = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Range': `bytes=0-${chunkSize - 1}`
         }
-      )
-      
-      if (!response.ok) {
-        console.error(`Failed to download chunk at offset ${offset}:`, response.status)
-        break
       }
-      
-      const chunkData = new Uint8Array(await response.arrayBuffer())
-      
-      // Append new chunk to buffer
-      const newBuffer = new Uint8Array(buffer.length + chunkData.length)
-      newBuffer.set(buffer)
-      newBuffer.set(chunkData, buffer.length)
-      buffer = newBuffer
-      
-      // Try to extract metadata from current buffer
-      foundDate = extractQuickTimeMetadata(buffer)
-      
-      if (foundDate) {
-        console.log('Found metadata via streaming!', foundDate)
-        break
-      }
-      
-      // If buffer gets too large, keep only the most recent part
-      if (buffer.length > 20 * 1024 * 1024) {
-        console.log('Buffer too large, keeping recent 15MB')
-        buffer = buffer.slice(buffer.length - 15 * 1024 * 1024)
-      }
-      
-      offset += chunkSize
+    )
+
+    if (!downloadResponse.ok) {
+      console.error(`Failed to download file chunk: ${downloadResponse.status}`)
+      return null
     }
+
+    const arrayBuffer = await downloadResponse.arrayBuffer()
+    const data = new Uint8Array(arrayBuffer)
     
-    if (!foundDate) {
-      console.log('No metadata found via streaming')
+    console.log(`Downloaded ${data.length} bytes for streaming analysis`)
+
+    // Try extraction methods optimized for streaming
+    let extractedDate = extractQuickTimeMetadata(data)
+    
+    if (!extractedDate) {
+      extractedDate = findCreationTimeString(data)
     }
-    
-    return foundDate
+
+    if (extractedDate) {
+      console.log(`✓ Successfully extracted date from stream: ${extractedDate}`)
+      return extractedDate
+    }
+
+    console.log('✗ No creation date found in file stream')
+    return null
+
   } catch (error) {
-    console.error('Streaming extraction failed:', error)
+    console.error('Error in streaming metadata extraction:', error)
     return null
   }
 }
 
 function extractQuickTimeMetadata(data: Uint8Array): string | null {
   try {
-    console.log('Starting QuickTime atom parsing...')
+    // Look for QuickTime creation time atom 'mvhd' or 'udta'
+    const mvhdPattern = new Uint8Array([0x6D, 0x76, 0x68, 0x64]) // 'mvhd'
+    const udtaPattern = new Uint8Array([0x75, 0x64, 0x74, 0x61]) // 'udta'
     
-    // First, verify this is a QuickTime/MP4 file
-    const ftypStr = String.fromCharCode(data[4], data[5], data[6], data[7])
-    console.log('File type:', ftypStr)
-    
-    let offset = 0
-    
-    // Parse atoms until we find moov
-    while (offset < data.length - 8) {
-      // Read atom size (4 bytes) and type (4 bytes)
-      const atomSize = new DataView(data.buffer, data.byteOffset + offset, 4).getUint32(0, false)
-      const atomType = String.fromCharCode(
-        data[offset + 4],
-        data[offset + 5], 
-        data[offset + 6],
-        data[offset + 7]
-      )
-      
-      console.log(`Found atom: ${atomType} at offset ${offset}, size: ${atomSize}`)
-      
-      if (atomSize === 0 || atomSize > data.length - offset) {
-        console.log('Invalid atom size, stopping')
-        break
-      }
-      
-      // Check for Apple-specific atoms that contain metadata
-      const appleSpecificAtoms = ['©day', '©xyz', 'loci', 'keys', 'ilst', 'meta']
-      
-      if (appleSpecificAtoms.includes(atomType)) {
-        console.log(`Found Apple-specific atom: ${atomType}`)
-        const appleDate = extractAppleMetadata(data, offset, atomSize, atomType)
-        if (appleDate) {
-          console.log('Extracted date from Apple-specific atom:', appleDate)
-          return appleDate
-        }
-      }
-      
-      if (atomType === 'moov') {
-        // Found moov atom, now look for mvhd inside it
-        console.log('Found moov atom, searching for mvhd inside...')
+    // Search for mvhd atom
+    for (let i = 0; i < data.length - 100; i++) {
+      if (data[i] === mvhdPattern[0] && 
+          data[i + 1] === mvhdPattern[1] && 
+          data[i + 2] === mvhdPattern[2] && 
+          data[i + 3] === mvhdPattern[3]) {
         
-        let moovOffset = offset + 8 // Skip moov header
-        const moovEnd = offset + atomSize
+        console.log(`Found mvhd atom at position ${i}`)
         
-        while (moovOffset < moovEnd && moovOffset < data.length - 8) {
-          const subAtomSize = new DataView(data.buffer, data.byteOffset + moovOffset, 4).getUint32(0, false)
-          const subAtomType = String.fromCharCode(
-            data[moovOffset + 4],
-            data[moovOffset + 5],
-            data[moovOffset + 6], 
-            data[moovOffset + 7]
-          )
-          
-          console.log(`  Found sub-atom: ${subAtomType} at offset ${moovOffset}, size: ${subAtomSize}`)
-          
-          if (subAtomType === 'mvhd') {
-            console.log('Found mvhd atom!')
-            
-            // mvhd structure:
-            // 0-3: size
-            // 4-7: 'mvhd'
-            // 8: version (1 byte)
-            // 9-11: flags (3 bytes)
-            // 12+: creation time (4 bytes for v0, 8 bytes for v1)
-            
-            const version = data[moovOffset + 8]
-            console.log('mvhd version:', version)
-            
-            let creationTime: number
-            
-            if (version === 0) {
-              // 32-bit creation time
-              creationTime = new DataView(data.buffer, data.byteOffset + moovOffset + 12, 4).getUint32(0, false)
-            } else if (version === 1) {
-              // 64-bit creation time  
-              const high = new DataView(data.buffer, data.byteOffset + moovOffset + 16, 4).getUint32(0, false)
-              const low = new DataView(data.buffer, data.byteOffset + moovOffset + 20, 4).getUint32(0, false)
-              creationTime = high * 0x100000000 + low
-            } else {
-              console.log('Unknown mvhd version:', version)
-              return null
-            }
-            
-            console.log('Raw creation time:', creationTime)
-            
-            // Convert from Mac epoch (1904) to Unix epoch (1970)
-            const unixTime = creationTime - 2082844800
-            console.log('Unix timestamp:', unixTime)
-            
-            // Validate and convert to date
-            if (unixTime > 946684800 && unixTime < 1735689600) { // 2000-2025
-              const date = new Date(unixTime * 1000)
-              console.log('Extracted date:', date.toISOString())
-              return date.toISOString()
-            } else {
-              console.log('Date outside valid range')
-            }
-          }
-          
-          moovOffset += subAtomSize
-          if (subAtomSize === 0) break
+        // mvhd atom structure:
+        // 4 bytes: atom size
+        // 4 bytes: 'mvhd'
+        // 1 byte: version
+        // 3 bytes: flags
+        // 4 bytes: creation time (if version 0) or 8 bytes (if version 1)
+        
+        const version = data[i + 8]
+        let creationTime: number
+        
+        if (version === 0) {
+          // 32-bit timestamp
+          creationTime = (data[i + 12] << 24) | (data[i + 13] << 16) | (data[i + 14] << 8) | data[i + 15]
+        } else {
+          // 64-bit timestamp (we'll take the lower 32 bits)
+          creationTime = (data[i + 16] << 24) | (data[i + 17] << 16) | (data[i + 18] << 8) | data[i + 19]
         }
-      } else if (atomType === 'udta') {
-        // User data atom - common for iPhone metadata
-        console.log('Found udta atom, searching for date metadata...')
-        const udtaDate = searchUdtaAtom(data, offset + 8, offset + atomSize)
-        if (udtaDate) {
-          console.log('Found date in udta atom:', udtaDate)
-          return udtaDate
+        
+        // Convert from Mac epoch (1904) to Unix epoch (1970)
+        const macToUnixOffset = 2082844800 // seconds between 1904 and 1970
+        const unixTimestamp = creationTime - macToUnixOffset
+        
+        if (unixTimestamp > 0 && unixTimestamp < Date.now() / 1000) {
+          const date = new Date(unixTimestamp * 1000)
+          console.log(`✓ Extracted QuickTime creation time: ${date.toISOString()}`)
+          return date.toISOString()
         }
       }
-      
-      offset += atomSize
     }
     
-    console.log('No mvhd atom found in proper structure')
-    return null
+    // Search for udta atom (user data)
+    for (let i = 0; i < data.length - 100; i++) {
+      if (data[i] === udtaPattern[0] && 
+          data[i + 1] === udtaPattern[1] && 
+          data[i + 2] === udtaPattern[2] && 
+          data[i + 3] === udtaPattern[3]) {
+        
+        console.log(`Found udta atom at position ${i}`)
+        
+        // Look for nested atoms in udta
+        const result = searchUdtaAtom(data, i, Math.min(i + 1000, data.length))
+        if (result) {
+          return result
+        }
+      }
+    }
     
+    return null
   } catch (error) {
-    console.error('Error in extractQuickTimeMetadata:', error)
+    console.error('Error extracting QuickTime metadata:', error)
     return null
   }
 }
 
 function findCreationTimeString(data: Uint8Array): string | null {
   try {
-    // Convert portions of binary data to string to search for date patterns
-    const decoder = new TextDecoder('utf-8', { fatal: false })
-    const chunkSize = 1024
+    // Look for common date/time string patterns in metadata
+    const patterns = [
+      /(\d{4})[:-](\d{2})[:-](\d{2})[T\s](\d{2})[:-](\d{2})[:-](\d{2})/g,
+      /(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/g,
+    ]
     
-    for (let i = 0; i < data.length - chunkSize; i += chunkSize / 2) {
-      const chunk = data.slice(i, i + chunkSize)
-      const text = decoder.decode(chunk)
-      
-      // Look for ISO date patterns
-      const datePatterns = [
-        /(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2})/,
-        /(\d{4}:\d{2}:\d{2}\s\d{2}:\d{2}:\d{2})/,
-        /creation[_\s]?time["\s:=]+([^"]+)/i,
-      ]
-      
-      for (const pattern of datePatterns) {
-        const match = text.match(pattern)
-        if (match) {
-          const dateStr = match[1] || match[0]
-          const parsed = parseFlexibleDate(dateStr)
-          if (parsed) {
-            return parsed
+    // Convert binary data to string for pattern matching
+    const textData = new TextDecoder('utf-8', { fatal: false }).decode(data)
+    
+    for (const pattern of patterns) {
+      let match
+      while ((match = pattern.exec(textData)) !== null) {
+        try {
+          const [, year, month, day, hour, minute, second] = match
+          const date = new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}.000Z`)
+          
+          if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && date.getFullYear() <= new Date().getFullYear()) {
+            console.log(`✓ Found creation time string: ${date.toISOString()}`)
+            return date.toISOString()
           }
+        } catch (error) {
+          continue
         }
       }
     }
     
     return null
   } catch (error) {
-    console.error('Error in findCreationTimeString:', error)
+    console.error('Error finding creation time string:', error)
     return null
   }
 }
 
 function findGPSDateStamp(data: Uint8Array): string | null {
   try {
-    // iPhone videos often contain GPS timestamps
-    const gpsDateBytes = Array.from('gps').map(c => c.charCodeAt(0))
+    // Look for GPS date stamps in EXIF data
+    const gpsPattern = /GPS.*(\d{4})[:-](\d{2})[:-](\d{2})/g
+    const textData = new TextDecoder('utf-8', { fatal: false }).decode(data)
     
-    for (let i = 0; i < data.length - 50; i++) {
-      if (data[i] === gpsDateBytes[0] && 
-          data[i+1] === gpsDateBytes[1] && 
-          data[i+2] === gpsDateBytes[2]) {
+    let match
+    while ((match = gpsPattern.exec(textData)) !== null) {
+      try {
+        const [, year, month, day] = match
+        const date = new Date(`${year}-${month}-${day}T12:00:00.000Z`)
         
-        // Look for date patterns near GPS tags
-        const nearbyData = data.slice(Math.max(0, i - 50), Math.min(data.length, i + 100))
-        const decoder = new TextDecoder('utf-8', { fatal: false })
-        const text = decoder.decode(nearbyData)
-        
-        const dateMatch = text.match(/(\d{4})[:\-](\d{2})[:\-](\d{2})/)
-        if (dateMatch) {
-          const year = parseInt(dateMatch[1])
-          const month = parseInt(dateMatch[2])
-          const day = parseInt(dateMatch[3])
-          
-          if (year >= 2000 && year <= 2024 && month >= 1 && month <= 12) {
-            // Try to find time as well
-            const timeMatch = text.match(/(\d{2}):(\d{2}):(\d{2})/)
-            if (timeMatch) {
-              const date = new Date(year, month - 1, day, 
-                parseInt(timeMatch[1]), parseInt(timeMatch[2]), parseInt(timeMatch[3]))
-              return date.toISOString()
-            } else {
-              const date = new Date(year, month - 1, day, 12, 0, 0)
-              return date.toISOString()
-            }
-          }
+        if (!isNaN(date.getTime()) && date.getFullYear() >= 2000) {
+          console.log(`✓ Found GPS date stamp: ${date.toISOString()}`)
+          return date.toISOString()
         }
+      } catch (error) {
+        continue
       }
     }
     
     return null
   } catch (error) {
-    console.error('Error in findGPSDateStamp:', error)
+    console.error('Error finding GPS date stamp:', error)
     return null
   }
 }
 
 function extractDateStringAfterPosition(data: Uint8Array, position: number): string | null {
   try {
-    // Look for date string in the next 50 bytes
-    const searchData = data.slice(position, Math.min(position + 50, data.length))
-    const decoder = new TextDecoder('utf-8', { fatal: false })
-    const text = decoder.decode(searchData)
+    const searchLength = Math.min(200, data.length - position)
+    const searchData = data.slice(position, position + searchLength)
+    const textData = new TextDecoder('utf-8', { fatal: false }).decode(searchData)
     
-    // Try to find date patterns
-    const patterns = [
-      /(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2})/,
-      /(\d{4}:\d{2}:\d{2}\s\d{2}:\d{2}:\d{2})/,
-    ]
+    const datePattern = /(\d{4})[:-](\d{2})[:-](\d{2})[T\s](\d{2})[:-](\d{2})[:-](\d{2})/
+    const match = textData.match(datePattern)
     
-    for (const pattern of patterns) {
-      const match = text.match(pattern)
-      if (match) {
-        return parseFlexibleDate(match[1])
+    if (match) {
+      const [, year, month, day, hour, minute, second] = match
+      const date = new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}.000Z`)
+      
+      if (!isNaN(date.getTime())) {
+        return date.toISOString()
       }
     }
     
     return null
   } catch (error) {
-    console.error('Error extracting date string:', error)
+    console.error('Error extracting date string after position:', error)
     return null
   }
 }
 
 function searchUdtaAtom(data: Uint8Array, start: number, end: number): string | null {
   try {
-    // Search for creation_time and other date strings in udta atom
-    const searchData = data.slice(start, Math.min(end, data.length))
-    const text = new TextDecoder('utf-8', { fatal: false }).decode(searchData)
-    
-    console.log('Searching udta atom for dates, first 200 chars:', text.substring(0, 200))
-    
-    // iPhone often stores dates as strings in udta atoms
-    const patterns = [
-      /(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2})/,
-      /(\d{4}:\d{2}:\d{2}\s\d{2}:\d{2}:\d{2})/,
-      /creation[_\s]?time[:\s]+([^\s\n\r"']+)/i,
-      /(\d{4}[\/\-]\d{2}[\/\-]\d{2})/,
-      // Look for iOS specific metadata
-      /com\.apple\.quicktime\.creation\.date[^\d]*(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2})/i,
-    ]
-    
-    for (const pattern of patterns) {
-      const match = text.match(pattern)
-      if (match) {
-        const dateStr = match[1]
-        console.log('Found potential date in udta:', dateStr)
-        const parsed = parseFlexibleDate(dateStr)
-        if (parsed) {
-          console.log('Successfully parsed udta date:', parsed)
-          return parsed
-        }
+    for (let i = start; i < end - 20; i++) {
+      // Look for Apple metadata atoms like ©day
+      if (data[i] === 0xA9 && data[i + 1] === 0x64 && data[i + 2] === 0x61 && data[i + 3] === 0x79) {
+        console.log(`Found ©day atom at position ${i}`)
+        return extractAppleMetadata(data, i, end - i, 'day')
+      }
+      
+      // Look for creation time
+      if (data[i] === 0x63 && data[i + 1] === 0x72 && data[i + 2] === 0x65 && data[i + 3] === 0x61) {
+        console.log(`Found creation atom at position ${i}`)
+        return extractDateStringAfterPosition(data, i + 4)
       }
     }
     
     return null
   } catch (error) {
-    console.error('Error in searchUdtaAtom:', error)
+    console.error('Error searching udta atom:', error)
     return null
   }
 }
 
 function extractAppleMetadata(data: Uint8Array, offset: number, size: number, atomType: string): string | null {
   try {
-    console.log(`Extracting Apple metadata from ${atomType} atom (size: ${size})`)
+    // Apple metadata format:
+    // 4 bytes: atom size
+    // 4 bytes: atom type (e.g., ©day)
+    // 4 bytes: data atom size
+    // 4 bytes: 'data'
+    // 4 bytes: version and flags
+    // 4 bytes: reserved
+    // N bytes: actual data
     
-    if (atomType === '©day') {
-      // Apple stores creation date in ©day atom
-      // Format: usually after 8 bytes of header
-      const dataStart = offset + 16
-      const dataEnd = Math.min(offset + size, dataStart + 32)
-      
-      if (dataStart < data.length) {
-        const dateData = data.slice(dataStart, dataEnd)
-        const dateStr = new TextDecoder('utf-8', { fatal: false }).decode(dateData)
-        console.log('©day atom content:', dateStr)
-        
-        const parsed = parseFlexibleDate(dateStr.trim())
-        if (parsed) return parsed
-      }
+    const atomSize = (data[offset + 4] << 24) | (data[offset + 5] << 16) | (data[offset + 6] << 8) | data[offset + 7]
+    
+    if (atomSize > size || atomSize < 16) {
+      return null
     }
     
-    if (atomType === '©xyz') {
-      // GPS coordinates with timestamp
-      const dataStart = offset + 8
-      const dataEnd = Math.min(offset + size, data.length)
+    // Look for 'data' atom
+    let dataOffset = offset + 8
+    if (data[dataOffset] === 0x64 && data[dataOffset + 1] === 0x61 && 
+        data[dataOffset + 2] === 0x74 && data[dataOffset + 3] === 0x61) {
       
-      if (dataStart < data.length) {
-        const gpsData = data.slice(dataStart, dataEnd)
-        const text = new TextDecoder('utf-8', { fatal: false }).decode(gpsData)
-        console.log('©xyz atom content (first 100 chars):', text.substring(0, 100))
-        
-        // Look for timestamp in GPS data
-        const dateMatch = text.match(/(\d{4}[:\-]\d{2}[:\-]\d{2}[T\s]\d{2}:\d{2}:\d{2})/)
-        if (dateMatch) {
-          return parseFlexibleDate(dateMatch[1])
-        }
-      }
-    }
-    
-    if (atomType === 'meta' || atomType === 'ilst' || atomType === 'keys') {
-      // iTunes-style metadata atoms
-      const dataStart = offset + 8
-      const dataEnd = Math.min(offset + size, data.length)
+      const dataSize = (data[dataOffset + 4] << 24) | (data[dataOffset + 5] << 16) | 
+                      (data[dataOffset + 6] << 8) | data[dataOffset + 7]
       
-      if (dataStart < data.length) {
-        const metaData = data.slice(dataStart, dataEnd)
-        const text = new TextDecoder('utf-8', { fatal: false }).decode(metaData)
-        console.log(`${atomType} atom content (first 200 chars):`, text.substring(0, 200))
+      if (dataSize > 16 && dataSize < atomSize) {
+        const actualDataOffset = dataOffset + 16 // Skip data atom header
+        const actualDataSize = dataSize - 16
         
-        // Look for Apple QuickTime creation date keys
-        const applePatterns = [
-          /com\.apple\.quicktime\.creationdate[^\d]*(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2})/i,
-          /quicktime\..*creation[^\d]*(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2})/i,
-          /©day[^\d]*(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2})/i,
-          /(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2})/,
-        ]
-        
-        for (const pattern of applePatterns) {
-          const match = text.match(pattern)
+        if (actualDataOffset + actualDataSize <= data.length) {
+          const metadataBytes = data.slice(actualDataOffset, actualDataOffset + actualDataSize)
+          const metadataString = new TextDecoder('utf-8', { fatal: false }).decode(metadataBytes)
+          
+          console.log(`Apple metadata (${atomType}): ${metadataString}`)
+          
+          // Try to parse as date
+          try {
+            const date = new Date(metadataString)
+            if (!isNaN(date.getTime())) {
+              return date.toISOString()
+            }
+          } catch (error) {
+            // Not a valid date, continue
+          }
+          
+          // Try to extract date from string
+          const datePattern = /(\d{4})[:-](\d{2})[:-](\d{2})/
+          const match = metadataString.match(datePattern)
           if (match) {
-            console.log(`Found date in ${atomType} atom:`, match[1])
-            const parsed = parseFlexibleDate(match[1])
-            if (parsed) return parsed
+            const [, year, month, day] = match
+            const date = new Date(`${year}-${month}-${day}T12:00:00.000Z`)
+            if (!isNaN(date.getTime())) {
+              return date.toISOString()
+            }
           }
         }
       }
@@ -698,15 +546,19 @@ function extractAppleMetadata(data: Uint8Array, offset: number, size: number, at
 
 function parseFlexibleDate(dateStr: string): string | null {
   try {
-    // Handle various date formats
-    const normalized = dateStr
-      .replace(/:/g, '-', 2) // Replace first two colons with dashes
-      .replace(/\s/, 'T')    // Replace space with T
-      .replace(/Z$/, '')     // Remove trailing Z if present
+    // Try different date formats
+    const formats = [
+      dateStr, // As-is
+      dateStr.replace(/[\/\\]/g, '-'), // Replace slashes with dashes
+      dateStr.replace(/(\d{2})[-\/](\d{2})[-\/](\d{4})/, '$3-$2-$1'), // DD-MM-YYYY to YYYY-MM-DD
+      dateStr.replace(/(\d{2})[-\/](\d{2})[-\/](\d{4})/, '$3-$1-$2'), // MM-DD-YYYY to YYYY-MM-DD
+    ]
     
-    const date = new Date(normalized)
-    if (!isNaN(date.getTime()) && date.getFullYear() >= 2000 && date.getFullYear() <= 2024) {
-      return date.toISOString()
+    for (const format of formats) {
+      const date = new Date(format)
+      if (!isNaN(date.getTime())) {
+        return date.toISOString()
+      }
     }
     
     return null
@@ -722,9 +574,9 @@ function formatDuration(durationMillis: number): string {
   const hours = Math.floor(minutes / 60)
   
   if (hours > 0) {
-    return `${hours}:${String(minutes % 60).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`
+    return `${hours}:${(minutes % 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`
   } else {
-    return `${minutes}:${String(seconds % 60).padStart(2, '0')}`
+    return `${minutes}:${(seconds % 60).toString().padStart(2, '0')}`
   }
 }
 
@@ -739,7 +591,7 @@ function formatDate(dateString: string): string {
 
 function getYearMonth(dateString: string): string {
   const date = new Date(dateString)
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+  return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`
 }
 
 function getYear(dateString: string): string {
@@ -749,554 +601,567 @@ function getYear(dateString: string): string {
 
 async function inferDateFromSequence(fileName: string, fileId: string, accessToken: string): Promise<string | null> {
   try {
-    const match = fileName.match(/IMG_(\d+)/);
-    if (!match) return null;
+    // Extract sequence number from filename
+    const imgMatch = fileName.match(/IMG_(\d{4,})/)
+    if (!imgMatch) {
+      console.log('No IMG sequence number found')
+      return null
+    }
     
-    const currentNumber = parseInt(match[1]);
-    console.log(`Trying to infer date for ${fileName} (number: ${currentNumber})`);
+    const sequenceNumber = parseInt(imgMatch[1])
+    console.log(`Found sequence number: ${sequenceNumber}`)
     
-    // Get parent folder
-    const fileResponse = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${fileId}?fields=parents`,
-      { headers: { 'Authorization': `Bearer ${accessToken}` } }
-    );
+    // Get a list of nearby files to establish sequence pattern
+    const searchResponse = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=name contains 'IMG_'&fields=files(id,name,createdTime)&pageSize=100`,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      }
+    )
     
-    if (!fileResponse.ok) return null;
-    const fileData = await fileResponse.json();
-    const parentId = fileData.parents?.[0];
+    if (!searchResponse.ok) {
+      console.log('Failed to search for sequence files')
+      return null
+    }
     
-    if (!parentId) return null;
+    const searchData = await searchResponse.json()
+    const sequenceFiles = searchData.files || []
     
-    // List all video files in the same folder with creation dates from Google Drive
-    const folderResponse = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q='${parentId}' in parents and (mimeType contains 'video')&fields=files(id,name,size,mimeType,createdTime,modifiedTime,videoMediaMetadata)&pageSize=200`,
-      { headers: { 'Authorization': `Bearer ${accessToken}` } }
-    );
+    // Extract sequence numbers and dates
+    const sequences: Array<{number: number, date: Date}> = []
     
-    if (!folderResponse.ok) return null;
-    const folderData = await folderResponse.json();
-    
-    // Look for nearby files in the sequence
-    const nearbyFiles = [];
-    
-    for (const file of folderData.files) {
-      const fileMatch = file.name.match(/IMG_(\d+)/);
-      if (!fileMatch) continue;
-      
-      const fileNumber = parseInt(fileMatch[1]);
-      if (fileNumber === currentNumber) continue;
-      
-      const diff = Math.abs(fileNumber - currentNumber);
-      // Increase search range and prioritize closer files
-      if (diff <= 100) {
-        nearbyFiles.push({
-          ...file,
-          number: fileNumber,
-          diff: diff,
-          isBefore: fileNumber < currentNumber
-        });
+    for (const file of sequenceFiles) {
+      const match = file.name.match(/IMG_(\d{4,})/)
+      if (match) {
+        const seqNum = parseInt(match[1])
+        const createdDate = new Date(file.createdTime)
+        
+        // Only include files with reasonable sequence numbers (within range)
+        if (Math.abs(seqNum - sequenceNumber) <= 1000) {
+          sequences.push({ number: seqNum, date: createdDate })
+        }
       }
     }
     
-    // Sort by proximity (closest first)
-    nearbyFiles.sort((a, b) => a.diff - b.diff);
+    if (sequences.length < 2) {
+      console.log('Not enough sequence files for inference')
+      return null
+    }
     
-    console.log(`Found ${nearbyFiles.length} nearby files for sequence inference`);
+    // Sort by sequence number
+    sequences.sort((a, b) => a.number - b.number)
     
-    // Try to get dates from nearby files using multiple strategies
-    for (const nearbyFile of nearbyFiles) {
-      console.log(`Checking nearby file ${nearbyFile.name} (${nearbyFile.diff} files away)`);
-      
-      try {
-        let inferredDate = null;
-        
-        // Strategy 1: Try lightweight metadata extraction
-        try {
-          inferredDate = await extractVideoMetadataLightweight(
-            nearbyFile.id, 
-            accessToken, 
-            nearbyFile.name, 
-            parseInt(nearbyFile.size || '0')
-          );
-          
-          if (inferredDate) {
-            console.log(`✓ Successfully extracted metadata from ${nearbyFile.name}: ${inferredDate}`);
-            
-            // Apply time offset based on file sequence difference
-            const timeDelta = (currentNumber - nearbyFile.number) * 30; // Assume ~30 seconds between files
-            const adjustedDate = new Date(new Date(inferredDate).getTime() + (timeDelta * 1000));
-            
-            console.log(`✓ Adjusted date for sequence position: ${adjustedDate.toISOString()}`);
-            return adjustedDate.toISOString();
-          }
-        } catch (error) {
-          console.log(`Metadata extraction failed for ${nearbyFile.name}, trying next strategy...`);
-        }
-        
-        // Strategy 2: Use Google Drive's createdTime as fallback if it looks reasonable
-        if (nearbyFile.createdTime) {
-          const driveDate = new Date(nearbyFile.createdTime);
-          const now = new Date();
-          
-          // Only use if it's within a reasonable range (not too old, not in future)
-          if (driveDate > new Date('2007-01-01') && driveDate <= now) {
-            console.log(`✓ Using Google Drive creation time from ${nearbyFile.name}: ${driveDate.toISOString()}`);
-            
-            // Apply time offset based on file sequence difference  
-            const timeDelta = (currentNumber - nearbyFile.number) * 30; // Assume ~30 seconds between files
-            const adjustedDate = new Date(driveDate.getTime() + (timeDelta * 1000));
-            
-            console.log(`✓ Adjusted date for sequence position: ${adjustedDate.toISOString()}`);
-            return adjustedDate.toISOString();
-          }
-        }
-        
-      } catch (error) {
-        console.log(`Failed to process ${nearbyFile.name}, trying next...`);
+    // Find the closest sequences to our target
+    let beforeSeq = null
+    let afterSeq = null
+    
+    for (let i = 0; i < sequences.length; i++) {
+      if (sequences[i].number < sequenceNumber) {
+        beforeSeq = sequences[i]
+      } else if (sequences[i].number > sequenceNumber && !afterSeq) {
+        afterSeq = sequences[i]
+        break
       }
     }
     
-    console.log('No suitable reference files found for sequence inference');
-    return null;
+    if (!beforeSeq && !afterSeq) {
+      console.log('No reference sequences found')
+      return null
+    }
+    
+    // Interpolate date
+    let inferredDate: Date
+    
+    if (beforeSeq && afterSeq) {
+      // Interpolate between the two
+      const ratio = (sequenceNumber - beforeSeq.number) / (afterSeq.number - beforeSeq.number)
+      const timeDiff = afterSeq.date.getTime() - beforeSeq.date.getTime()
+      const interpolatedTime = beforeSeq.date.getTime() + (timeDiff * ratio)
+      inferredDate = new Date(interpolatedTime)
+      
+      console.log(`Interpolated between seq ${beforeSeq.number} and ${afterSeq.number}`)
+    } else if (beforeSeq) {
+      // Extrapolate forward from the before sequence
+      // Assume average of 1 photo per day (rough estimate)
+      const daysDiff = sequenceNumber - beforeSeq.number
+      inferredDate = new Date(beforeSeq.date.getTime() + (daysDiff * 24 * 60 * 60 * 1000))
+      
+      console.log(`Extrapolated forward from seq ${beforeSeq.number}`)
+    } else if (afterSeq) {
+      // Extrapolate backward from the after sequence
+      const daysDiff = afterSeq.number - sequenceNumber
+      inferredDate = new Date(afterSeq.date.getTime() - (daysDiff * 24 * 60 * 60 * 1000))
+      
+      console.log(`Extrapolated backward from seq ${afterSeq.number}`)
+    } else {
+      return null
+    }
+    
+    // Validate the inferred date is reasonable
+    if (validateInferredDate(inferredDate.toISOString(), fileName)) {
+      console.log(`✓ Inferred date: ${inferredDate.toISOString()}`)
+      return inferredDate.toISOString()
+    } else {
+      console.log('✗ Inferred date failed validation')
+      return null
+    }
+    
   } catch (error) {
-    console.error('Error in sequence-based inference:', error);
-    return null;
+    console.error('Error inferring date from sequence:', error)
+    return null
+  }
 }
 
 // Extract additional metadata including GPS and device info
 async function extractAdditionalVideoMetadata(fileId: string, accessToken: string, fileName: string, fileSize: number): Promise<{
   gpsCoordinates?: { latitude: number, longitude: number },
-  locationInfo?: string,
+  locationName?: string,
   deviceInfo?: string
 } | null> {
   try {
-    console.log(`Starting additional metadata extraction for ${fileName}...`);
+    console.log(`Extracting additional metadata for ${fileName}`)
     
-    // Download a larger chunk to get more metadata
-    const chunkSize = Math.min(10 * 1024 * 1024, fileSize); // 10MB max
-    const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&range=bytes=0-${chunkSize}`, {
-      headers: { 'Authorization': `Bearer ${accessToken}` }
-    });
+    // Download a larger chunk for comprehensive metadata analysis
+    const chunkSize = Math.min(5 * 1024 * 1024, fileSize) // 5MB or full file if smaller
+    const downloadResponse = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Range': `bytes=0-${chunkSize - 1}`
+        }
+      }
+    )
 
-    if (!response.ok) {
-      throw new Error(`Failed to download file chunk: ${response.status}`);
+    if (!downloadResponse.ok) {
+      console.error(`Failed to download file for additional metadata: ${downloadResponse.status}`)
+      return null
     }
 
-    const arrayBuffer = await response.arrayBuffer();
-    const data = new Uint8Array(arrayBuffer);
+    const arrayBuffer = await downloadResponse.arrayBuffer()
+    const data = new Uint8Array(arrayBuffer)
     
-    console.log(`Downloaded ${data.length} bytes for additional metadata extraction`);
+    const result: any = {}
     
-    // Extract GPS coordinates and device info
-    const gpsInfo = extractGPSCoordinates(data);
-    const deviceInfo = extractDeviceInfo(data);
-    
-    let locationInfo = null;
-    if (gpsInfo) {
-      // Convert coordinates to location name using reverse geocoding
+    // Extract GPS coordinates
+    const gpsCoordinates = extractGPSCoordinates(data)
+    if (gpsCoordinates) {
+      result.gpsCoordinates = gpsCoordinates
+      
+      // Try reverse geocoding to get location name
       try {
-        locationInfo = await reverseGeocode(gpsInfo.latitude, gpsInfo.longitude);
+        const locationName = await reverseGeocode(gpsCoordinates.latitude, gpsCoordinates.longitude)
+        if (locationName) {
+          result.locationName = locationName
+        }
       } catch (error) {
-        console.log('Reverse geocoding failed:', error);
+        console.log('Reverse geocoding failed:', error)
       }
     }
     
-    return {
-      gpsCoordinates: gpsInfo,
-      locationInfo,
-      deviceInfo
-    };
+    // Extract device information
+    const deviceInfo = extractDeviceInfo(data)
+    if (deviceInfo) {
+      result.deviceInfo = deviceInfo
+    }
+    
+    return Object.keys(result).length > 0 ? result : null
     
   } catch (error) {
-    console.error('Error extracting additional metadata:', error);
-    return null;
+    console.error('Error extracting additional video metadata:', error)
+    return null
   }
 }
 
 // Extract GPS coordinates from video metadata
 function extractGPSCoordinates(data: Uint8Array): { latitude: number, longitude: number } | null {
   try {
-    console.log('Searching for GPS coordinates in metadata...');
+    // Try different GPS extraction methods
     
-    // Look for various GPS metadata formats in QuickTime/MP4 files
-    
-    // Method 1: Search for ©xyz atom (GPS coordinates)
-    const xyzCoords = searchForGPSInXYZAtom(data);
-    if (xyzCoords) {
-      console.log('Found GPS coordinates in ©xyz atom:', xyzCoords);
-      return xyzCoords;
+    // 1. Look for ©xyz atom (Apple's GPS format)
+    let gpsData = searchForGPSInXYZAtom(data)
+    if (gpsData) {
+      return gpsData
     }
     
-    // Method 2: Search for standard GPS atoms
-    const standardGPS = searchForStandardGPSAtoms(data);
-    if (standardGPS) {
-      console.log('Found GPS coordinates in standard GPS atoms:', standardGPS);
-      return standardGPS;
+    // 2. Look for standard GPS atoms
+    gpsData = searchForStandardGPSAtoms(data)
+    if (gpsData) {
+      return gpsData
     }
     
-    // Method 3: Search for embedded EXIF GPS data
-    const exifGPS = searchForEXIFGPS(data);
-    if (exifGPS) {
-      console.log('Found GPS coordinates in EXIF data:', exifGPS);
-      return exifGPS;
+    // 3. Look for EXIF GPS data
+    gpsData = searchForEXIFGPS(data)
+    if (gpsData) {
+      return gpsData
     }
     
-    console.log('No GPS coordinates found in metadata');
-    return null;
+    console.log('No GPS coordinates found in video metadata')
+    return null
     
   } catch (error) {
-    console.error('Error extracting GPS coordinates:', error);
-    return null;
+    console.error('Error extracting GPS coordinates:', error)
+    return null
   }
 }
 
 // Search for GPS coordinates in ©xyz atom
 function searchForGPSInXYZAtom(data: Uint8Array): { latitude: number, longitude: number } | null {
   try {
-    // Search for ©xyz atom
-    for (let i = 0; i < data.length - 4; i++) {
-      if (data[i] === 0xA9 && // © character
-          data[i+1] === 0x78 && // x
-          data[i+2] === 0x79 && // y  
-          data[i+3] === 0x7A) { // z
+    // Look for ©xyz atom
+    const xyzPattern = [0xA9, 0x78, 0x79, 0x7A] // ©xyz
+    
+    for (let i = 0; i < data.length - 50; i++) {
+      if (data[i] === xyzPattern[0] && 
+          data[i + 1] === xyzPattern[1] && 
+          data[i + 2] === xyzPattern[2] && 
+          data[i + 3] === xyzPattern[3]) {
         
-        // Found ©xyz atom, extract GPS data
-        const atomStart = i - 4; // Atom size is 4 bytes before
-        if (atomStart >= 0) {
-          const atomSize = (data[atomStart] << 24) | (data[atomStart+1] << 16) | (data[atomStart+2] << 8) | data[atomStart+3];
-          const atomEnd = Math.min(atomStart + atomSize, data.length);
-          
-          if (atomEnd > i + 8) {
-            const gpsData = data.slice(i + 8, atomEnd);
-            const text = new TextDecoder('utf-8', { fatal: false }).decode(gpsData);
+        console.log(`Found ©xyz atom at position ${i}`)
+        
+        // Apple ©xyz format typically contains ISO 6709 coordinate string
+        const result = extractStringFromAtom(data, i)
+        if (result) {
+          // Parse ISO 6709 format: +DD.DDDD+DDD.DDDD/ or similar
+          const coordMatch = result.match(/([+-]?\d+\.?\d*)\s*([+-]?\d+\.?\d*)/)
+          if (coordMatch) {
+            const lat = parseFloat(coordMatch[1])
+            const lon = parseFloat(coordMatch[2])
             
-            // Parse GPS coordinates from text
-            // Format: +37.7749-122.4194 or similar
-            const coordMatch = text.match(/([+-]?\d+\.?\d*)\s*([+-]?\d+\.?\d*)/);
-            if (coordMatch) {
-              const lat = parseFloat(coordMatch[1]);
-              const lng = parseFloat(coordMatch[2]);
-              
-              if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-                return { latitude: lat, longitude: lng };
-              }
+            if (!isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+              console.log(`✓ Extracted GPS from ©xyz: ${lat}, ${lon}`)
+              return { latitude: lat, longitude: lon }
             }
           }
         }
       }
     }
     
-    return null;
+    return null
   } catch (error) {
-    console.error('Error in searchForGPSInXYZAtom:', error);
-    return null;
+    console.error('Error searching for GPS in ©xyz atom:', error)
+    return null
   }
 }
 
 // Search for standard GPS atoms
 function searchForStandardGPSAtoms(data: Uint8Array): { latitude: number, longitude: number } | null {
   try {
-    // Look for GPS-related atoms like 'gps ', 'loci', etc.
-    const gpsSignatures = [
+    // Look for GPS-related atoms in QuickTime metadata
+    const gpsPatterns = [
+      [0x6C, 0x6F, 0x63, 0x69], // 'loci' - location information
       [0x67, 0x70, 0x73, 0x20], // 'gps '
-      [0x6C, 0x6F, 0x63, 0x69], // 'loci'
-      [0x6C, 0x6F, 0x63, 0x6E]  // 'locn'
-    ];
+    ]
     
-    for (const signature of gpsSignatures) {
-      for (let i = 0; i < data.length - signature.length - 20; i++) {
-        if (signature.every((byte, idx) => data[i + idx] === byte)) {
-          // Found GPS atom, try to extract coordinates
-          const coords = parseGPSFromBinaryData(data, i + signature.length);
-          if (coords) return coords;
+    for (const pattern of gpsPatterns) {
+      for (let i = 0; i < data.length - 50; i++) {
+        if (data[i] === pattern[0] && 
+            data[i + 1] === pattern[1] && 
+            data[i + 2] === pattern[2] && 
+            data[i + 3] === pattern[3]) {
+          
+          console.log(`Found GPS atom at position ${i}`)
+          
+          // Try to parse GPS data from this position
+          const gpsData = parseGPSFromBinaryData(data, i + 8)
+          if (gpsData) {
+            return gpsData
+          }
         }
       }
     }
     
-    return null;
+    return null
   } catch (error) {
-    console.error('Error in searchForStandardGPSAtoms:', error);
-    return null;
+    console.error('Error searching for standard GPS atoms:', error)
+    return null
   }
 }
 
 // Parse GPS coordinates from binary data
 function parseGPSFromBinaryData(data: Uint8Array, offset: number): { latitude: number, longitude: number } | null {
   try {
-    // Try different parsing methods for binary GPS data
+    // Different formats for GPS data in atoms
     
-    // Method 1: IEEE 754 double precision (8 bytes each)
-    if (offset + 16 <= data.length) {
-      const view = new DataView(data.buffer, data.byteOffset + offset, 16);
+    // Format 1: 4-byte float latitude, 4-byte float longitude
+    if (offset + 8 < data.length) {
+      const latBytes = data.slice(offset, offset + 4)
+      const lonBytes = data.slice(offset + 4, offset + 8)
+      
+      // Try big-endian float interpretation
+      const latView = new DataView(latBytes.buffer, latBytes.byteOffset, 4)
+      const lonView = new DataView(lonBytes.buffer, lonBytes.byteOffset, 4)
       
       try {
-        const lat1 = view.getFloat64(0, false); // Big endian
-        const lng1 = view.getFloat64(8, false);
+        const lat = latView.getFloat32(0, false) // big-endian
+        const lon = lonView.getFloat32(0, false)
         
-        if (lat1 >= -90 && lat1 <= 90 && lng1 >= -180 && lng1 <= 180) {
-          return { latitude: lat1, longitude: lng1 };
+        if (!isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+          console.log(`✓ Extracted GPS from binary (BE float): ${lat}, ${lon}`)
+          return { latitude: lat, longitude: lon }
         }
-        
-        const lat2 = view.getFloat64(0, true); // Little endian
-        const lng2 = view.getFloat64(8, true);
-        
-        if (lat2 >= -90 && lat2 <= 90 && lng2 >= -180 && lng2 <= 180) {
-          return { latitude: lat2, longitude: lng2 };
+      } catch (error) {
+        // Try little-endian
+        try {
+          const lat = latView.getFloat32(0, true) // little-endian
+          const lon = lonView.getFloat32(0, true)
+          
+          if (!isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+            console.log(`✓ Extracted GPS from binary (LE float): ${lat}, ${lon}`)
+            return { latitude: lat, longitude: lon }
+          }
+        } catch (error2) {
+          // Continue to other formats
         }
-      } catch (e) {}
+      }
     }
     
-    // Method 2: IEEE 754 single precision (4 bytes each)
-    if (offset + 8 <= data.length) {
-      const view = new DataView(data.buffer, data.byteOffset + offset, 8);
+    // Format 2: Look for text-based coordinates in the vicinity
+    const searchLength = Math.min(100, data.length - offset)
+    const searchData = data.slice(offset, offset + searchLength)
+    const textData = new TextDecoder('utf-8', { fatal: false }).decode(searchData)
+    
+    const coordMatch = textData.match(/([+-]?\d+\.?\d*)\s*[,\s]\s*([+-]?\d+\.?\d*)/)
+    if (coordMatch) {
+      const lat = parseFloat(coordMatch[1])
+      const lon = parseFloat(coordMatch[2])
       
-      try {
-        const lat1 = view.getFloat32(0, false);
-        const lng1 = view.getFloat32(4, false);
-        
-        if (lat1 >= -90 && lat1 <= 90 && lng1 >= -180 && lng1 <= 180) {
-          return { latitude: lat1, longitude: lng1 };
-        }
-        
-        const lat2 = view.getFloat32(0, true);
-        const lng2 = view.getFloat32(4, true);
-        
-        if (lat2 >= -90 && lat2 <= 90 && lng2 >= -180 && lng2 <= 180) {
-          return { latitude: lat2, longitude: lng2 };
-        }
-      } catch (e) {}
+      if (!isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+        console.log(`✓ Extracted GPS from text: ${lat}, ${lon}`)
+        return { latitude: lat, longitude: lon }
+      }
     }
     
-    return null;
+    return null
   } catch (error) {
-    console.error('Error parsing GPS from binary data:', error);
-    return null;
+    console.error('Error parsing GPS from binary data:', error)
+    return null
   }
 }
 
 // Search for EXIF GPS data
 function searchForEXIFGPS(data: Uint8Array): { latitude: number, longitude: number } | null {
   try {
-    // Look for EXIF headers in the data
-    for (let i = 0; i < data.length - 10; i++) {
-      // Look for EXIF signature
-      if (data[i] === 0x45 && data[i+1] === 0x78 && data[i+2] === 0x69 && data[i+3] === 0x66) { // "Exif"
-        // Found EXIF data, look for GPS tags
-        const coords = parseEXIFGPSData(data, i);
-        if (coords) return coords;
+    // Look for EXIF header
+    const exifPattern = [0x45, 0x78, 0x69, 0x66] // 'Exif'
+    
+    for (let i = 0; i < data.length - 100; i++) {
+      if (data[i] === exifPattern[0] && 
+          data[i + 1] === exifPattern[1] && 
+          data[i + 2] === exifPattern[2] && 
+          data[i + 3] === exifPattern[3]) {
+        
+        console.log(`Found EXIF header at position ${i}`)
+        
+        // Try to parse EXIF GPS data
+        const gpsData = parseEXIFGPSData(data, i)
+        if (gpsData) {
+          return gpsData
+        }
       }
     }
     
-    return null;
+    return null
   } catch (error) {
-    console.error('Error in searchForEXIFGPS:', error);
-    return null;
+    console.error('Error searching for EXIF GPS:', error)
+    return null
   }
 }
 
 // Parse EXIF GPS data
 function parseEXIFGPSData(data: Uint8Array, exifStart: number): { latitude: number, longitude: number } | null {
   try {
-    // This is a simplified EXIF GPS parser
-    // In a full implementation, you'd parse the TIFF structure properly
+    // EXIF GPS parsing is complex, so we'll do a simplified search
+    // Look for GPS latitude and longitude reference tags
+    const searchLength = Math.min(1000, data.length - exifStart)
+    const searchData = data.slice(exifStart, exifStart + searchLength)
     
-    // Look for GPS latitude/longitude tags in the nearby data
-    const searchArea = data.slice(exifStart, Math.min(exifStart + 1000, data.length));
-    const text = new TextDecoder('utf-8', { fatal: false }).decode(searchArea);
+    // Look for GPS coordinate patterns in the EXIF data
+    let lat: number | null = null
+    let lon: number | null = null
     
-    // Look for coordinate patterns
-    const coordPatterns = [
-      /(\d+\.?\d*)[°\s]+(\d+\.?\d*)['\s]+(\d+\.?\d*)["\s]*([NS])[,\s]*(\d+\.?\d*)[°\s]+(\d+\.?\d*)['\s]+(\d+\.?\d*)["\s]*([EW])/,
-      /([+-]?\d+\.?\d+)[,\s]+([+-]?\d+\.?\d+)/
-    ];
-    
-    for (const pattern of coordPatterns) {
-      const match = text.match(pattern);
-      if (match) {
-        if (match.length === 9) { // DMS format
-          const latDeg = parseFloat(match[1]);
-          const latMin = parseFloat(match[2]);
-          const latSec = parseFloat(match[3]);
-          const latDir = match[4];
-          const lngDeg = parseFloat(match[5]);
-          const lngMin = parseFloat(match[6]);
-          const lngSec = parseFloat(match[7]);
-          const lngDir = match[8];
+    // Search for GPS coordinate values (simplified)
+    for (let i = 0; i < searchData.length - 20; i++) {
+      // Look for patterns that might indicate GPS coordinates
+      // This is a simplified approach - full EXIF parsing would be more complex
+      
+      const chunk = searchData.slice(i, i + 20)
+      const view = new DataView(chunk.buffer, chunk.byteOffset, chunk.byteLength)
+      
+      try {
+        for (let j = 0; j < chunk.length - 8; j += 4) {
+          const value1 = view.getFloat32(j, false) // big-endian
+          const value2 = view.getFloat32(j + 4, false)
           
-          let lat = latDeg + latMin/60 + latSec/3600;
-          let lng = lngDeg + lngMin/60 + lngSec/3600;
-          
-          if (latDir === 'S') lat = -lat;
-          if (lngDir === 'W') lng = -lng;
-          
-          if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-            return { latitude: lat, longitude: lng };
-          }
-        } else if (match.length === 3) { // Decimal format
-          const lat = parseFloat(match[1]);
-          const lng = parseFloat(match[2]);
-          
-          if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-            return { latitude: lat, longitude: lng };
+          // Check if these could be latitude/longitude
+          if (!isNaN(value1) && !isNaN(value2) && 
+              value1 >= -90 && value1 <= 90 && 
+              value2 >= -180 && value2 <= 180 &&
+              (Math.abs(value1) > 0.001 || Math.abs(value2) > 0.001)) {
+            
+            console.log(`✓ Potential GPS coordinates found in EXIF: ${value1}, ${value2}`)
+            return { latitude: value1, longitude: value2 }
           }
         }
+      } catch (error) {
+        continue
       }
     }
     
-    return null;
+    return null
   } catch (error) {
-    console.error('Error parsing EXIF GPS data:', error);
-    return null;
+    console.error('Error parsing EXIF GPS data:', error)
+    return null
   }
 }
 
 // Extract device information
 function extractDeviceInfo(data: Uint8Array): string | null {
   try {
-    console.log('Searching for device information in metadata...');
+    // Look for device-related atoms
+    const deviceAtoms = [
+      [0xA9, 0x6D, 0x61, 0x6B], // ©mak - make
+      [0xA9, 0x6D, 0x6F, 0x64], // ©mod - model
+      [0xA9, 0x73, 0x77, 0x72], // ©swr - software
+    ]
     
-    // Look for device-related metadata atoms
-    const deviceAtoms = ['make', 'modl', 'vers', '©too', '©nam'];
+    const deviceInfo: string[] = []
     
-    for (const atomName of deviceAtoms) {
-      const atomBytes = Array.from(atomName).map(c => c.charCodeAt(0));
-      
-      for (let i = 0; i < data.length - atomBytes.length - 10; i++) {
-        if (atomBytes.every((byte, idx) => data[i + idx] === byte)) {
-          // Found device atom
-          const deviceInfo = extractStringFromAtom(data, i - 4);
-          if (deviceInfo && deviceInfo.length > 0) {
-            console.log(`Found device info in ${atomName} atom:`, deviceInfo);
-            return deviceInfo;
+    for (const atom of deviceAtoms) {
+      for (let i = 0; i < data.length - 50; i++) {
+        if (data[i] === atom[0] && 
+            data[i + 1] === atom[1] && 
+            data[i + 2] === atom[2] && 
+            data[i + 3] === atom[3]) {
+          
+          const result = extractStringFromAtom(data, i)
+          if (result && result.trim().length > 0) {
+            deviceInfo.push(result.trim())
           }
         }
       }
     }
     
-    // Look for iPhone/Apple device signatures
-    const appleSignatures = [
-      'iPhone', 'iPad', 'Apple', 'iOS'
-    ];
-    
-    const text = new TextDecoder('utf-8', { fatal: false }).decode(data.slice(0, Math.min(10000, data.length)));
-    
-    for (const signature of appleSignatures) {
-      const index = text.indexOf(signature);
-      if (index !== -1) {
-        // Extract surrounding text for more context
-        const start = Math.max(0, index - 20);
-        const end = Math.min(text.length, index + signature.length + 20);
-        const context = text.slice(start, end).trim();
-        
-        // Look for model information
-        const modelMatch = context.match(/(iPhone \d+[^\s]*|iPad[^\s]*|Apple[^\s]*)/);
-        if (modelMatch) {
-          console.log('Found device info:', modelMatch[1]);
-          return modelMatch[1];
-        }
-      }
+    if (deviceInfo.length > 0) {
+      const info = deviceInfo.join(' ')
+      console.log(`✓ Extracted device info: ${info}`)
+      return info
     }
     
-    console.log('No device information found');
-    return null;
-    
+    return null
   } catch (error) {
-    console.error('Error extracting device info:', error);
-    return null;
+    console.error('Error extracting device info:', error)
+    return null
   }
 }
 
 // Helper function to extract string from atom
 function extractStringFromAtom(data: Uint8Array, atomStart: number): string | null {
   try {
-    if (atomStart < 0 || atomStart + 8 >= data.length) return null;
+    // Standard atom structure: size(4) + type(4) + data
+    const atomSize = (data[atomStart + 4] << 24) | (data[atomStart + 5] << 16) | 
+                    (data[atomStart + 6] << 8) | data[atomStart + 7]
     
-    const size = (data[atomStart] << 24) | (data[atomStart+1] << 16) | (data[atomStart+2] << 8) | data[atomStart+3];
-    const dataStart = atomStart + 8;
-    const dataEnd = Math.min(atomStart + size, data.length);
+    if (atomSize > 1000 || atomSize < 8) {
+      return null
+    }
     
-    if (dataStart >= dataEnd) return null;
+    // Look for data atom inside
+    const dataStart = atomStart + 8
+    const maxSearch = Math.min(atomStart + atomSize, data.length)
     
-    const stringData = data.slice(dataStart, dataEnd);
-    const text = new TextDecoder('utf-8', { fatal: false }).decode(stringData);
+    for (let i = dataStart; i < maxSearch - 8; i++) {
+      if (data[i] === 0x64 && data[i + 1] === 0x61 && 
+          data[i + 2] === 0x74 && data[i + 3] === 0x61) {
+        
+        const dataSize = (data[i + 4] << 24) | (data[i + 5] << 16) | 
+                        (data[i + 6] << 8) | data[i + 7]
+        
+        if (dataSize > 16 && i + dataSize <= data.length) {
+          const stringStart = i + 16 // Skip data atom header
+          const stringLength = dataSize - 16
+          const stringData = data.slice(stringStart, stringStart + stringLength)
+          
+          return new TextDecoder('utf-8', { fatal: false }).decode(stringData)
+        }
+      }
+    }
     
-    return text.replace(/\0/g, '').trim();
+    return null
   } catch (error) {
-    return null;
+    console.error('Error extracting string from atom:', error)
+    return null
   }
 }
 
 // Reverse geocoding to get location name from coordinates
 async function reverseGeocode(latitude: number, longitude: number): Promise<string | null> {
   try {
-    console.log(`Reverse geocoding coordinates: ${latitude}, ${longitude}`);
-    
-    // Use a free geocoding service (OpenStreetMap Nominatim)
+    // Using a free geocoding service (you might want to use a proper API key in production)
     const response = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10&addressdetails=1`,
+      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`,
       {
         headers: {
           'User-Agent': 'VideoOrganizerApp/1.0'
         }
       }
-    );
+    )
     
-    if (!response.ok) {
-      throw new Error(`Geocoding failed: ${response.status}`);
+    if (response.ok) {
+      const data = await response.json()
+      
+      // Build location string from available components
+      const components = []
+      if (data.city) components.push(data.city)
+      if (data.principalSubdivision) components.push(data.principalSubdivision)
+      if (data.countryName) components.push(data.countryName)
+      
+      if (components.length > 0) {
+        const location = components.join(', ')
+        console.log(`✓ Reverse geocoded: ${location}`)
+        return location
+      }
     }
     
-    const data = await response.json();
-    
-    if (data && data.address) {
-      // Build a nice location string
-      const parts = [];
-      
-      if (data.address.city) parts.push(data.address.city);
-      else if (data.address.town) parts.push(data.address.town);
-      else if (data.address.village) parts.push(data.address.village);
-      
-      if (data.address.state) parts.push(data.address.state);
-      if (data.address.country) parts.push(data.address.country);
-      
-      const locationString = parts.join(', ');
-      console.log('Reverse geocoding result:', locationString);
-      
-      return locationString || data.display_name;
-    }
-    
-    return null;
+    return null
   } catch (error) {
-    console.error('Error in reverse geocoding:', error);
-    return null;
+    console.log('Reverse geocoding failed:', error)
+    return null
   }
 }
 
 // Add a lightweight extraction function that only reads the minimum needed
 async function extractVideoMetadataLightweight(fileId: string, accessToken: string, fileName: string, fileSize: number): Promise<string | null> {
   try {
-    // Only download first 10MB for metadata
-    const downloadSize = Math.min(10 * 1024 * 1024, fileSize);
+    console.log(`Lightweight metadata extraction for ${fileName}`)
     
-    const response = await fetch(
+    // Only download the first 512KB for basic metadata
+    const chunkSize = 512 * 1024 // 512KB
+    const downloadResponse = await fetch(
       `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
       {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'Range': `bytes=0-${downloadSize - 1}`
+          'Range': `bytes=0-${chunkSize - 1}`
         }
       }
-    );
+    )
+
+    if (!downloadResponse.ok) {
+      return null
+    }
+
+    const arrayBuffer = await downloadResponse.arrayBuffer()
+    const data = new Uint8Array(arrayBuffer)
     
-    if (!response.ok) return null;
+    // Quick extraction methods only
+    return extractQuickTimeMetadata(data) || findCreationTimeString(data)
     
-    const arrayBuffer = await response.arrayBuffer();
-    const data = new Uint8Array(arrayBuffer);
-    
-    // Try QuickTime metadata extraction
-    return extractQuickTimeMetadata(data);
   } catch (error) {
-    console.error('Lightweight extraction failed:', error);
-    return null;
+    console.error('Error in lightweight metadata extraction:', error)
+    return null
   }
 }
 
