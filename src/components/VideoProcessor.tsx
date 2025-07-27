@@ -411,6 +411,26 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
     }));
   };
 
+  const generateSafeFilename = (originalName: string, originalDate: Date): string => {
+    // Format: YYYY-MM-DD_HH-MM-SS_[OriginalName].ext
+    const year = originalDate.getFullYear();
+    const month = String(originalDate.getMonth() + 1).padStart(2, '0');
+    const day = String(originalDate.getDate()).padStart(2, '0');
+    const hours = String(originalDate.getHours()).padStart(2, '0');
+    const minutes = String(originalDate.getMinutes()).padStart(2, '0');
+    const seconds = String(originalDate.getSeconds()).padStart(2, '0');
+    
+    // Safe date format (no colons which break on Windows)
+    const datePrefix = `${year}-${month}-${day}_${hours}-${minutes}-${seconds}`;
+    
+    // Clean original name (remove any problematic characters for Windows/editing software)
+    const cleanOriginalName = originalName
+      .replace(/[<>:"/\\|?*]/g, '_')  // Replace unsafe chars with underscore
+      .replace(/\s+/g, '_');          // Replace spaces with underscores for better compatibility
+    
+    return `${datePrefix}_${cleanOriginalName}`;
+  };
+
   const renameFiles = async (results: ProcessingResults) => {
     setProcessingState(prev => ({
       ...prev,
@@ -421,18 +441,8 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
     results.downloadedVideos.forEach((video, index) => {
       const date = new Date(video.originalDate);
       
-      // Format as YYYY-MM-DDTHH-MM-SS (more readable timestamp)
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      const hours = String(date.getHours()).padStart(2, '0');
-      const minutes = String(date.getMinutes()).padStart(2, '0');
-      const seconds = String(date.getSeconds()).padStart(2, '0');
-      
-      const timestamp = `${year}-${month}-${day}T${hours}-${minutes}-${seconds}`;
-      const extension = video.originalName.split('.').pop();
-      
-      video.newName = `${timestamp}.${extension}`;
+      // Generate professional filename: 2018-11-15_17-09-26_IMG_7845.MOV
+      video.newName = generateSafeFilename(video.originalName, date);
       
       setProcessingState(prev => ({
         ...prev,
