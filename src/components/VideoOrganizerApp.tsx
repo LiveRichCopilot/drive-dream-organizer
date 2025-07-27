@@ -150,7 +150,7 @@ const VideoOrganizerApp = () => {
         </div>
 
         {/* Who Benefits Section - SEPARATE from glass box */}
-        <div className="relative z-10 px-8 pb-16">
+        <div className="relative z-10 px-8 pb-16 -mt-8">
           <div className="max-w-4xl mx-auto">
             <h2 className="text-2xl font-semibold text-white text-center mb-12">Who benefits?</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
