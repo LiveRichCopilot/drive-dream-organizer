@@ -122,7 +122,7 @@ const VideoOrganizerApp = () => {
                       <Calendar className="h-8 w-8 mx-auto mb-3 text-secondary" />
                       <h3 className="font-semibold mb-2">Timeline Generation</h3>
                       <p className="text-sm text-muted-foreground">
-                        Create Premiere Pro timelines with proper sequencing
+                        Create CapCut & Premiere Pro timelines with proper sequencing
                       </p>
                     </div>
                     <div className="glass-card text-center p-4">
