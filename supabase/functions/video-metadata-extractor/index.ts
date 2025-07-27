@@ -1338,4 +1338,4 @@ function validateInferredDate(inferredDate: string, fileName: string): boolean {
     console.error('Error validating date:', error);
     return false;
   }
-})
+}
