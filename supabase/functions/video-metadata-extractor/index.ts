@@ -97,7 +97,30 @@ serve(async (req) => {
         if (originalDate) {
           console.log(`✓ SUCCESS: Inferred date from sequence: ${originalDate}`)
         } else {
-          console.log('✗ FAILED: Could not determine original shooting date')
+          console.log('✗ Could not infer from sequence, using Google Drive dates as fallback...')
+          
+          // 4. FALLBACK: Use Google Drive modification date (still useful for organization)
+          if (fileData.modifiedTime) {
+            const modifiedDate = new Date(fileData.modifiedTime)
+            // Validate the date is reasonable (not a default timestamp)
+            if (modifiedDate.getFullYear() >= 2020 && modifiedDate.getFullYear() <= new Date().getFullYear() + 1) {
+              originalDate = modifiedDate.toISOString()
+              console.log(`✓ SUCCESS: Using Google Drive modification date: ${originalDate}`)
+            }
+          }
+          
+          // 5. Last resort: Use creation date if modification date isn't available
+          if (!originalDate && fileData.createdTime) {
+            const createdDate = new Date(fileData.createdTime)
+            if (createdDate.getFullYear() >= 2020 && createdDate.getFullYear() <= new Date().getFullYear() + 1) {
+              originalDate = createdDate.toISOString()
+              console.log(`✓ SUCCESS: Using Google Drive creation date: ${originalDate}`)
+            }
+          }
+          
+          if (!originalDate) {
+            console.log('✗ FAILED: Could not determine any usable date')
+          }
         }
       }
     }
