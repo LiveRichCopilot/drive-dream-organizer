@@ -150,7 +150,7 @@ const VideoOrganizerApp = () => {
         </div>
 
         {/* Who Benefits Section */}
-        <div className="relative z-10 px-8 pb-24 pt-16">
+        <div className="relative z-10 px-8 pb-24 pt-8">
           <div className="max-w-6xl mx-auto">
             <h2 className="text-3xl font-semibold text-white text-center mb-16">
               Who benefits?
