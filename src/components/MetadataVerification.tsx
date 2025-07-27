@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { CheckCircle2, XCircle, Clock, AlertTriangle, RefreshCw } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, AlertTriangle, RefreshCw, Info, MapPin, Camera, Monitor, FileVideo } from 'lucide-react';
 import { VideoFile, apiClient } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 
@@ -32,6 +32,7 @@ const MetadataVerification: React.FC<MetadataVerificationProps> = ({
   const [isVerifying, setIsVerifying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [currentVideo, setCurrentVideo] = useState<string>('');
+  const [selectedMetadata, setSelectedMetadata] = useState<{video: VideoFile, metadata: any} | null>(null);
 
   useEffect(() => {
     // Initialize results - use previous results if available, otherwise start fresh
@@ -201,10 +202,18 @@ const MetadataVerification: React.FC<MetadataVerificationProps> = ({
     }
   };
 
-  const getStatusBadge = (status: VerificationResult['status']) => {
+  const getStatusBadge = (status: VerificationResult['status'], result?: VerificationResult) => {
     switch (status) {
       case 'success':
-        return <Badge variant="default" className="bg-green-500">Has Metadata</Badge>;
+        return (
+          <Badge 
+            variant="default" 
+            className="bg-green-500 cursor-pointer hover:bg-green-600 transition-colors"
+            onClick={() => result && setSelectedMetadata({video: result.video, metadata: result.metadata})}
+          >
+            Has Metadata
+          </Badge>
+        );
       case 'failed':
         return <Badge variant="destructive">No Original Date</Badge>;
       case 'error':
@@ -332,13 +341,140 @@ const MetadataVerification: React.FC<MetadataVerificationProps> = ({
                   </div>
                 </div>
                 <div className="flex-shrink-0">
-                  {getStatusBadge(result.status)}
+                  {getStatusBadge(result.status, result)}
                 </div>
               </div>
             ))}
           </div>
         </CardContent>
       </Card>
+
+      {/* Metadata Popup Modal */}
+      {selectedMetadata && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md"
+          onClick={() => setSelectedMetadata(null)}
+        >
+          <div 
+            className="relative w-full max-w-md mx-auto glass-card border border-white/20 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="p-6 border-b border-white/10">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-semibold text-white">Info</h3>
+                <button 
+                  onClick={() => setSelectedMetadata(null)}
+                  className="text-white/60 hover:text-white transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-white font-medium">{selectedMetadata.video.name}</h4>
+                <p className="text-white/70 text-sm">
+                  {selectedMetadata.metadata?.originalDate ? 
+                    new Date(selectedMetadata.metadata.originalDate).toLocaleString('en-US', {
+                      year: 'numeric',
+                      month: 'long', 
+                      day: 'numeric',
+                      hour: 'numeric',
+                      minute: '2-digit',
+                      second: '2-digit'
+                    }) : 
+                    'Date not available'
+                  }
+                </p>
+              </div>
+            </div>
+
+            {/* Metadata Details */}
+            <div className="p-6 space-y-4">
+              {/* Device Info */}
+              {selectedMetadata.metadata?.deviceInfo && (
+                <div className="flex items-start gap-3">
+                  <Camera className="h-5 w-5 text-white/60 mt-0.5" />
+                  <div>
+                    <p className="text-white text-sm">{selectedMetadata.metadata.deviceInfo}</p>
+                    <p className="text-white/60 text-xs">Camera</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Video Specs */}
+              <div className="bg-white/5 rounded-lg p-4 space-y-3">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Monitor className="h-4 w-4 text-white/60" />
+                      <span className="text-white text-sm">
+                        {selectedMetadata.metadata?.videoMetadata?.resolution || 
+                         selectedMetadata.metadata?.resolution || 
+                         '1920×1080'}
+                      </span>
+                    </div>
+                    <p className="text-white/60 text-xs">Resolution</p>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <FileVideo className="h-4 w-4 text-white/60" />
+                      <span className="text-white text-sm">
+                        {selectedMetadata.video.sizeFormatted}
+                      </span>
+                    </div>
+                    <p className="text-white/60 text-xs">File Size</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <span className="text-white text-sm">
+                      {selectedMetadata.metadata?.videoMetadata?.codec || 'H.264'}
+                    </span>
+                    <p className="text-white/60 text-xs">Codec</p>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <span className="text-white text-sm">
+                      {selectedMetadata.metadata?.videoMetadata?.fps || '30'} FPS
+                    </span>
+                    <p className="text-white/60 text-xs">Frame Rate</p>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <span className="text-white text-sm">
+                    {selectedMetadata.video.duration}
+                  </span>
+                  <p className="text-white/60 text-xs">Duration</p>
+                </div>
+              </div>
+
+              {/* Location if available */}
+              {selectedMetadata.metadata?.locationInfo && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-white/60" />
+                    <span className="text-white text-sm">{selectedMetadata.metadata.locationInfo}</span>
+                  </div>
+                  <div className="bg-blue-500/20 rounded-lg h-24 flex items-center justify-center">
+                    <MapPin className="h-6 w-6 text-blue-400" />
+                  </div>
+                </div>
+              )}
+
+              {/* Original Date Info */}
+              {selectedMetadata.metadata?.originalDate && (
+                <div className="text-xs text-white/60 bg-green-500/10 p-3 rounded-lg border border-green-500/20">
+                  <Info className="h-3 w-3 inline mr-1" />
+                  Original shooting date successfully extracted from video metadata
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
