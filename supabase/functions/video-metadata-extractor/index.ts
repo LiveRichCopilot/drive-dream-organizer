@@ -237,7 +237,7 @@ async function extractVideoMetadata(fileId: string, accessToken: string, fileNam
       {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
-          'Range': 'bytes=0-1048576' // First 1MB should contain metadata
+          'Range': 'bytes=0-5242880' // First 5MB for better iPhone metadata detection
         }
       }
     )
