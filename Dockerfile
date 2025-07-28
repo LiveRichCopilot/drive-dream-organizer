@@ -1,4 +1,4 @@
-# Build stage
+# Build stage - Updated for Vite React app
 FROM node:18-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
