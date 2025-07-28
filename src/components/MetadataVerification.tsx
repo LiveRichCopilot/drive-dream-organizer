@@ -357,18 +357,18 @@ const MetadataVerification: React.FC<MetadataVerificationProps> = ({
         </CardContent>
       </Card>
 
-      {/* Metadata Popup Modal */}
+      {/* Enhanced Metadata Info Modal */}
       {selectedMetadata && (
         <div 
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md"
           onClick={() => setSelectedMetadata(null)}
         >
           <div 
-            className="relative w-full max-w-md mx-auto glass-card border border-white/20 shadow-2xl"
+            className="relative w-full max-w-lg mx-auto glass-card border border-white/20 shadow-2xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="p-6 border-b border-white/10">
+            <div className="p-6 border-b border-white/10 sticky top-0 bg-black/80 backdrop-blur-md">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-lg font-semibold text-white">Info</h3>
                 <button 
@@ -378,126 +378,209 @@ const MetadataVerification: React.FC<MetadataVerificationProps> = ({
                   ✕
                 </button>
               </div>
+              
+              {/* File Name & Size */}
               <div className="space-y-1">
-                <h4 className="text-white font-medium">{selectedMetadata.video.name}</h4>
-                <p className="text-white/70 text-sm">
-                  {selectedMetadata.metadata?.originalDate ? 
-                    new Date(selectedMetadata.metadata.originalDate).toLocaleString('en-US', {
-                      year: 'numeric',
-                      month: 'long', 
-                      day: 'numeric',
-                      hour: 'numeric',
-                      minute: '2-digit',
-                      second: '2-digit'
-                    }) : 
-                    'Date not available'
-                  }
+                <p className="text-white font-medium">{selectedMetadata.video.name}</p>
+                <p className="text-white/60 text-sm">
+                  Modified: {new Date(selectedMetadata.video.createdTime).toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    month: '2-digit',
+                    day: '2-digit'
+                  })}
                 </p>
               </div>
             </div>
 
-            {/* Metadata Details */}
-            <div className="p-6 space-y-4">
-              {/* Device Info */}
-              {selectedMetadata.metadata?.deviceInfo && (
-                <div className="flex items-start gap-3">
-                  <Camera className="h-5 w-5 text-white/60 mt-0.5" />
-                  <div>
-                    <p className="text-white text-sm">{selectedMetadata.metadata.deviceInfo}</p>
-                    <p className="text-white/60 text-xs">Camera</p>
+            {/* Detailed Metadata Sections */}
+            <div className="p-6 space-y-6">
+              
+              {/* General Information */}
+              <div className="space-y-3">
+                <h4 className="text-white font-medium text-sm opacity-80">▼ General:</h4>
+                <div className="space-y-2 ml-6">
+                  <div className="flex justify-between">
+                    <span className="text-white/70 text-sm">Kind:</span>
+                    <span className="text-white text-sm">QuickTime movie</span>
                   </div>
-                </div>
-              )}
-
-              {/* Video Specs */}
-              <div className="bg-white/5 rounded-lg p-4 space-y-3">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <Monitor className="h-4 w-4 text-white/60" />
-                       <span className="text-white text-sm">
-                         {selectedMetadata.metadata?.videoMetadata?.width && selectedMetadata.metadata?.videoMetadata?.height 
-                           ? `${selectedMetadata.metadata.videoMetadata.width}×${selectedMetadata.metadata.videoMetadata.height}`
-                           : selectedMetadata.metadata?.resolution || 
-                             'Unknown'}
-                       </span>
-                    </div>
-                    <p className="text-white/60 text-xs">Resolution</p>
+                  <div className="flex justify-between">
+                    <span className="text-white/70 text-sm">Size:</span>
+                    <span className="text-white text-sm">
+                      {selectedMetadata.video.size ? 
+                        `${(selectedMetadata.video.size / (1024 * 1024)).toFixed(1)} MB (${selectedMetadata.video.sizeFormatted} on disk)` : 
+                        'Unknown'
+                      }
+                    </span>
                   </div>
-                  
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <FileVideo className="h-4 w-4 text-white/60" />
+                  <div className="flex justify-between">
+                    <span className="text-white/70 text-sm">Where:</span>
+                    <span className="text-white text-sm">Google Drive • Downloads</span>
+                  </div>
+                  {selectedMetadata.metadata?.originalDate && (
+                    <div className="flex justify-between">
+                      <span className="text-white/70 text-sm">Created:</span>
                       <span className="text-white text-sm">
-                        {selectedMetadata.video.sizeFormatted}
+                        {new Date(selectedMetadata.metadata.originalDate).toLocaleDateString('en-US', {
+                          weekday: 'long',
+                          month: 'long',
+                          day: 'numeric',
+                          year: 'numeric'
+                        }) + ' at ' + 
+                        new Date(selectedMetadata.metadata.originalDate).toLocaleTimeString('en-US', {
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
                       </span>
                     </div>
-                    <p className="text-white/60 text-xs">File Size</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-white/70 text-sm">Modified:</span>
                     <span className="text-white text-sm">
-                      {selectedMetadata.metadata?.videoMetadata?.codec || 'H.264'}
+                      {new Date(selectedMetadata.video.createdTime).toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        month: 'long', 
+                        day: 'numeric',
+                        year: 'numeric'
+                      }) + ' at ' +
+                      new Date(selectedMetadata.video.createdTime).toLocaleTimeString('en-US', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
                     </span>
-                    <p className="text-white/60 text-xs">Codec</p>
                   </div>
-                  
-                  <div className="space-y-1">
-                    <span className="text-white text-sm">
-                      {selectedMetadata.metadata?.videoMetadata?.fps || '30'} FPS
-                    </span>
-                    <p className="text-white/60 text-xs">Frame Rate</p>
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <span className="text-white text-sm">
-                    {selectedMetadata.video.duration}
-                  </span>
-                  <p className="text-white/60 text-xs">Duration</p>
                 </div>
               </div>
 
-              {/* Location if available */}
-              {selectedMetadata.metadata?.gpsCoordinates && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-white/60" />
+              {/* More Info */}
+              <div className="space-y-3">
+                <h4 className="text-white font-medium text-sm opacity-80">▼ More Info:</h4>
+                <div className="space-y-2 ml-6">
+                  <div className="flex justify-between">
+                    <span className="text-white/70 text-sm">Last opened:</span>
                     <span className="text-white text-sm">
-                      {selectedMetadata.metadata.locationInfo || 
-                       `${selectedMetadata.metadata.gpsCoordinates.latitude.toFixed(4)}, ${selectedMetadata.metadata.gpsCoordinates.longitude.toFixed(4)}`}
+                      {new Date().toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        month: 'long',
+                        day: 'numeric', 
+                        year: 'numeric'
+                      }) + ' at ' +
+                      new Date().toLocaleTimeString('en-US', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
                     </span>
                   </div>
-                  <div className="bg-blue-500/20 rounded-lg h-24 flex items-center justify-center relative overflow-hidden">
-                    {selectedMetadata.metadata.gpsCoordinates ? (
+                </div>
+              </div>
+
+              {/* Name & Extension */}
+              <div className="space-y-3">
+                <h4 className="text-white font-medium text-sm opacity-80">▼ Name & Extension:</h4>
+                <div className="ml-6">
+                  <div className="text-white text-sm mb-2">{selectedMetadata.video.name}</div>
+                  <button className="text-blue-400 text-sm hover:underline">Hide extension</button>
+                </div>
+              </div>
+
+              {/* Technical Preview */}
+              <div className="space-y-3">
+                <h4 className="text-white font-medium text-sm opacity-80">▼ Preview:</h4>
+                <div className="ml-6">
+                  <div className="bg-white/5 rounded-lg p-4 space-y-3">
+                    {/* Resolution & File Size Row */}
+                    <div className="grid grid-cols-2 gap-4">
                       <div className="text-center">
-                        <MapPin className="h-6 w-6 text-blue-400 mx-auto mb-1" />
-                        <div className="text-xs text-blue-300">
-                          {selectedMetadata.metadata.gpsCoordinates.latitude.toFixed(4)}°, {selectedMetadata.metadata.gpsCoordinates.longitude.toFixed(4)}°
+                        <Monitor className="h-5 w-5 text-white/60 mx-auto mb-1" />
+                        <div className="text-white/60 text-xs">Resolution</div>
+                        <div className="text-white text-sm">
+                          {selectedMetadata.metadata?.videoMetadata?.width && selectedMetadata.metadata?.videoMetadata?.height 
+                            ? `${selectedMetadata.metadata.videoMetadata.width}×${selectedMetadata.metadata.videoMetadata.height}`
+                            : selectedMetadata.metadata?.resolution || 'Unknown'}
                         </div>
                       </div>
-                    ) : (
                       <div className="text-center">
-                        <MapPin className="h-6 w-6 text-blue-400 mx-auto mb-1" />
-                        <div className="text-xs text-blue-300">Location</div>
+                        <FileVideo className="h-5 w-5 text-white/60 mx-auto mb-1" />
+                        <div className="text-white/60 text-xs">File Size</div>
+                        <div className="text-white text-sm">
+                          {selectedMetadata.video.sizeFormatted}
+                        </div>
                       </div>
-                    )}
+                    </div>
+
+                    {/* Codec & Frame Rate Row */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="text-center">
+                        <div className="text-white/60 text-xs">Codec</div>
+                        <div className="text-white text-sm">
+                          {selectedMetadata.metadata?.videoMetadata?.codec || 'H.264'}
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-white/60 text-xs">Frame Rate</div>
+                        <div className="text-white text-sm">
+                          {selectedMetadata.metadata?.videoMetadata?.fps || '30'} FPS
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Duration */}
+                    <div className="text-center">
+                      <div className="text-white/60 text-xs">Duration</div>
+                      <div className="text-white text-sm">
+                        {selectedMetadata.video.duration}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Device Info */}
+              {selectedMetadata.metadata?.deviceInfo && (
+                <div className="space-y-3">
+                  <h4 className="text-white font-medium text-sm opacity-80">▼ Camera:</h4>
+                  <div className="flex items-start gap-3 ml-6">
+                    <Camera className="h-5 w-5 text-white/60 mt-0.5" />
+                    <div>
+                      <p className="text-white text-sm">{selectedMetadata.metadata.deviceInfo}</p>
+                      <p className="text-white/60 text-xs">Recording Device</p>
+                    </div>
                   </div>
                 </div>
               )}
 
-              {/* Original Date Info */}
-              {selectedMetadata.metadata?.originalDate && (
-                <div className="text-xs text-white/60 bg-green-500/10 p-3 rounded-lg border border-green-500/20">
-                  <Info className="h-3 w-3 inline mr-1" />
-                  Original shooting date successfully extracted from video metadata
-                  {selectedMetadata.metadata?.inferredFromSequence && (
-                    <span className="ml-1 text-yellow-300">(inferred from sequence)</span>
-                  )}
+              {/* Location */}
+              {selectedMetadata.metadata?.gpsCoordinates && (
+                <div className="space-y-3">
+                  <h4 className="text-white font-medium text-sm opacity-80">▼ Location:</h4>
+                  <div className="ml-6">
+                    <div className="flex items-center gap-2 mb-2">
+                      <MapPin className="h-4 w-4 text-white/60" />
+                      <span className="text-white text-sm">
+                        {selectedMetadata.metadata.locationInfo || 
+                         `${selectedMetadata.metadata.gpsCoordinates.latitude.toFixed(4)}, ${selectedMetadata.metadata.gpsCoordinates.longitude.toFixed(4)}`}
+                      </span>
+                    </div>
+                    <div className="bg-blue-500/20 rounded-lg h-24 flex items-center justify-center">
+                      <div className="text-center">
+                        <MapPin className="h-6 w-6 text-blue-400 mx-auto mb-1" />
+                        <div className="text-xs text-blue-300">GPS Location Available</div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
+
+              {/* Metadata Extraction Status */}
+              <div className="text-xs text-white/60 bg-green-500/10 p-3 rounded-lg border border-green-500/20">
+                <Info className="h-3 w-3 inline mr-1" />
+                Original shooting date successfully extracted from video metadata
+                {selectedMetadata.metadata?.inferredFromSequence && (
+                  <span className="ml-1 text-yellow-300">(inferred from sequence)</span>
+                )}
+                <div className="mt-1 text-white/40">
+                  Extraction method: {selectedMetadata.metadata?.extractionMethod || 'video-download-parse'}
+                </div>
+              </div>
             </div>
           </div>
         </div>
