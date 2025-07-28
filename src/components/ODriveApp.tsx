@@ -99,16 +99,13 @@ const ODriveApp = () => {
           <div className="text-center max-w-4xl mx-auto">
             <div className="glass-card max-w-2xl mx-auto">
               <div className="mb-8">
-                <div className="mb-6">
+                <div className="mb-8">
                   <img 
                     src="/lovable-uploads/513ecb56-61e2-4e31-9898-d010ccf954a0.png" 
                     alt="ODrive Logo" 
-                    className="mx-auto h-20 w-auto mb-4"
+                    className="mx-auto h-32 w-auto"
                   />
                 </div>
-                <h1 className="text-4xl font-semibold mb-4 text-white">
-                  ODrive
-                </h1>
                 <p className="text-xl text-white/80 mb-8">
                   Seamlessly organize, analyze, and manage your Google Drive files with AI-powered chronological sorting and beautiful glassmorphism interface.
                 </p>
