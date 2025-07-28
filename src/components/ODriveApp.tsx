@@ -99,7 +99,7 @@ const ODriveApp = () => {
           <div className="text-center max-w-4xl mx-auto">
             <div className="glass-card max-w-2xl mx-auto">
               <div className="mb-8 flex flex-col h-full min-h-[400px]">
-                <div className="mt-auto mb-8">
+                <div className="flex flex-col justify-end h-full">
                   <img 
                     src="/lovable-uploads/513ecb56-61e2-4e31-9898-d010ccf954a0.png" 
                     alt="ODrive Logo" 
