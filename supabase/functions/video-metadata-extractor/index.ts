@@ -42,10 +42,17 @@ serve(async (req) => {
       console.log(`⬇️ Streaming video file for metadata extraction...`);
       const downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
       
+      // Get file size first to calculate end range
+      const fileSize = parseInt(fileData.size);
+      const endChunkSize = Math.min(2 * 1024 * 1024, fileSize); // Last 2MB or entire file if smaller
+      const startByte = Math.max(0, fileSize - endChunkSize);
+      
+      console.log(`📊 File size: ${fileSize} bytes, downloading last ${endChunkSize} bytes (${startByte}-${fileSize-1})`);
+      
       const videoResponse = await fetch(downloadUrl, {
         headers: { 
           'Authorization': `Bearer ${accessToken}`,
-          'Range': 'bytes=0-1048575' // Only download first 1MB for metadata parsing
+          'Range': `bytes=${startByte}-${fileSize-1}` // Download from end where metadata is
         }
       });
 
