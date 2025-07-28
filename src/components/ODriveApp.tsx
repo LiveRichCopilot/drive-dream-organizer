@@ -485,7 +485,10 @@ const ODriveApp = () => {
               variant="glass" 
               size="sm" 
               className="glass hover:bg-white/5"
-              onClick={() => setShowPhotoOrganizer(!showPhotoOrganizer)}
+              onClick={() => {
+                console.log('Organize More Photos button clicked! Current state:', showPhotoOrganizer);
+                setShowPhotoOrganizer(!showPhotoOrganizer);
+              }}
             >
               <Camera className="h-4 w-4 mr-2" />
               Organize More Photos
