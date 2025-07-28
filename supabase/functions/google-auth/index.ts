@@ -21,29 +21,45 @@ serve(async (req) => {
   }
 
   try {
-    const { code } = await req.json()
+    const { code, refresh_token, grant_type } = await req.json()
     
-    if (!code) {
+    let tokenResponse;
+    
+    if (grant_type === 'refresh_token' && refresh_token) {
+      // Handle refresh token request
+      tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          refresh_token,
+          client_id: Deno.env.get('GOOGLE_CLIENT_ID') || '',
+          client_secret: Deno.env.get('GOOGLE_CLIENT_SECRET') || '',
+          grant_type: 'refresh_token',
+        }),
+      })
+    } else if (code) {
+      // Handle authorization code exchange
+      tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          code,
+          client_id: Deno.env.get('GOOGLE_CLIENT_ID') || '',
+          client_secret: Deno.env.get('GOOGLE_CLIENT_SECRET') || '',
+          redirect_uri: `${req.headers.get('origin')}/auth/callback`,
+          grant_type: 'authorization_code',
+        }),
+      })
+    } else {
       return new Response(
-        JSON.stringify({ error: 'Authorization code required' }),
+        JSON.stringify({ error: 'Either authorization code or refresh token required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
-
-    // Exchange authorization code for access token
-    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        code,
-        client_id: Deno.env.get('GOOGLE_CLIENT_ID') || '',
-        client_secret: Deno.env.get('GOOGLE_CLIENT_SECRET') || '',
-        redirect_uri: `${req.headers.get('origin')}/auth/callback`,
-        grant_type: 'authorization_code',
-      }),
-    })
 
     const tokenData = await tokenResponse.json()
 
@@ -54,8 +70,14 @@ serve(async (req) => {
       )
     }
 
+    // Return both access token and refresh token (if provided)
+    const response: any = { access_token: tokenData.access_token }
+    if (tokenData.refresh_token) {
+      response.refresh_token = tokenData.refresh_token
+    }
+
     return new Response(
-      JSON.stringify({ access_token: tokenData.access_token }),
+      JSON.stringify(response),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {

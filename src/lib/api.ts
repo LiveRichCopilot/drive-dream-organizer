@@ -26,11 +26,80 @@ export interface VideoFile {
 
 class APIClient {
   private accessToken: string | null = null;
+  private refreshToken: string | null = null;
   private baseURL = 'https://iffvjtfrqaesoehbwtgi.supabase.co/functions/v1';
 
   constructor() {
-    // Check for existing token in localStorage
+    // Check for existing tokens in localStorage
     this.accessToken = localStorage.getItem('google_access_token');
+    this.refreshToken = localStorage.getItem('google_refresh_token');
+  }
+
+  private async refreshAccessToken(): Promise<boolean> {
+    if (!this.refreshToken) {
+      return false;
+    }
+
+    try {
+      const response = await fetch(`${this.baseURL}/google-auth`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88`,
+        },
+        body: JSON.stringify({ 
+          refresh_token: this.refreshToken,
+          grant_type: 'refresh_token'
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        this.accessToken = data.access_token;
+        localStorage.setItem('google_access_token', this.accessToken!);
+        
+        // Update refresh token if provided
+        if (data.refresh_token) {
+          this.refreshToken = data.refresh_token;
+          localStorage.setItem('google_refresh_token', this.refreshToken);
+        }
+        
+        return true;
+      }
+    } catch (error) {
+      console.error('Token refresh failed:', error);
+    }
+
+    return false;
+  }
+
+  private async makeAuthenticatedRequest(url: string, options: RequestInit, retryCount = 0): Promise<Response> {
+    const response = await fetch(url, options);
+    
+    // If we get a 401 and haven't retried yet, try to refresh the token
+    if (response.status === 401 && retryCount === 0) {
+      const refreshed = await this.refreshAccessToken();
+      
+      if (refreshed) {
+        // Update the Authorization header with the new token
+        const updatedOptions = {
+          ...options,
+          headers: {
+            ...options.headers,
+            'Authorization': `Bearer ${this.accessToken}`,
+          },
+        };
+        
+        // Retry the request with the new token
+        return this.makeAuthenticatedRequest(url, updatedOptions, retryCount + 1);
+      } else {
+        // If refresh fails, clear tokens and throw auth error
+        this.logout();
+        throw new Error('Google Drive authentication expired. Please reconnect to continue.');
+      }
+    }
+    
+    return response;
   }
 
   async authenticate(): Promise<void> {
@@ -109,6 +178,13 @@ class APIClient {
             const data = await response.json();
             this.accessToken = data.access_token;
             localStorage.setItem('google_access_token', this.accessToken!);
+            
+            // Store refresh token if provided
+            if (data.refresh_token) {
+              this.refreshToken = data.refresh_token;
+              localStorage.setItem('google_refresh_token', this.refreshToken);
+            }
+            
             resolve();
           } catch (error) {
             reject(error);
@@ -260,7 +336,7 @@ class APIClient {
   }
 
   async uploadOrganizedVideos(processedVideos: any[], destinationFolderName: string, organizationStructure: any, sourceFolderId?: string, projectFiles?: any[]): Promise<any> {
-    const response = await fetch(`${this.baseURL}/google-drive-upload`, {
+    const response = await this.makeAuthenticatedRequest(`${this.baseURL}/google-drive-upload`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -318,7 +394,9 @@ class APIClient {
 
   logout(): void {
     this.accessToken = null;
+    this.refreshToken = null;
     localStorage.removeItem('google_access_token');
+    localStorage.removeItem('google_refresh_token');
   }
 }
 

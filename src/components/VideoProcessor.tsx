@@ -686,6 +686,48 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
     }
   };
 
+  const retryUpload = async () => {
+    if (!previewResults) return;
+    
+    setProcessingState(prev => ({
+      ...prev,
+      status: 'uploading',
+      currentStep: 6,
+      progress: 90,
+      currentFile: 'Retrying upload to Google Drive...'
+    }));
+
+    try {
+      await uploadToGoogleDrive(previewResults);
+      
+      setProcessingState(prev => ({
+        ...prev,
+        status: 'completed',
+        progress: 100
+      }));
+
+      onProcessingComplete(previewResults);
+      
+      toast({
+        title: "Upload Complete!",
+        description: `Successfully uploaded ${videos.length} organized videos to Google Drive`,
+      });
+
+    } catch (error) {
+      console.error('Retry upload failed:', error);
+      setProcessingState(prev => ({
+        ...prev,
+        status: 'error'
+      }));
+      
+      toast({
+        title: "Upload Failed Again",
+        description: error instanceof Error ? error.message : "Please check your Google Drive connection",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleBackToProcessing = () => {
     setProcessingState(prev => ({
       ...prev,
@@ -779,6 +821,17 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
                 </Button>
               )}
             </>
+          )}
+          
+          {processingState.status === 'error' && previewResults && (
+            <Button 
+              onClick={retryUpload} 
+              variant="outline"
+              className="glass text-white border-white/20 hover:bg-white/10 bg-white/5"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Retry Upload
+            </Button>
           )}
           
           {(processingState.status === 'completed' || processingState.status === 'error') && (
