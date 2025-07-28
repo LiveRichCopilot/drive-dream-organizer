@@ -68,6 +68,8 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
   const [newCategoryName, setNewCategoryName] = useState("");
   const [showCreateCategory, setShowCreateCategory] = useState(false);
   const [viewMode, setViewMode] = useState<'photos' | 'categories'>('photos');
+  const [analyzingPhotoId, setAnalyzingPhotoId] = useState<string | null>(null);
+  const [folderScanProgress, setFolderScanProgress] = useState<{current: number, total: number} | null>(null);
   
   const { toast } = useToast();
   const { isConnected } = useDirectGoogleDrive();
@@ -141,7 +143,8 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
     }
   };
 
-  const analyzePhotos = async () => {
+  // Folder scan - analyzes ALL photos
+  const scanAndAnalyzeFolder = async () => {
     const unanalyzedPhotos = photos.filter(photo => !photo.analysis);
     
     if (unanalyzedPhotos.length === 0) {
@@ -153,111 +156,37 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
     }
 
     setIsAnalyzing(true);
-    setAnalysisProgress(0);
+    setFolderScanProgress({ current: 0, total: unanalyzedPhotos.length });
 
     try {
-      // Try multiple possible environment variable names
       const apiKey = import.meta.env.VITE_OPENAI_API_KEY || 
                      import.meta.env.OPENAI_API_KEY || 
                      import.meta.env.VITE_OPENAI_KEY ||
                      import.meta.env.OPENAI_KEY;
-                     
-      console.log('PhotoCategorizer - Available env vars:', Object.keys(import.meta.env));
-      console.log('PhotoCategorizer - API Key exists:', !!apiKey);
-      console.log('PhotoCategorizer - API Key length:', apiKey?.length);
       
       if (!apiKey) {
         throw new Error('OpenAI API key not configured. Please set VITE_OPENAI_API_KEY environment variable.');
       }
 
       let processedCount = 0;
-      console.log('PhotoCategorizer - Starting analysis of', unanalyzedPhotos.length, 'photos');
+      console.log('PhotoCategorizer - Starting folder scan of', unanalyzedPhotos.length, 'photos');
 
       for (const photo of unanalyzedPhotos) {
         try {
           const imageUrl = photo.thumbnailLink || photo.webViewLink;
-          console.log('PhotoCategorizer - Analyzing photo:', photo.name, 'URL:', imageUrl);
           
-          const requestBody = {
-            model: "gpt-4o-mini",
-            messages: [{
-              role: "user",
-              content: [
-                { 
-                  type: "text", 
-                  text: "Analyze this image and return a JSON object with the following structure: {\"categories\": [\"category1\", \"category2\"], \"colors\": [\"color1\", \"color2\"], \"faces\": 0, \"landmarks\": [], \"objects\": [\"object1\", \"object2\"], \"scene\": \"indoor/outdoor/people/food/event/travel/general\", \"confidence\": 0.85}. Provide 2-5 categories, 1-3 dominant colors, count of faces, any landmarks, 2-5 main objects, scene type, and confidence score." 
-                },
-                { 
-                  type: "image_url", 
-                  image_url: { url: imageUrl } 
-                }
-              ]
-            }],
-            max_tokens: 500
-          };
+          const analysis = await analyzePhoto(photo, apiKey);
           
-          console.log('PhotoCategorizer - Request body:', JSON.stringify(requestBody, null, 2));
-          
-          const response = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${apiKey}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(requestBody)
-          });
-
-          console.log('PhotoCategorizer - OpenAI Response status:', response.status);
-          console.log('PhotoCategorizer - OpenAI Response headers:', Object.fromEntries(response.headers.entries()));
-
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error('PhotoCategorizer - OpenAI API error response:', errorText);
-            throw new Error(`OpenAI API error: ${response.status} ${response.statusText} - ${errorText}`);
-          }
-
-          const data = await response.json();
-          const analysisText = data.choices[0].message.content;
-          
-          // Parse JSON response
-          let analysis;
-          try {
-            analysis = JSON.parse(analysisText);
-          } catch (parseError) {
-            console.error('Failed to parse analysis:', analysisText);
-            // Fallback analysis
-            analysis = {
-              categories: ['unanalyzed'],
-              colors: ['unknown'],
-              faces: 0,
-              landmarks: [],
-              objects: ['unknown'],
-              scene: 'general',
-              confidence: 0.5
-            };
-          }
-
           // Update photo with analysis results
           setPhotos(prev => prev.map(p => {
             if (p.id === photo.id) {
-              return {
-                ...p,
-                analysis: {
-                  categories: analysis.categories || [],
-                  colors: analysis.colors || [],
-                  faces: analysis.faces || 0,
-                  landmarks: analysis.landmarks || [],
-                  objects: analysis.objects || [],
-                  scene: analysis.scene || 'general',
-                  confidence: analysis.confidence || 0.5
-                }
-              };
+              return { ...p, analysis };
             }
             return p;
           }));
 
           processedCount++;
-          setAnalysisProgress((processedCount / unanalyzedPhotos.length) * 100);
+          setFolderScanProgress({ current: processedCount, total: unanalyzedPhotos.length });
 
           // Small delay to avoid rate limiting
           await new Promise(resolve => setTimeout(resolve, 100));
@@ -272,69 +201,205 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
       generateSmartCategories();
 
       toast({
-        title: "Analysis complete",
-        description: `Analyzed ${processedCount} photos with AI`,
+        title: "Folder scan complete",
+        description: `Analyzed ${processedCount} photos with comprehensive categorization`,
       });
 
     } catch (error) {
-      console.error('Analysis error:', error);
+      console.error('Folder scan error:', error);
+      toast({
+        title: "Folder scan failed",
+        description: "Please try again later",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAnalyzing(false);
+      setFolderScanProgress(null);
+    }
+  };
+
+  // Individual photo analysis
+  const analyzeIndividualPhoto = async (photoId: string) => {
+    const photo = photos.find(p => p.id === photoId);
+    if (!photo) return;
+
+    setAnalyzingPhotoId(photoId);
+
+    try {
+      const apiKey = import.meta.env.VITE_OPENAI_API_KEY || 
+                     import.meta.env.OPENAI_API_KEY || 
+                     import.meta.env.VITE_OPENAI_KEY ||
+                     import.meta.env.OPENAI_KEY;
+      
+      if (!apiKey) {
+        throw new Error('OpenAI API key not configured. Please set VITE_OPENAI_API_KEY environment variable.');
+      }
+
+      const analysis = await analyzePhoto(photo, apiKey);
+      
+      // Update photo with analysis results
+      setPhotos(prev => prev.map(p => {
+        if (p.id === photoId) {
+          return { ...p, analysis };
+        }
+        return p;
+      }));
+
+      // Regenerate categories to include this photo
+      generateSmartCategories();
+
+      toast({
+        title: "Photo analyzed",
+        description: `"${photo.name}" has been categorized`,
+      });
+
+    } catch (error) {
+      console.error('Individual photo analysis error:', error);
       toast({
         title: "Analysis failed",
         description: "Please try again later",
         variant: "destructive",
       });
     } finally {
-      setIsAnalyzing(false);
-      setAnalysisProgress(0);
+      setAnalyzingPhotoId(null);
     }
+  };
+
+  // Common analysis function
+  const analyzePhoto = async (photo: PhotoFile, apiKey: string) => {
+    const imageUrl = photo.thumbnailLink || photo.webViewLink;
+    console.log('PhotoCategorizer - Analyzing photo:', photo.name, 'URL:', imageUrl);
+    
+    const requestBody = {
+      model: "gpt-4o-mini",
+      messages: [{
+        role: "user",
+        content: [
+          { 
+            type: "text", 
+            text: "Analyze this image and return a JSON object with the following structure: {\"categories\": [\"category1\", \"category2\"], \"colors\": [\"color1\", \"color2\"], \"faces\": 0, \"landmarks\": [], \"objects\": [\"object1\", \"object2\"], \"scene\": \"indoor/outdoor/people/food/event/travel/general\", \"confidence\": 0.85}. For clothing photos, focus on style details like 'Black Outfits', 'Swimwear/Bikini', 'Casual/Street'. Provide 2-5 specific categories, 1-3 dominant colors, count of faces, any landmarks, 2-5 main objects, scene type, and confidence score." 
+          },
+          { 
+            type: "image_url", 
+            image_url: { url: imageUrl } 
+          }
+        ]
+      }],
+      max_tokens: 500
+    };
+    
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('PhotoCategorizer - OpenAI API error response:', errorText);
+      throw new Error(`OpenAI API error: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    const analysisText = data.choices[0].message.content;
+    
+    // Parse JSON response
+    let analysis;
+    try {
+      analysis = JSON.parse(analysisText);
+    } catch (parseError) {
+      console.error('Failed to parse analysis:', analysisText);
+      // Fallback analysis
+      analysis = {
+        categories: ['unanalyzed'],
+        colors: ['unknown'],
+        faces: 0,
+        landmarks: [],
+        objects: ['unknown'],
+        scene: 'general',
+        confidence: 0.5
+      };
+    }
+
+    return {
+      categories: analysis.categories || [],
+      colors: analysis.colors || [],
+      faces: analysis.faces || 0,
+      landmarks: analysis.landmarks || [],
+      objects: analysis.objects || [],
+      scene: analysis.scene || 'general',
+      confidence: analysis.confidence || 0.5
+    };
   };
 
   const generateSmartCategories = () => {
     const analyzedPhotos = photos.filter(photo => photo.analysis);
     if (analyzedPhotos.length === 0) return;
 
-    const categoryMap = new Map<string, PhotoFile[]>();
+    const categoryMap = new Map<string, {photos: PhotoFile[], tags: Set<string>}>();
 
-    // Categorize by scene types
+    // Categorize by specific detected categories (prioritized for clothing/fashion)
+    analyzedPhotos.forEach(photo => {
+      photo.analysis!.categories.forEach(category => {
+        if (!categoryMap.has(category)) {
+          categoryMap.set(category, {photos: [], tags: new Set()});
+        }
+        categoryMap.get(category)!.photos.push(photo);
+        
+        // Add related tags
+        photo.analysis!.colors.forEach(color => categoryMap.get(category)!.tags.add(color));
+        photo.analysis!.objects.forEach(obj => categoryMap.get(category)!.tags.add(obj));
+        categoryMap.get(category)!.tags.add(photo.analysis!.scene);
+      });
+    });
+
+    // Categorize by scene types (only if no specific categories found)
     analyzedPhotos.forEach(photo => {
       const scene = photo.analysis!.scene;
       if (!categoryMap.has(scene)) {
-        categoryMap.set(scene, []);
+        categoryMap.set(scene, {photos: [], tags: new Set()});
       }
-      categoryMap.get(scene)!.push(photo);
+      if (!photo.analysis!.categories.length) {
+        categoryMap.get(scene)!.photos.push(photo);
+        photo.analysis!.colors.forEach(color => categoryMap.get(scene)!.tags.add(color));
+        photo.analysis!.objects.forEach(obj => categoryMap.get(scene)!.tags.add(obj));
+      }
     });
 
-    // Categorize by dominant colors
+    // Categorize by dominant colors (for color-themed collections)
     analyzedPhotos.forEach(photo => {
       photo.analysis!.colors.forEach(color => {
-        const colorCategory = `${color} tones`;
+        const colorCategory = `${color} colors`;
         if (!categoryMap.has(colorCategory)) {
-          categoryMap.set(colorCategory, []);
+          categoryMap.set(colorCategory, {photos: [], tags: new Set()});
         }
-        categoryMap.get(colorCategory)!.push(photo);
+        categoryMap.get(colorCategory)!.photos.push(photo);
+        categoryMap.get(colorCategory)!.tags.add(color);
+        categoryMap.get(colorCategory)!.tags.add(photo.analysis!.scene);
       });
     });
 
-    // Categorize by objects
-    analyzedPhotos.forEach(photo => {
-      photo.analysis!.objects.forEach(object => {
-        if (!categoryMap.has(object)) {
-          categoryMap.set(object, []);
-        }
-        categoryMap.get(object)!.push(photo);
-      });
-    });
-
-    // Convert to categories array
+    // Convert to categories array with enhanced descriptions
     const newCategories: Category[] = Array.from(categoryMap.entries())
-      .filter(([_, photos]) => photos.length >= 2) // Only create categories with 2+ photos
-      .map(([name, photos]) => ({
-        id: `category-${Date.now()}-${Math.random()}`,
-        name,
-        description: `Photos categorized by ${name}`,
-        photoCount: photos.length,
-        photos
-      }))
+      .filter(([_, data]) => data.photos.length >= 2) // Only create categories with 2+ photos
+      .map(([name, data]) => {
+        const uniquePhotos = data.photos.filter((photo, index, arr) => 
+          arr.findIndex(p => p.id === photo.id) === index
+        );
+        
+        const tags = Array.from(data.tags).slice(0, 5); // Limit to 5 most relevant tags
+        
+        return {
+          id: `category-${Date.now()}-${Math.random()}`,
+          name,
+          description: `Tags: ${tags.join(', ')}`,
+          photoCount: uniquePhotos.length,
+          photos: uniquePhotos
+        };
+      })
       .sort((a, b) => b.photoCount - a.photoCount);
 
     setCategories(newCategories);
@@ -417,6 +482,24 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
       </CardHeader>
       
       <CardContent className="space-y-6">
+        {/* Main Scan Button */}
+        <div className="mb-4">
+          <Button
+            onClick={scanAndAnalyzeFolder}
+            disabled={isAnalyzing || photos.length === 0}
+            variant="default"
+            size="lg"
+            className="w-full glass backdrop-blur-md bg-gradient-primary text-white border border-white/20 hover:bg-white/10 transition-all duration-300 disabled:opacity-50"
+          >
+            {isAnalyzing ? (
+              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+            ) : (
+              <Sparkles className="h-5 w-5 mr-2" />
+            )}
+            Scan & Analyze Folder
+          </Button>
+        </div>
+
         {/* Controls */}
         <div className="flex items-center gap-3 flex-wrap">
           <Button
@@ -445,21 +528,6 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
           >
             <Tags className="h-4 w-4 mr-2" />
             Categories ({categories.length})
-          </Button>
-
-          <Button
-            onClick={analyzePhotos}
-            disabled={isAnalyzing || photos.length === 0}
-            variant="ghost"
-            size="sm"
-            className="glass backdrop-blur-md bg-white/5 border border-white/20 text-white/80 hover:bg-white/10 hover:text-white transition-all duration-300 disabled:opacity-50"
-          >
-            {isAnalyzing ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Sparkles className="h-4 w-4 mr-2" />
-            )}
-            AI Analyze
           </Button>
 
           <Button
@@ -533,14 +601,14 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
           </Card>
         )}
 
-        {/* Analysis Progress */}
-        {isAnalyzing && (
+        {/* Folder Scan Progress */}
+        {isAnalyzing && folderScanProgress && (
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
-              <span>Analyzing photos with AI...</span>
-              <span>{Math.round(analysisProgress)}%</span>
+              <span>Analyzing folder... {folderScanProgress.current}/{folderScanProgress.total} photos</span>
+              <span>{Math.round((folderScanProgress.current / folderScanProgress.total) * 100)}%</span>
             </div>
-            <Progress value={analysisProgress} />
+            <Progress value={(folderScanProgress.current / folderScanProgress.total) * 100} />
           </div>
         )}
 
@@ -593,9 +661,28 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
                       )}
                     </div>
                   ) : (
-                    <p className="text-xs text-muted-foreground">
-                      Click "AI Analyze" to categorize
-                    </p>
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground">
+                        Not yet analyzed
+                      </p>
+                      <Button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          analyzeIndividualPhoto(photo.id);
+                        }}
+                        disabled={analyzingPhotoId === photo.id}
+                        variant="ghost"
+                        size="sm"
+                        className="w-full glass text-xs hover:bg-white/10"
+                      >
+                        {analyzingPhotoId === photo.id ? (
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-3 w-3 mr-1" />
+                        )}
+                        AI Analyze
+                      </Button>
+                    </div>
                   )}
                 </CardContent>
               </Card>
