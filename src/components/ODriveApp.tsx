@@ -134,24 +134,24 @@ const ODriveApp = () => {
                   
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
                     <div className="glass-card text-center p-4">
-                      <Video className="h-8 w-8 mx-auto mb-3 text-primary" />
-                      <h3 className="font-semibold mb-2">Smart Organization</h3>
+                      <Camera className="h-8 w-8 mx-auto mb-3 text-primary" />
+                      <h3 className="font-semibold mb-2">Photos & Videos</h3>
                       <p className="text-sm text-muted-foreground">
-                        Automatically sort videos by creation date and metadata
+                        Organize both photos and videos with AI-powered chronological sorting
                       </p>
                     </div>
                     <div className="glass-card text-center p-4">
-                      <Calendar className="h-8 w-8 mx-auto mb-3 text-secondary" />
-                      <h3 className="font-semibold mb-2">Timeline Generation</h3>
+                      <Mic className="h-8 w-8 mx-auto mb-3 text-secondary" />
+                      <h3 className="font-semibold mb-2">Voice Interface</h3>
                       <p className="text-sm text-muted-foreground">
-                        Create CapCut & Premiere Pro timelines with proper sequencing
+                        Control your media library with natural voice commands
                       </p>
                     </div>
                     <div className="glass-card text-center p-4">
                       <Settings className="h-8 w-8 mx-auto mb-3 text-accent" />
-                      <h3 className="font-semibold mb-2">Metadata Extraction</h3>
+                      <h3 className="font-semibold mb-2">Smart Analysis</h3>
                       <p className="text-sm text-muted-foreground">
-                        Extract duration, resolution, and timestamp data
+                        Extract metadata, faces, objects, and locations from your media
                       </p>
                     </div>
                   </div>
