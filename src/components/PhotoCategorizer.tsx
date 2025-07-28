@@ -584,13 +584,13 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
       <CardContent className="space-y-6">
         {/* Main Scan Button */}
         <div className="mb-4">
-          <Button
-            onClick={scanAndAnalyzeFolder}
-            disabled={isAnalyzing || photos.length === 0}
-            variant="default"
-            size="lg"
-            className="w-full glass backdrop-blur-md bg-gradient-primary text-white border border-white/20 hover:bg-white/10 transition-all duration-300 disabled:opacity-50"
-          >
+        <Button
+          onClick={scanAndAnalyzeFolder}
+          disabled={isAnalyzing || photos.length === 0}
+          variant="ghost"
+          size="sm"
+          className="w-full glass backdrop-blur-sm bg-white/5 text-white/90 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all duration-200"
+        >
             {isAnalyzing ? (
               <Loader2 className="h-5 w-5 mr-2 animate-spin" />
             ) : (
