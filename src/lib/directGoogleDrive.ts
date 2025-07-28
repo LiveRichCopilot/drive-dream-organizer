@@ -25,8 +25,7 @@ export class DirectGoogleDriveClient {
         `redirect_uri=${encodeURIComponent(redirectUri)}&` +
         `response_type=${responseType}&` +
         `scope=${encodeURIComponent(scope)}&` +
-        `access_type=offline&` +
-        `prompt=consent&` +
+        `prompt=select_account&` +
         `include_granted_scopes=true`;
 
       const popup = window.open(authUrl, 'google-auth', 'width=500,height=600');
