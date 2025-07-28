@@ -156,7 +156,13 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
     setAnalysisProgress(0);
 
     try {
-      const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+      // Try multiple possible environment variable names
+      const apiKey = import.meta.env.VITE_OPENAI_API_KEY || 
+                     import.meta.env.OPENAI_API_KEY || 
+                     import.meta.env.VITE_OPENAI_KEY ||
+                     import.meta.env.OPENAI_KEY;
+                     
+      console.log('PhotoCategorizer - Available env vars:', Object.keys(import.meta.env));
       console.log('PhotoCategorizer - API Key exists:', !!apiKey);
       console.log('PhotoCategorizer - API Key length:', apiKey?.length);
       
