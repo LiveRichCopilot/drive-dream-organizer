@@ -272,24 +272,31 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
     setFolderScanProgress({ current: 0, total: unanalyzedPhotos.length });
 
     try {
-      // Debug: Log all available environment variables
-      console.log('DEBUG: All import.meta.env variables:', import.meta.env);
-      console.log('DEBUG: Specifically checking VITE_OPENAI_API_KEY:', import.meta.env.VITE_OPENAI_API_KEY);
-      console.log('DEBUG: Type of VITE_OPENAI_API_KEY:', typeof import.meta.env.VITE_OPENAI_API_KEY);
-      console.log('DEBUG: Is VITE_OPENAI_API_KEY truthy?', !!import.meta.env.VITE_OPENAI_API_KEY);
+      // Get API key from Supabase edge function (secure access to secrets)
+      console.log('🔑 Fetching OpenAI API key from Supabase secrets...');
+      const keyResponse = await fetch(`https://iffvjtfrqaesoehbwtgi.supabase.co/functions/v1/get-openai-key`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88`
+        }
+      });
       
-      const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-      
-      if (!apiKey) {
-        console.error('❌ VITE_OPENAI_API_KEY not found in environment variables');
-        console.error('📋 Available env vars:', Object.keys(import.meta.env));
-        console.error('🔧 Please use the "Add API Key" button at the bottom of the Lovable interface');
-        console.error('📝 Set Name: VITE_OPENAI_API_KEY and your OpenAI API key as the value');
-        console.error('💡 After adding the key, refresh the page to reload environment variables');
-        throw new Error('OpenAI API key not configured. Please use the "Add API Key" button at the bottom of the screen, then refresh the page.');
+      if (!keyResponse.ok) {
+        const errorData = await keyResponse.json();
+        console.error('❌ Failed to get API key from Supabase:', errorData);
+        throw new Error(`Failed to retrieve OpenAI API key: ${errorData.message || 'Unknown error'}`);
       }
       
-      console.log('✅ OpenAI API key found and ready for photo analysis');
+      const keyData = await keyResponse.json();
+      const apiKey = keyData.apiKey;
+      
+      if (!apiKey) {
+        console.error('❌ API key is empty in response');
+        throw new Error('OpenAI API key is empty - please check your Supabase secrets configuration');
+      }
+      
+      console.log('✅ OpenAI API key successfully retrieved and ready for photo analysis');
 
       const batchSize = 100;
       const totalBatches = Math.ceil(unanalyzedPhotos.length / batchSize);
@@ -388,12 +395,28 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
     setAnalyzingPhotoId(photoId);
 
     try {
-      const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+      // Get API key from Supabase edge function (secure access to secrets)
+      console.log('🔑 Fetching OpenAI API key from Supabase secrets for individual analysis...');
+      const keyResponse = await fetch(`https://iffvjtfrqaesoehbwtgi.supabase.co/functions/v1/get-openai-key`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88`
+        }
+      });
+      
+      if (!keyResponse.ok) {
+        const errorData = await keyResponse.json();
+        console.error('❌ Failed to get API key from Supabase:', errorData);
+        throw new Error(`Failed to retrieve OpenAI API key: ${errorData.message || 'Unknown error'}`);
+      }
+      
+      const keyData = await keyResponse.json();
+      const apiKey = keyData.apiKey;
       
       if (!apiKey) {
-        console.error('VITE_OPENAI_API_KEY not found in environment variables');
-        console.error('Please use the "Add API Key" button at the bottom of the Lovable interface');
-        throw new Error('OpenAI API key not configured. Please use the "Add API Key" button at the bottom of the screen.');
+        console.error('❌ API key is empty in response');
+        throw new Error('OpenAI API key is empty - please check your Supabase secrets configuration');
       }
 
       const analysis = await analyzePhoto(photo, apiKey);
