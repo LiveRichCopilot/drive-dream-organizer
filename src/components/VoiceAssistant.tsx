@@ -187,7 +187,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ className }) => {
         {!isOpen && (
           <Button
             onClick={() => setIsOpen(true)}
-            className="h-14 w-14 rounded-full glass-card shadow-large border border-white/20 hover:scale-110 transition-all duration-300"
+            className="h-14 w-14 rounded-full bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 hover:scale-110 transition-all duration-300 shadow-lg"
             size="icon"
           >
             <MessageCircle className="h-6 w-6 text-white" />
