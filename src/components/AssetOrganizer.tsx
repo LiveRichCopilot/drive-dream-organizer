@@ -161,24 +161,7 @@ const AssetOrganizer = () => {
         setAnalysisProgress((processedCount / photoAssets.length) * 100);
 
         // Store analysis results for future use
-        for (const result of results) {
-          try {
-            await supabase.from('asset_categories').upsert({
-              file_name: result.fileName,
-              categories: result.categories,
-              scene_type: result.scene,
-              face_count: result.faces,
-              confidence_score: result.confidence,
-              metadata: {
-                colors: result.colors,
-                landmarks: result.landmarks,
-                objects: result.objects
-              }
-            });
-          } catch (error) {
-            console.error('Error storing analysis:', error);
-          }
-        }
+        console.log('Analysis results:', results);
       }
 
       toast({

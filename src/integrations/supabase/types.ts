@@ -14,7 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      asset_categories: {
+        Row: {
+          categories: string[] | null
+          confidence_score: number | null
+          created_at: string
+          face_count: number | null
+          file_name: string
+          id: string
+          metadata: Json | null
+          scene_type: string | null
+          updated_at: string
+        }
+        Insert: {
+          categories?: string[] | null
+          confidence_score?: number | null
+          created_at?: string
+          face_count?: number | null
+          file_name: string
+          id?: string
+          metadata?: Json | null
+          scene_type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          categories?: string[] | null
+          confidence_score?: number | null
+          created_at?: string
+          face_count?: number | null
+          file_name?: string
+          id?: string
+          metadata?: Json | null
+          scene_type?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
