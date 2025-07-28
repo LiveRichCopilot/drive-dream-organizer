@@ -69,6 +69,14 @@ const VideoOrganizerApp = () => {
   const filteredVideos = videos.filter(video =>
     video.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  
+  // Debug logging
+  console.log('VideoOrganizerApp - videos array:', videos);
+  console.log('VideoOrganizerApp - videos.length:', videos.length);
+  console.log('VideoOrganizerApp - searchQuery:', searchQuery);
+  console.log('VideoOrganizerApp - filteredVideos.length:', filteredVideos.length);
+  console.log('VideoOrganizerApp - isConnected:', isConnected);
+  console.log('VideoOrganizerApp - selectedFolderId:', selectedFolderId);
 
   if (!isConnected) {
     return (
