@@ -213,7 +213,7 @@ class APIClient {
   }
 
   async listVideoFiles(folderId?: string): Promise<VideoFile[]> {
-    const response = await fetch(`${this.baseURL}/google-drive-list`, {
+    const response = await this.makeAuthenticatedRequest(`${this.baseURL}/google-drive-list`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -224,12 +224,6 @@ class APIClient {
     });
     
     if (!response.ok) {
-      // If we get a 401, the token has expired
-      if (response.status === 401) {
-        this.logout(); // Clear invalid token
-        throw new Error('Your Google Drive session has expired. Please reconnect to continue.');
-      }
-      
       const errorData = await response.json().catch(() => ({}));
       const errorMessage = errorData.error || `Failed to fetch video files (${response.status})`;
       throw new Error(errorMessage);
@@ -242,7 +236,7 @@ class APIClient {
   }
 
   async downloadFile(fileId: string, fileName: string): Promise<string> {
-    const response = await fetch(`${this.baseURL}/google-drive-download`, {
+    const response = await this.makeAuthenticatedRequest(`${this.baseURL}/google-drive-download`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -261,7 +255,7 @@ class APIClient {
   }
 
   async renameFile(fileId: string, newName: string): Promise<void> {
-    const response = await fetch(`${this.baseURL}/google-drive-rename`, {
+    const response = await this.makeAuthenticatedRequest(`${this.baseURL}/google-drive-rename`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -277,7 +271,7 @@ class APIClient {
   }
 
   async organizeVideosByDate(fileIds: string[], sourceFolderId?: string): Promise<void> {
-    const response = await fetch(`${this.baseURL}/google-drive-organize`, {
+    const response = await this.makeAuthenticatedRequest(`${this.baseURL}/google-drive-organize`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -293,7 +287,7 @@ class APIClient {
   }
 
   async extractVideoMetadata(fileId: string): Promise<any> {
-    const response = await fetch(`${this.baseURL}/video-metadata-extractor`, {
+    const response = await this.makeAuthenticatedRequest(`${this.baseURL}/video-metadata-extractor`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -306,12 +300,6 @@ class APIClient {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Metadata extraction error:', response.status, errorText);
-      
-      // Check if it's an authentication error
-      if (response.status === 401 || errorText.includes('401') || errorText.includes('Invalid Credentials') || errorText.includes('UNAUTHENTICATED')) {
-        throw new Error('Google Drive authentication expired. Please re-authenticate by clicking "Authenticate with Google Drive" button.');
-      }
-      
       throw new Error(`Failed to extract metadata: ${errorText}`);
     }
 
