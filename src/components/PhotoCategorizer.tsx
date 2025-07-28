@@ -24,6 +24,7 @@ import {
   Plus
 } from "lucide-react";
 import { useDirectGoogleDrive } from "@/hooks/useDirectGoogleDrive";
+import { sendGmailMessage, getUserEmail } from "@/lib/gmailApi";
 
 interface PhotoFile {
   id: string;
@@ -143,7 +144,71 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
     }
   };
 
-  // Folder scan - analyzes ALL photos
+  // Send batch completion email using Gmail API
+  const sendBatchCompleteEmail = async (batchInfo: {
+    current: number;
+    total: number;
+    start: number;
+    end: number;
+    categories: string[];
+  }) => {
+    try {
+      // Get user's actual email from Google API
+      let userEmail = localStorage.getItem('user_email');
+      if (!userEmail) {
+        try {
+          userEmail = await getUserEmail();
+          localStorage.setItem('user_email', userEmail);
+        } catch (error) {
+          console.error('Failed to get user email:', error);
+          userEmail = 'user@example.com'; // fallback
+        }
+      }
+      
+      const message = {
+        to: userEmail,
+        subject: `Photo Agent - Batch ${batchInfo.current}/${batchInfo.total} Complete ✅`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #333; border-bottom: 2px solid #4CAF50;">🎉 Batch Processing Complete</h2>
+            
+            <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h3>📊 Batch Results</h3>
+              <p><strong>✅ Processed:</strong> Photos ${batchInfo.start}-${batchInfo.end}</p>
+              <p><strong>📁 Progress:</strong> Batch ${batchInfo.current} of ${batchInfo.total}</p>
+              <p><strong>🏷️ Categories found:</strong> ${batchInfo.categories.slice(0, 10).join(', ')}</p>
+              ${batchInfo.categories.length > 10 ? `<p><em>...and ${batchInfo.categories.length - 10} more categories</em></p>` : ''}
+            </div>
+            
+            <div style="background: #e8f4fd; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h3>⚡ Auto-Processing Status</h3>
+              <p>${batchInfo.current < batchInfo.total ? 
+                '🔄 <strong>Next batch starting automatically...</strong><br>Processing continues in background!' :
+                '🎊 <strong>All batches complete!</strong><br>Your entire photo collection has been analyzed.'
+              }</p>
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px;">
+              <a href="${window.location.origin}" style="background: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+                View Results in App
+              </a>
+            </div>
+          </div>
+        `
+      };
+      
+      // Use existing Gmail API integration
+      await sendGmailMessage(message);
+      
+      console.log(`Batch ${batchInfo.current} email notification sent`);
+      
+    } catch (error) {
+      console.error('Failed to send batch email:', error);
+      // Don't fail the batch processing if email fails
+    }
+  };
+
+  // Folder scan with batch processing and Gmail notifications
   const scanAndAnalyzeFolder = async () => {
     const unanalyzedPhotos = photos.filter(photo => !photo.analysis);
     
@@ -168,48 +233,83 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
         throw new Error('OpenAI API key not configured. Please set VITE_OPENAI_API_KEY environment variable.');
       }
 
-      let processedCount = 0;
-      console.log('PhotoCategorizer - Starting folder scan of', unanalyzedPhotos.length, 'photos');
+      const batchSize = 100;
+      const totalBatches = Math.ceil(unanalyzedPhotos.length / batchSize);
+      let allDiscoveredCategories = new Set<string>();
+      
+      console.log('PhotoCategorizer - Starting batch processing:', unanalyzedPhotos.length, 'photos in', totalBatches, 'batches');
 
-      for (const photo of unanalyzedPhotos) {
-        try {
-          const imageUrl = photo.thumbnailLink || photo.webViewLink;
-          
-          const analysis = await analyzePhoto(photo, apiKey);
-          
-          // Update photo with analysis results
-          setPhotos(prev => prev.map(p => {
-            if (p.id === photo.id) {
-              return { ...p, analysis };
-            }
-            return p;
-          }));
+      for (let batchNum = 1; batchNum <= totalBatches; batchNum++) {
+        const startIndex = (batchNum - 1) * batchSize;
+        const endIndex = Math.min(startIndex + batchSize, unanalyzedPhotos.length);
+        const currentBatch = unanalyzedPhotos.slice(startIndex, endIndex);
+        
+        console.log(`Processing batch ${batchNum}/${totalBatches} - photos ${startIndex + 1} to ${endIndex}`);
+        
+        // Process current batch
+        for (const photo of currentBatch) {
+          try {
+            const analysis = await analyzePhoto(photo, apiKey);
+            
+            // Update photo with analysis results
+            setPhotos(prev => prev.map(p => {
+              if (p.id === photo.id) {
+                return { ...p, analysis };
+              }
+              return p;
+            }));
 
-          processedCount++;
-          setFolderScanProgress({ current: processedCount, total: unanalyzedPhotos.length });
+            // Collect discovered categories
+            analysis.categories.forEach(cat => allDiscoveredCategories.add(cat));
 
-          // Small delay to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 100));
+            // Update progress
+            const totalProcessed = startIndex + currentBatch.indexOf(photo) + 1;
+            setFolderScanProgress({ current: totalProcessed, total: unanalyzedPhotos.length });
 
-        } catch (error) {
-          console.error(`Error analyzing ${photo.name}:`, error);
-          // Continue with other photos
+            // Small delay to avoid rate limiting
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+          } catch (error) {
+            console.error(`Error analyzing ${photo.name}:`, error);
+            // Continue with other photos
+          }
+        }
+        
+        // Auto-generate categories after each batch
+        generateSmartCategories();
+        
+        // Send batch completion email
+        await sendBatchCompleteEmail({
+          current: batchNum,
+          total: totalBatches,
+          start: startIndex + 1,
+          end: endIndex,
+          categories: Array.from(allDiscoveredCategories)
+        });
+        
+        // Show progress toast
+        toast({
+          title: `Batch ${batchNum}/${totalBatches} complete`,
+          description: `Processed ${endIndex} of ${unanalyzedPhotos.length} photos`,
+        });
+        
+        // Small delay between batches
+        if (batchNum < totalBatches) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
 
-      // Auto-generate categories based on analysis
-      generateSmartCategories();
-
+      // Final completion
       toast({
-        title: "Folder scan complete",
-        description: `Analyzed ${processedCount} photos with comprehensive categorization`,
+        title: "All batches complete! 🎉",
+        description: `Successfully analyzed ${unanalyzedPhotos.length} photos with ${allDiscoveredCategories.size} unique categories found`,
       });
 
     } catch (error) {
       console.error('Folder scan error:', error);
       toast({
-        title: "Folder scan failed",
-        description: "Please try again later",
+        title: "Batch processing failed",
+        description: "Check console for details. Some photos may have been processed.",
         variant: "destructive",
       });
     } finally {
