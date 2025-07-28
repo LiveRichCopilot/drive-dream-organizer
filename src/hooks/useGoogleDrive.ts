@@ -72,6 +72,23 @@ export const useGoogleDrive = (folderId?: string) => {
       console.log(`Loaded ${videoFiles.length} videos from ${targetFolderId ? 'folder' : 'main drive'}`);
     } catch (error) {
       console.error('Failed to load videos:', error);
+      
+      // Check if it's an authentication error
+      if (error instanceof Error && error.message.includes('session has expired')) {
+        setIsConnected(false);
+        toast({
+          title: "Session Expired",
+          description: "Your Google Drive session has expired. Please reconnect to continue.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Failed to Load Videos",
+          description: error instanceof Error ? error.message : "Failed to load videos from Google Drive",
+          variant: "destructive",
+        });
+      }
+      
       // Clear videos on error
       setVideos([]);
     } finally {

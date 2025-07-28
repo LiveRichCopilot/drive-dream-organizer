@@ -148,7 +148,15 @@ class APIClient {
     });
     
     if (!response.ok) {
-      throw new Error('Failed to fetch video files');
+      // If we get a 401, the token has expired
+      if (response.status === 401) {
+        this.logout(); // Clear invalid token
+        throw new Error('Your Google Drive session has expired. Please reconnect to continue.');
+      }
+      
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || `Failed to fetch video files (${response.status})`;
+      throw new Error(errorMessage);
     }
     
     const data = await response.json();
