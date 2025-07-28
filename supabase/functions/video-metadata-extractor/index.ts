@@ -22,102 +22,34 @@ serve(async (req) => {
       });
     }
 
-    console.log(`🎬 Starting real metadata extraction with download: ${fileId}`);
+    // Call the Cloud Run service for metadata extraction
+    console.log(`🚀 Calling Cloud Run service for metadata extraction: ${fileId}`);
+    
+    const cloudRunUrl = 'https://video-metadata-service-226636967610.us-central1.run.app/extract';
+    
+    const serviceResponse = await fetch(cloudRunUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        fileId: fileId,
+        accessToken: accessToken
+      })
+    });
 
-    // Get file info from Google Drive
-    const fileResponse = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${fileId}?fields=name,size,createdTime,modifiedTime`,
-      { headers: { 'Authorization': `Bearer ${accessToken}` } }
-    );
-    
-    if (!fileResponse.ok) {
-      throw new Error(`Failed to fetch file info: ${fileResponse.status}`);
+    if (!serviceResponse.ok) {
+      const errorText = await serviceResponse.text();
+      console.error(`Cloud Run service error: ${serviceResponse.status} - ${errorText}`);
+      throw new Error(`Cloud Run service error: ${serviceResponse.status} - ${errorText}`);
     }
-    
-    const fileData = await fileResponse.json();
-    console.log(`📁 File: ${fileData.name} (${fileData.size} bytes)`);
-    
-    // Download and parse video file with streaming for efficiency
-    try {
-      console.log(`⬇️ Streaming video file for metadata extraction...`);
-      const downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
-      
-      // Get file size first to calculate end range
-      const fileSize = parseInt(fileData.size);
-      const endChunkSize = Math.min(2 * 1024 * 1024, fileSize); // Last 2MB or entire file if smaller
-      const startByte = Math.max(0, fileSize - endChunkSize);
-      
-      console.log(`📊 File size: ${fileSize} bytes, downloading last ${endChunkSize} bytes (${startByte}-${fileSize-1})`);
-      
-      const videoResponse = await fetch(downloadUrl, {
-        headers: { 
-          'Authorization': `Bearer ${accessToken}`,
-          'Range': `bytes=${startByte}-${fileSize-1}` // Download from end where metadata is
-        }
-      });
 
-      if (!videoResponse.ok) {
-        throw new Error(`Failed to download video: ${videoResponse.status}`);
-      }
+    const metadata = await serviceResponse.json();
+    console.log(`✅ Metadata extraction complete:`, metadata);
 
-      // Read partial content for metadata parsing
-      const buffer = await videoResponse.arrayBuffer();
-      const uint8Array = new Uint8Array(buffer);
-      
-      console.log(`📊 Downloaded ${buffer.byteLength} bytes, parsing QuickTime atoms...`);
-      
-      // Parse QuickTime/MP4 atoms for metadata
-      const metadata = parseVideoMetadata(uint8Array, fileData.name);
-      
-      if (metadata.originalDate) {
-        console.log(`✅ SUCCESS: Found embedded creation date: ${metadata.originalDate}`);
-        return new Response(JSON.stringify({
-          fileId,
-          fileName: fileData.name,
-          fileSize: fileData.size,
-          originalDate: metadata.originalDate,
-          extractionMethod: 'quicktime-atoms',
-          confidence: 'high',
-          allMetadata: metadata
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      } else {
-        console.log(`⚠️ No creation date found in QuickTime atoms`);
-      }
-    } catch (error) {
-      console.error('❌ Video download/parse error:', error.message);
-    }
-    
-    // Fallback to filename pattern extraction
-    const filenameDate = extractFromFilename(fileData.name);
-    if (filenameDate) {
-      console.log(`✅ Extracted from filename: ${filenameDate}`);
-      return new Response(JSON.stringify({
-        fileId,
-        fileName: fileData.name,
-        fileSize: fileData.size,
-        originalDate: filenameDate,
-        extractionMethod: 'filename-pattern',
-        confidence: 'medium'
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-    
-    // Final fallback to Google Drive dates
-    console.log(`📅 Using Google Drive fallback date`);
-    const fallbackDate = fileData.modifiedTime || fileData.createdTime;
-    
-    return new Response(JSON.stringify({
-      fileId,
-      fileName: fileData.name,
-      fileSize: fileData.size,
-      originalDate: fallbackDate,
-      extractionMethod: 'google-drive-fallback',
-      confidence: 'low'
-    }), {
+    return new Response(JSON.stringify(metadata), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
     });
 
   } catch (error) {
