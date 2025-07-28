@@ -1,4 +1,13 @@
 // Direct Google Drive integration without Supabase functions
+
+// Extend Window interface for OAuth callbacks
+declare global {
+  interface Window {
+    googleAuthResolve?: (value: void | PromiseLike<void>) => void;
+    googleAuthReject?: (reason?: any) => void;
+  }
+}
+
 export class DirectGoogleDriveClient {
   private clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '1070421026009-ihbdicu5n4b198qi8uoav1b284fefdcd.apps.googleusercontent.com';
   private accessToken: string | null = null;
@@ -16,6 +25,22 @@ export class DirectGoogleDriveClient {
 
   async authenticate(): Promise<void> {
     return new Promise((resolve, reject) => {
+      // Check if we're already in the redirect flow
+      if (window.location.hash.includes('access_token=')) {
+        const urlParams = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = urlParams.get('access_token');
+        
+        if (accessToken) {
+          this.accessToken = accessToken;
+          localStorage.setItem('google_access_token', accessToken);
+          
+          // Clean up the URL hash
+          window.history.replaceState({}, document.title, window.location.pathname);
+          resolve();
+          return;
+        }
+      }
+
       const scope = 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.metadata.readonly';
       const responseType = 'token'; // Use implicit flow for client-side
       const redirectUri = window.location.origin;
@@ -28,41 +53,12 @@ export class DirectGoogleDriveClient {
         `prompt=select_account&` +
         `include_granted_scopes=true`;
 
-      const popup = window.open(authUrl, 'google-auth', 'width=500,height=600');
-      
-      if (!popup) {
-        reject(new Error('Failed to open authentication popup. Please allow popups for this site.'));
-        return;
-      }
+      // Store the resolve/reject functions for the redirect callback
+      window.googleAuthResolve = resolve;
+      window.googleAuthReject = reject;
 
-      // Check for the access token in the popup URL
-      const checkForToken = setInterval(() => {
-        try {
-          if (popup.closed) {
-            clearInterval(checkForToken);
-            reject(new Error('Authentication popup was closed'));
-            return;
-          }
-
-          const popupUrl = popup.location.href;
-          if (popupUrl.includes('access_token=')) {
-            const urlParams = new URLSearchParams(popupUrl.split('#')[1]);
-            const accessToken = urlParams.get('access_token');
-            
-            if (accessToken) {
-              this.accessToken = accessToken;
-              localStorage.setItem('google_access_token', accessToken);
-              
-              popup.close();
-              clearInterval(checkForToken);
-              resolve();
-            }
-          }
-        } catch (e) {
-          // Cross-origin error when popup is on google.com - this is normal
-          // We'll continue checking until the popup returns to our domain
-        }
-      }, 1000);
+      // Redirect directly instead of using popup
+      window.location.href = authUrl;
     });
   }
 
@@ -173,3 +169,24 @@ export class DirectGoogleDriveClient {
 }
 
 export const directGoogleDrive = new DirectGoogleDriveClient();
+
+// Handle OAuth redirect on page load
+if (typeof window !== 'undefined' && window.location.hash.includes('access_token=')) {
+  const urlParams = new URLSearchParams(window.location.hash.substring(1));
+  const accessToken = urlParams.get('access_token');
+  
+  if (accessToken) {
+    // Store the token
+    localStorage.setItem('google_access_token', accessToken);
+    
+    // Clean up the URL hash
+    window.history.replaceState({}, document.title, window.location.pathname);
+    
+    // If there's a pending promise, resolve it
+    if (window.googleAuthResolve) {
+      window.googleAuthResolve();
+      delete window.googleAuthResolve;
+      delete window.googleAuthReject;
+    }
+  }
+}
