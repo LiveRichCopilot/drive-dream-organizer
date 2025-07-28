@@ -20,16 +20,57 @@ export class FixedGoogleOAuth {
     if (window.location.hash.includes('access_token=')) {
       const urlParams = new URLSearchParams(window.location.hash.substring(1));
       const accessToken = urlParams.get('access_token');
+      const error = urlParams.get('error');
+      const errorDescription = urlParams.get('error_description');
+      
+      console.log('🔍 OAuth Callback Details:');
+      console.log('  - Full URL:', window.location.href);
+      console.log('  - Hash:', window.location.hash);
+      console.log('  - Access Token:', accessToken ? 'Present' : 'Missing');
+      console.log('  - Error:', error);
+      console.log('  - Error Description:', errorDescription);
+      
+      if (error) {
+        console.error('❌ OAuth Error:', error, errorDescription);
+        
+        // Store error for display
+        localStorage.setItem('google_oauth_error', JSON.stringify({
+          error,
+          errorDescription,
+          timestamp: Date.now()
+        }));
+        
+        // Show user-friendly error message
+        if (error === 'access_denied') {
+          alert('Google authentication was cancelled. Please try again.');
+        } else {
+          alert(`Google authentication failed: ${errorDescription || error}\n\nThis might be due to:\n• OAuth consent screen not properly configured\n• Missing test users (if in testing mode)\n• Incorrect redirect URIs in Google Cloud Console`);
+        }
+        return;
+      }
       
       if (accessToken) {
         this.accessToken = accessToken;
         localStorage.setItem('google_access_token', accessToken);
+        
+        // Clear any previous errors
+        localStorage.removeItem('google_oauth_error');
         
         // Clean up the URL hash
         window.history.replaceState({}, document.title, window.location.pathname);
         
         console.log('✅ OAuth callback successful - token stored');
       }
+    }
+    
+    // Check if we're coming back from a failed OAuth attempt (no hash, but could be 403)
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('error') || window.location.pathname.includes('error')) {
+      console.error('❌ Possible OAuth 403/error redirect detected');
+      console.log('  - Current URL:', window.location.href);
+      console.log('  - Search params:', window.location.search);
+      
+      alert('Google returned an error (possibly 403). This usually means:\n\n• Your email is not added as a test user in Google Cloud Console\n• The OAuth consent screen is in "Testing" mode\n• The Google Drive API is not enabled\n• Incorrect redirect URIs are configured\n\nPlease check your Google Cloud Console settings.');
     }
   }
 
