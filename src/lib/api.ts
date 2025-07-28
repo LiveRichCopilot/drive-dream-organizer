@@ -125,7 +125,7 @@ class APIClient {
       
       return new Promise((resolve, reject) => {
         const clientId = client_id;
-        const scope = 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/drive.metadata';
+        const scope = 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.metadata.readonly';
         const responseType = 'code';
         const redirectUri = `${window.location.origin}/auth/callback`;
         console.log('Using redirect URI:', redirectUri);
@@ -137,7 +137,7 @@ class APIClient {
           `response_type=${responseType}&` +
           `scope=${encodeURIComponent(scope)}&` +
           `access_type=offline&` +
-          `prompt=select_account&` +  // This forces account selection
+          `prompt=consent&` +  // Force consent to ensure we get refresh token
           `include_granted_scopes=true`;
 
         console.log('Full auth URL:', authUrl);
