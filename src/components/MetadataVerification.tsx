@@ -7,6 +7,7 @@ import { CheckCircle2, XCircle, Clock, AlertTriangle, RefreshCw, Info, MapPin, C
 import { VideoFile, apiClient } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import PremiereExporter from './PremiereExporter';
+import CapCutExporter from './CapCutExporter';
 
 interface MetadataVerificationProps {
   videos: VideoFile[];
@@ -367,7 +368,7 @@ const MetadataVerification: React.FC<MetadataVerificationProps> = ({
               Export Options
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-8">
             <PremiereExporter
               videos={results
                 .filter(r => r.status === 'success' && r.originalDate)
@@ -385,8 +386,31 @@ const MetadataVerification: React.FC<MetadataVerificationProps> = ({
               }
               onExport={(type) => {
                 toast({
-                  title: "Export Initiated",
-                  description: `Exporting ${type === 'original' ? 'original filenames' : 'date-based filenames'} timeline...`,
+                  title: "Premiere Export Complete",
+                  description: `Final Cut Pro XML exported with ${type === 'original' ? 'original filenames' : 'date-based filenames'}`,
+                });
+              }}
+            />
+            
+            <CapCutExporter
+              videos={results
+                .filter(r => r.status === 'success' && r.originalDate)
+                .map(r => ({
+                  id: r.video.id,
+                  originalName: r.video.name,
+                  originalDate: new Date(r.originalDate!),
+                  metadata: {
+                    duration: r.metadata?.videoMetadata?.durationMillis ? 
+                      parseInt(r.metadata.videoMetadata.durationMillis) : 5000,
+                    resolution: r.metadata?.videoMetadata?.resolution || `1920x1080`,
+                    fps: r.metadata?.videoMetadata?.fps || 30
+                  }
+                }))
+              }
+              onExport={(type) => {
+                toast({
+                  title: "CapCut Export Complete",
+                  description: `CapCut project exported with ${type === 'original' ? 'original filenames' : 'date-based filenames'}`,
                 });
               }}
             />
