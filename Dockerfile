@@ -1,3 +1,4 @@
+# Updated for Cloud Run deployment with Vite
 # Build stage - Updated for Vite React app
 FROM node:18-alpine AS builder
 WORKDIR /app
