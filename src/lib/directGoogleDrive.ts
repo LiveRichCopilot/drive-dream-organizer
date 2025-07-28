@@ -1,6 +1,6 @@
 // Direct Google Drive integration without Supabase functions
 export class DirectGoogleDriveClient {
-  private clientId = ''; // We'll get this from environment or prompt user
+  private clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '1234567890-abcdefghijklmnopqrstuvwxyz.apps.googleusercontent.com'; // Replace with your actual Google Client ID
   private accessToken: string | null = null;
   private refreshToken: string | null = null;
   
@@ -14,16 +14,14 @@ export class DirectGoogleDriveClient {
     return !!this.accessToken;
   }
 
-  async authenticate(clientId: string): Promise<void> {
-    this.clientId = clientId;
-    
+  async authenticate(): Promise<void> {
     return new Promise((resolve, reject) => {
       const scope = 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.metadata.readonly';
       const responseType = 'token'; // Use implicit flow for client-side
       const redirectUri = window.location.origin;
       
       const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
-        `client_id=${clientId}&` +
+        `client_id=${this.clientId}&` +
         `redirect_uri=${encodeURIComponent(redirectUri)}&` +
         `response_type=${responseType}&` +
         `scope=${encodeURIComponent(scope)}&` +

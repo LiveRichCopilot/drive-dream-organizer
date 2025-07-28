@@ -8,15 +8,7 @@ export const useDirectGoogleDrive = (folderId?: string) => {
   const [isLoading, setIsLoading] = useState(false);
   const [videos, setVideos] = useState<MediaFile[]>([]);
   const [progress, setProgress] = useState(0);
-  const [showClientIdInput, setShowClientIdInput] = useState(false);
-
-  const connect = useCallback(async (clientId?: string) => {
-    // If no clientId provided, show input
-    if (!clientId) {
-      setShowClientIdInput(true);
-      return;
-    }
-
+  const connect = useCallback(async () => {
     setIsLoading(true);
     setProgress(0);
 
@@ -26,12 +18,11 @@ export const useDirectGoogleDrive = (folderId?: string) => {
         setProgress(prev => Math.min(prev + 15, 90));
       }, 300);
 
-      await directGoogleDrive.authenticate(clientId);
+      await directGoogleDrive.authenticate();
       
       clearInterval(progressInterval);
       setProgress(100);
       setIsConnected(true);
-      setShowClientIdInput(false);
       
       toast({
         title: "Connected!",
@@ -133,7 +124,6 @@ export const useDirectGoogleDrive = (folderId?: string) => {
     setIsConnected(false);
     setVideos([]);
     setProgress(0);
-    setShowClientIdInput(false);
     toast({
       title: "Disconnected",
       description: "Disconnected from Google Drive",
@@ -145,8 +135,6 @@ export const useDirectGoogleDrive = (folderId?: string) => {
     isLoading,
     videos,
     progress,
-    showClientIdInput,
-    setShowClientIdInput,
     connect,
     loadVideos,
     downloadVideo,
