@@ -157,15 +157,40 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
 
     try {
       const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+      console.log('PhotoCategorizer - API Key exists:', !!apiKey);
+      console.log('PhotoCategorizer - API Key length:', apiKey?.length);
+      
       if (!apiKey) {
-        throw new Error('OpenAI API key not configured');
+        throw new Error('OpenAI API key not configured. Please set VITE_OPENAI_API_KEY environment variable.');
       }
 
       let processedCount = 0;
+      console.log('PhotoCategorizer - Starting analysis of', unanalyzedPhotos.length, 'photos');
 
       for (const photo of unanalyzedPhotos) {
         try {
           const imageUrl = photo.thumbnailLink || photo.webViewLink;
+          console.log('PhotoCategorizer - Analyzing photo:', photo.name, 'URL:', imageUrl);
+          
+          const requestBody = {
+            model: "gpt-4o-mini",
+            messages: [{
+              role: "user",
+              content: [
+                { 
+                  type: "text", 
+                  text: "Analyze this image and return a JSON object with the following structure: {\"categories\": [\"category1\", \"category2\"], \"colors\": [\"color1\", \"color2\"], \"faces\": 0, \"landmarks\": [], \"objects\": [\"object1\", \"object2\"], \"scene\": \"indoor/outdoor/people/food/event/travel/general\", \"confidence\": 0.85}. Provide 2-5 categories, 1-3 dominant colors, count of faces, any landmarks, 2-5 main objects, scene type, and confidence score." 
+                },
+                { 
+                  type: "image_url", 
+                  image_url: { url: imageUrl } 
+                }
+              ]
+            }],
+            max_tokens: 500
+          };
+          
+          console.log('PhotoCategorizer - Request body:', JSON.stringify(requestBody, null, 2));
           
           const response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
@@ -173,27 +198,16 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
               'Authorization': `Bearer ${apiKey}`,
               'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-              model: "gpt-4o-mini",
-              messages: [{
-                role: "user",
-                content: [
-                  { 
-                    type: "text", 
-                    text: "Analyze this image and return a JSON object with the following structure: {\"categories\": [\"category1\", \"category2\"], \"colors\": [\"color1\", \"color2\"], \"faces\": 0, \"landmarks\": [], \"objects\": [\"object1\", \"object2\"], \"scene\": \"indoor/outdoor/people/food/event/travel/general\", \"confidence\": 0.85}. Provide 2-5 categories, 1-3 dominant colors, count of faces, any landmarks, 2-5 main objects, scene type, and confidence score." 
-                  },
-                  { 
-                    type: "image_url", 
-                    image_url: { url: imageUrl } 
-                  }
-                ]
-              }],
-              max_tokens: 500
-            })
+            body: JSON.stringify(requestBody)
           });
 
+          console.log('PhotoCategorizer - OpenAI Response status:', response.status);
+          console.log('PhotoCategorizer - OpenAI Response headers:', Object.fromEntries(response.headers.entries()));
+
           if (!response.ok) {
-            throw new Error(`OpenAI API error: ${response.statusText}`);
+            const errorText = await response.text();
+            console.error('PhotoCategorizer - OpenAI API error response:', errorText);
+            throw new Error(`OpenAI API error: ${response.status} ${response.statusText} - ${errorText}`);
           }
 
           const data = await response.json();
