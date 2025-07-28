@@ -51,6 +51,20 @@ class APIClient {
       console.log('Starting authentication process...');
       console.log('Base URL:', this.baseURL);
       
+      // First check if Cloud Run service is alive
+      try {
+        console.log('Checking Cloud Run service health...');
+        const healthCheck = await fetch(`${this.baseURL}/health`, {
+          method: 'GET',
+          mode: 'no-cors' // Skip CORS for basic check
+        });
+        console.log('Cloud Run service health check:', healthCheck);
+        console.log('Health check status:', healthCheck.status);
+      } catch (e) {
+        console.error('Cloud Run service appears to be down:', e);
+        console.log('Continuing with OAuth attempt anyway...');
+      }
+      
       // First get the client ID from our backend
       const authUrl = `${this.baseURL}/api/drive/authorize`;
       console.log('Attempting to fetch from:', authUrl);
