@@ -40,7 +40,20 @@ const AuthCallback = () => {
     // Close the popup after a small delay to allow debugging
     setTimeout(() => {
       console.log('Closing popup window');
-      window.close();
+      try {
+        window.close();
+      } catch (error) {
+        console.log('Could not close window due to Cross-Origin-Opener-Policy - this is normal');
+        // Fallback: Show a message to user to close manually
+        document.body.innerHTML = `
+          <div style="display: flex; align-items: center; justify-content: center; height: 100vh; font-family: system-ui;">
+            <div style="text-align: center;">
+              <h2 style="margin-bottom: 16px;">Authentication Complete</h2>
+              <p style="color: #666;">Please close this window manually.</p>
+            </div>
+          </div>
+        `;
+      }
     }, 1000);
   }, []);
 
