@@ -73,6 +73,17 @@ export const useGoogleDrive = (folderId?: string) => {
       console.log('Is videoFiles an array?', Array.isArray(videoFiles));
       setVideos(videoFiles);
       console.log(`Loaded ${videoFiles.length} videos from ${targetFolderId ? 'folder' : 'main drive'}`);
+      
+      // Show skip message if available
+      const skipMessage = (window as any).lastSkipMessage;
+      if (skipMessage) {
+        toast({
+          title: "File Filtering Applied",
+          description: skipMessage,
+        });
+        // Clear the message so it doesn't show again
+        (window as any).lastSkipMessage = null;
+      }
     } catch (error) {
       console.error('Failed to load videos:', error);
       

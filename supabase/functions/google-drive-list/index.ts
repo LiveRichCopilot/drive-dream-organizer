@@ -25,8 +25,9 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}))
     const folderId = body.folderId
 
-    // Build query for Google Drive API
-    let query = "mimeType contains 'video/'"
+    // Build query for Google Drive API - filter for actual video files only
+    // Exclude .aae files (Apple edit sidecar files) and focus on real video extensions
+    let query = "(mimeType contains 'video/' or name contains '.mov' or name contains '.mp4' or name contains '.m4v' or name contains '.avi') and not name contains '.aae'"
     if (folderId) {
       query += ` and '${folderId}' in parents`
     }
@@ -141,11 +142,41 @@ serve(async (req) => {
       }
     }
 
-    console.log('Total videos found:', allVideoFiles.length)
+    // Count .aae files (Apple edit sidecar files) to show in skip message
+    let aaeCount = 0
+    try {
+      const aaeQuery = folderId 
+        ? `name contains '.aae' and '${folderId}' in parents`
+        : `name contains '.aae'`
+      
+      const aaeUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(aaeQuery)}&fields=files(id,name)&pageSize=100`
+      const aaeResponse = await fetch(aaeUrl, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      })
+      
+      if (aaeResponse.ok) {
+        const aaeData = await aaeResponse.json()
+        aaeCount = aaeData.files?.length || 0
+        console.log(`Found ${aaeCount} .aae files to skip`)
+      }
+    } catch (error) {
+      console.log('Error counting .aae files:', error)
+    }
+
+    // Additional client-side filtering to ensure no .aae files slip through
+    const validVideoExtensions = ['.mov', '.mp4', '.m4v', '.avi']
+    const filteredVideoFiles = allVideoFiles.filter(file => {
+      const fileName = file.name.toLowerCase()
+      const hasValidExtension = validVideoExtensions.some(ext => fileName.endsWith(ext))
+      const isNotAae = !fileName.includes('.aae')
+      return hasValidExtension && isNotAae
+    })
+
+    console.log(`Total files after filtering: ${filteredVideoFiles.length} videos, ${aaeCount} .aae files skipped`)
     
     // Transform the files to match our VideoFile interface  
     // IMPORTANT: Do NOT use Google Drive upload dates - they show upload time, not shooting time
-    const videoFiles = allVideoFiles?.map((file: any) => ({
+    const videoFiles = filteredVideoFiles?.map((file: any) => ({
       id: file.id,
       name: file.name,
       size: file.size ? parseInt(file.size) : 0,
@@ -163,7 +194,11 @@ serve(async (req) => {
     })) || []
 
     return new Response(
-      JSON.stringify({ files: videoFiles }),
+      JSON.stringify({ 
+        files: videoFiles,
+        skippedAaeFiles: aaeCount,
+        message: aaeCount > 0 ? `Skipping ${aaeCount} .aae edit files, processing ${videoFiles.length} actual videos` : null
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {

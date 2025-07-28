@@ -158,6 +158,14 @@ class APIClient {
       const data = await response.json();
       console.log('API Response data:', data);
       console.log('Files found:', data.files?.length || 0);
+      
+      // Show skip message if .aae files were filtered out
+      if (data.message) {
+        console.log(data.message);
+        // You can also store this message to show in UI if needed
+        (window as any).lastSkipMessage = data.message;
+      }
+      
       return data.files || [];
     } catch (error) {
       if (error instanceof AuthError) {
