@@ -34,8 +34,8 @@ export class FixedGoogleOAuth {
   }
 
   async authenticate(): Promise<void> {
-    // Use the exact Lovable app URL as redirect URI
-    const redirectUri = 'https://liverich-drive.lovable.app';
+    // Use the current app URL as redirect URI
+    const redirectUri = window.location.origin;
     
     const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' +
       `client_id=${this.clientId}&` +
