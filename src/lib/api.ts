@@ -44,20 +44,32 @@ export interface MediaFile {
 export type VideoFile = MediaFile;
 
 class APIClient {
-  private baseURL = 'https://your-cloud-run-url.run.app'; // TODO: Replace with actual Cloud Run URL
+  private baseURL = 'https://video-metadata-service-1070421026009.us-central1.run.app';
 
   async authenticate(): Promise<void> {
     try {
+      console.log('Starting authentication process...');
+      console.log('Base URL:', this.baseURL);
+      
       // First get the client ID from our backend
-      const configResponse = await fetch(`${this.baseURL}/google-auth`, {
+      const authUrl = `${this.baseURL}/api/drive/authorize`;
+      console.log('Attempting to fetch from:', authUrl);
+      
+      const configResponse = await fetch(authUrl, {
         method: 'GET',
+        mode: 'cors',
+        credentials: 'include',
         headers: {
+          'Content-Type': 'application/json',
           'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88`,
         },
       });
       
+      console.log('Config response status:', configResponse.status);
+      
       if (!configResponse.ok) {
         const errorText = await configResponse.text();
+        console.error('Failed to get Google client configuration:', errorText);
         throw new Error(`Failed to get Google client configuration: ${errorText}`);
       }
       
@@ -102,10 +114,16 @@ class APIClient {
           try {
             // The callback now receives the authorization code
             const code = event.data.code;
+            console.log('Received authorization code, exchanging for tokens...');
             
-            // Exchange code for token via our Edge Function
-            const response = await fetch(`${this.baseURL}/google-auth`, {
+            // Exchange code for token via our Edge Function  
+            const tokenUrl = `${this.baseURL}/api/drive/authorize`;
+            console.log('Token exchange URL:', tokenUrl);
+            
+            const response = await fetch(tokenUrl, {
               method: 'POST',
+              mode: 'cors',
+              credentials: 'include',
               headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88`,
@@ -113,19 +131,24 @@ class APIClient {
               body: JSON.stringify({ code }),
             });
             
+            console.log('Token exchange response status:', response.status);
+            
             if (!response.ok) {
               const errorData = await response.json().catch(() => ({}));
               const errorMessage = errorData.error || `Authentication failed (${response.status})`;
+              console.error('Token exchange failed:', errorMessage);
               throw new Error(errorMessage);
             }
             
             const data = await response.json();
+            console.log('Successfully received tokens');
             
             // Store tokens using the new token manager
             tokenManager.setTokens(data.access_token, data.refresh_token, data.expires_in);
             
             resolve();
           } catch (error) {
+            console.error('Authentication process error:', error);
             reject(error);
           }
         } else if (event.data.type === 'GOOGLE_AUTH_ERROR') {
@@ -147,6 +170,11 @@ class APIClient {
       });
     } catch (error) {
       console.error('Authentication error:', error);
+      console.log('Full error details:', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        baseURL: this.baseURL
+      });
       throw error instanceof Error ? error : new Error('Authentication failed');
     }
   }
