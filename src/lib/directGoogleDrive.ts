@@ -1,6 +1,6 @@
 // Direct Google Drive integration without Supabase functions
 export class DirectGoogleDriveClient {
-  private clientId = '1075064488826-9j8jn6hqeqmkkv8h7q5j9j5j5j5j5j5j.apps.googleusercontent.com'; // Your actual Google Client ID
+  private clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '1075064488826-9j8jn6hqeqmkkv8h7q5j9j5j5j5j5j5j.apps.googleusercontent.com';
   private accessToken: string | null = null;
   private refreshToken: string | null = null;
   
