@@ -82,11 +82,11 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
   const loadPhotos = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('google_drive_token');
+      const token = localStorage.getItem('google_access_token');
       console.log('PhotoCategorizer - Token exists:', !!token);
       console.log('PhotoCategorizer - FolderId:', folderId);
       
-      if (!token) throw new Error('No access token');
+      if (!token) throw new Error('No access token - please connect to Google Drive first');
 
       const folderQuery = folderId ? `'${folderId}' in parents and ` : '';
       const query = `${folderQuery}mimeType contains 'image/' and trashed = false`;
