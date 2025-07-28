@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import AuthCallback from "./pages/AuthCallback";
+import VoiceAssistant from "./components/VoiceAssistant";
 import { useTokenRefresh } from "./hooks/useTokenRefresh";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => {
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <VoiceAssistant />
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
