@@ -72,15 +72,14 @@ class TokenManager {
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
-        // Use Google's standard token refresh endpoint
-        const response = await fetch('https://oauth2.googleapis.com/token', {
+        // Use our secure edge function that handles Google OAuth2 token refresh
+        const response = await fetch(`${this.baseURL}/google-auth`, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88`,
           },
-          body: new URLSearchParams({
-            client_id: await this.getGoogleClientId(),
-            client_secret: await this.getGoogleClientSecret(),
+          body: JSON.stringify({
             refresh_token: refreshToken,
             grant_type: 'refresh_token',
           }),
@@ -142,14 +141,6 @@ class TokenManager {
     return client_id;
   }
 
-  /**
-   * Get Google Client Secret from backend (this should be implemented in your backend)
-   */
-  private async getGoogleClientSecret(): Promise<string> {
-    // In a real implementation, this should come from your secure backend
-    // For now, we'll use the edge function approach
-    throw new Error('Client secret should be handled by backend');
-  }
 
   /**
    * Store tokens after successful authentication
