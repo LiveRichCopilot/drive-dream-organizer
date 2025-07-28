@@ -83,23 +83,36 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
     setIsLoading(true);
     try {
       const token = localStorage.getItem('google_drive_token');
+      console.log('PhotoCategorizer - Token exists:', !!token);
+      console.log('PhotoCategorizer - FolderId:', folderId);
+      
       if (!token) throw new Error('No access token');
 
-      const folderQuery = folderId ? `'${folderId}' in parents and` : '';
-      const query = `${folderQuery} mimeType contains 'image/' and trashed = false`;
+      const folderQuery = folderId ? `'${folderId}' in parents and ` : '';
+      const query = `${folderQuery}mimeType contains 'image/' and trashed = false`;
+      console.log('PhotoCategorizer - Query:', query);
       
-      const response = await fetch(
-        `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,size,createdTime,modifiedTime,thumbnailLink,webViewLink)&pageSize=100&orderBy=createdTime desc`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        }
-      );
+      const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,size,createdTime,modifiedTime,thumbnailLink,webViewLink)&pageSize=100&orderBy=createdTime desc`;
+      console.log('PhotoCategorizer - API URL:', url);
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
 
-      if (!response.ok) throw new Error('Failed to fetch photos');
+      console.log('PhotoCategorizer - Response status:', response.status);
+      console.log('PhotoCategorizer - Response ok:', response.ok);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('PhotoCategorizer - API Error:', errorText);
+        throw new Error(`API Error: ${response.status} - ${errorText}`);
+      }
 
       const data = await response.json();
+      console.log('PhotoCategorizer - Response data:', data);
+      
       const photoFiles: PhotoFile[] = data.files.map((file: any) => ({
         id: file.id,
         name: file.name,
@@ -110,16 +123,17 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
         modifiedTime: new Date(file.modifiedTime).toLocaleDateString(),
       }));
 
+      console.log('PhotoCategorizer - Processed photos:', photoFiles.length);
       setPhotos(photoFiles);
       toast({
         title: "Photos loaded",
         description: `Found ${photoFiles.length} photos to categorize`,
       });
     } catch (error) {
-      console.error('Error loading photos:', error);
+      console.error('PhotoCategorizer - Error loading photos:', error);
       toast({
         title: "Error loading photos",
-        description: "Failed to fetch photos from Google Drive",
+        description: error instanceof Error ? error.message : "Failed to fetch photos from Google Drive",
         variant: "destructive",
       });
     } finally {
