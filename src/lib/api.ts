@@ -160,7 +160,9 @@ class APIClient {
     }
     
     const data = await response.json();
-    return data.files;
+    console.log('API Response data:', data);
+    console.log('Files found:', data.files?.length || 0);
+    return data.files || [];
   }
 
   async downloadFile(fileId: string, fileName: string): Promise<string> {

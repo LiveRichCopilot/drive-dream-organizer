@@ -68,6 +68,9 @@ export const useGoogleDrive = (folderId?: string) => {
       const targetFolderId = specificFolderId !== undefined ? specificFolderId : folderId;
       console.log('Loading videos with folderId:', targetFolderId);
       const videoFiles = await apiClient.listVideoFiles(targetFolderId);
+      console.log('Raw video files response:', videoFiles);
+      console.log('Type of videoFiles:', typeof videoFiles);
+      console.log('Is videoFiles an array?', Array.isArray(videoFiles));
       setVideos(videoFiles);
       console.log(`Loaded ${videoFiles.length} videos from ${targetFolderId ? 'folder' : 'main drive'}`);
     } catch (error) {
