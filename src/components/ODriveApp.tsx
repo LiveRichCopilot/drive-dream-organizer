@@ -158,7 +158,7 @@ const ODriveApp = () => {
                       <Video className="h-8 w-8 mx-auto mb-3 text-primary" />
                       <h3 className="font-semibold mb-2">Super Vision Agents</h3>
                        <p className="text-sm text-muted-foreground">
-                         AI agents that can SEE inside your photos/videos: Detect red dresses, count people, identify beaches, recognize faces. Creates smart folders automatically.
+                         AI agents that can SEE inside your photos/videos: Detect clothes, colors, objects, red dresses, count people, identify beaches, recognize faces. Creates smart folders automatically.
                        </p>
                     </div>
                     <div className="glass-card text-center p-4">
