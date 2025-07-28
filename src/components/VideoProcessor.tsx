@@ -9,6 +9,7 @@ import { VideoFile, apiClient } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { VideoPreview } from './VideoPreview';
 import MetadataVerification from './MetadataVerification';
+import { useProjectMemory } from '@/hooks/useProjectMemory';
 
 interface ProcessingState {
   status: 'idle' | 'verification' | 'downloading' | 'extracting' | 'organizing' | 'generating' | 'preview' | 'uploading' | 'completed' | 'error';
@@ -28,6 +29,7 @@ interface VideoProcessorProps {
   videos: VideoFile[];
   folderId?: string;
   onProcessingComplete: (results: ProcessingResults) => void;
+  projectId?: string;
 }
 
 interface VerificationResult {
@@ -81,7 +83,7 @@ interface ProjectFile {
   videoCount: number;
 }
 
-const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onProcessingComplete }) => {
+const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onProcessingComplete, projectId }) => {
   const [processingState, setProcessingState] = useState<ProcessingState>({
     status: 'idle',
     currentStep: 0,
@@ -108,6 +110,14 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
     folderStructure: 'year-month' as 'year-month' | 'year' | 'flat',
     destinationFolderName: 'Organized_Videos_' + new Date().toISOString().slice(0, 10)
   });
+
+  const { 
+    currentProject, 
+    checkProcessedFiles, 
+    addProcessedFiles, 
+    getBatchStatusMessage, 
+    loadProject 
+  } = useProjectMemory();
 
   const steps = [
     'Verifying metadata',
@@ -152,6 +162,33 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
     const videosToProcess = verifiedVideos.length > 0 ? verifiedVideos : videos;
     console.log('Starting processing with folderId:', folderId);
     console.log('Processing videos:', videosToProcess.length);
+    
+    // Load project if projectId is provided
+    const project = projectId ? loadProject(projectId) : currentProject;
+    
+    // Check for already processed files
+    if (project) {
+      const fileIds = videosToProcess.map(v => v.id);
+      const analysis = checkProcessedFiles(fileIds);
+      
+      if (analysis.alreadyProcessed.length > 0) {
+        toast({
+          title: "Duplicate Files Detected",
+          description: `${analysis.alreadyProcessed.length} files were already processed. Only processing ${analysis.newFiles.length} new files.`,
+        });
+        
+        // Filter out already processed videos
+        const newVideos = videosToProcess.filter(v => analysis.newFiles.includes(v.id));
+        if (newVideos.length === 0) {
+          toast({
+            title: "No New Files",
+            description: "All selected files have already been processed in this project.",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+    }
     
     const startTime = Date.now();
     setProcessingState(prev => ({
@@ -558,13 +595,38 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
       const { apiClient } = await import('@/lib/api');
       
       // Get all video IDs for organization
-      const videoIds = videos.map(video => video.id);
+      const videoIds = results.downloadedVideos.map(video => video.id);
       
       setProcessingState(prev => ({
         ...prev,
         progress: 92,
         currentFile: `Uploading ${videoIds.length} videos with organized structure...`
       }));
+      
+      // Get existing folders from project memory
+      const project = projectId ? loadProject(projectId) : currentProject;
+      const existingFolders = project ? Object.fromEntries(project.dateFolders) : {};
+      
+      // Use the organize function with project memory
+      const organizeResult = await apiClient.organizeVideosByDate(
+        videoIds,
+        folderId, // Pass the source folder ID so it organizes within the same folder
+        existingFolders // Pass existing folders from project memory
+      );
+      
+      // Update project memory with organized videos
+      if (project && organizeResult.results) {
+        const processedVideos = organizeResult.results
+          .filter((r: any) => r.success)
+          .map((r: any) => ({
+            id: r.fileId,
+            originalDate: new Date(r.originalDate),
+            folderName: r.folderName,
+            googleDriveFolderId: r.googleDriveFolderId
+          }));
+        
+        addProcessedFiles(processedVideos);
+      }
       
       // Use the upload function to create organized folder structure IN SOURCE FOLDER
       const uploadResult = await apiClient.uploadOrganizedVideos(

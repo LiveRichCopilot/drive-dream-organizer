@@ -21,7 +21,7 @@ serve(async (req) => {
       )
     }
 
-    const { fileIds, sourceFolderId } = await req.json()
+    const { fileIds, sourceFolderId, existingFolders = new Map() } = await req.json()
     
     if (!fileIds || !Array.isArray(fileIds)) {
       return new Response(
@@ -87,28 +87,56 @@ serve(async (req) => {
         }
         
         const folderName = `Videos_${originalDate.getFullYear()}_${String(originalDate.getMonth() + 1).padStart(2, '0')}`
-        
-        // Check if folder exists in the source directory
-        const searchQuery = sourceFolderId 
-          ? `name='${folderName}' and mimeType='application/vnd.google-apps.folder' and '${sourceFolderId}' in parents`
-          : `name='${folderName}' and mimeType='application/vnd.google-apps.folder'`
-        
-        const searchResponse = await fetch(
-          `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(searchQuery)}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-            },
-          }
-        )
+        const dateKey = `${originalDate.getFullYear()}-${String(originalDate.getMonth() + 1).padStart(2, '0')}`
         
         let folderId
-        const searchData = await searchResponse.json()
         
-        if (searchData.files && searchData.files.length > 0) {
-          folderId = searchData.files[0].id
-          console.log(`Found existing folder ${folderName} in source directory: ${folderId}`)
-        } else {
+        // First check project memory for existing folder
+        if (existingFolders && existingFolders[dateKey] && existingFolders[dateKey].googleDriveFolderId) {
+          folderId = existingFolders[dateKey].googleDriveFolderId
+          console.log(`Found folder in project memory ${folderName}: ${folderId}`)
+          
+          // Verify the folder still exists in Google Drive
+          const verifyResponse = await fetch(
+            `https://www.googleapis.com/drive/v3/files/${folderId}?fields=id,name,parents`,
+            {
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+              },
+            }
+          )
+          
+          if (!verifyResponse.ok) {
+            console.log(`Folder ${folderId} from memory no longer exists, searching for new one`)
+            folderId = null
+          }
+        }
+        
+        // If not found in memory or verification failed, search Google Drive
+        if (!folderId) {
+          const searchQuery = sourceFolderId 
+            ? `name='${folderName}' and mimeType='application/vnd.google-apps.folder' and '${sourceFolderId}' in parents`
+            : `name='${folderName}' and mimeType='application/vnd.google-apps.folder'`
+          
+          const searchResponse = await fetch(
+            `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(searchQuery)}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+              },
+            }
+          )
+          
+          const searchData = await searchResponse.json()
+          
+          if (searchData.files && searchData.files.length > 0) {
+            folderId = searchData.files[0].id
+            console.log(`Found existing folder ${folderName} in Google Drive: ${folderId}`)
+          }
+        }
+        
+        // Create folder if still not found
+        if (!folderId) {
           // Create folder in the same directory as the source videos
           const createResponse = await fetch(
             'https://www.googleapis.com/drive/v3/files',
@@ -146,7 +174,14 @@ serve(async (req) => {
           )
         }
         
-        organizationResults.push({ fileId, folderName, success: true })
+        organizationResults.push({ 
+          fileId, 
+          folderName, 
+          googleDriveFolderId: folderId,
+          originalDate: originalDate.toISOString(),
+          dateKey,
+          success: true 
+        })
       } catch (error) {
         organizationResults.push({ fileId, success: false, error: error.message })
       }
