@@ -1,13 +1,30 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { fixedGoogleOAuth } from '@/lib/fixedOAuth';
 import { toast } from '@/hooks/use-toast';
 import { MediaFile } from '@/lib/api';
 
 export const useDirectGoogleDrive = (folderId?: string) => {
-  const [isConnected, setIsConnected] = useState(fixedGoogleOAuth.isAuthenticated());
+  const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [videos, setVideos] = useState<MediaFile[]>([]);
   const [progress, setProgress] = useState(0);
+
+  // Check authentication status on mount and periodically
+  useEffect(() => {
+    const checkAuthStatus = () => {
+      const authenticated = fixedGoogleOAuth.isAuthenticated();
+      console.log('Checking auth status:', authenticated);
+      setIsConnected(authenticated);
+    };
+
+    // Check immediately
+    checkAuthStatus();
+
+    // Check every 30 seconds to handle token expiration
+    const interval = setInterval(checkAuthStatus, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
   const connect = useCallback(async () => {
     setIsLoading(true);
     setProgress(0);

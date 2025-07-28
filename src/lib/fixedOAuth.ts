@@ -95,23 +95,105 @@ export class FixedGoogleOAuth {
         return;
       } catch (error) {
         console.warn('Token refresh failed, proceeding with full authentication');
+        this.logout(); // Clear invalid tokens
       }
     }
 
-    const redirectUri = window.location.origin;
-    
-    // Following Google's OAuth 2.0 documentation
-    const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' +
-      `client_id=${this.clientId}&` +
-      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-      `response_type=token&` +
-      `scope=${encodeURIComponent('https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/drive.file')}&` +
-      `prompt=consent&` +
-      `access_type=offline&` +
-      `include_granted_scopes=true`;
-    
-    console.log('🔗 Redirecting to Google OAuth...');
-    window.location.href = authUrl;
+    // Use popup instead of redirect for better UX
+    return new Promise((resolve, reject) => {
+      const redirectUri = `${window.location.origin}/auth/callback`;
+      
+      // Generate state parameter for security
+      const state = Math.random().toString(36).substring(2, 15);
+      sessionStorage.setItem('oauth_state', state);
+      
+      const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' +
+        `client_id=${this.clientId}&` +
+        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+        `response_type=code&` +
+        `scope=${encodeURIComponent('https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/drive.file')}&` +
+        `state=${state}&` +
+        `access_type=offline&` +
+        `prompt=consent`;
+      
+      console.log('🔗 Opening OAuth popup...');
+      
+      const popup = window.open(
+        authUrl,
+        'google-oauth',
+        'width=500,height=600,scrollbars=yes,resizable=yes'
+      );
+
+      if (!popup) {
+        reject(new Error('Popup blocked. Please allow popups and try again.'));
+        return;
+      }
+
+      // Listen for messages from the popup
+      const messageHandler = (event: MessageEvent) => {
+        if (event.origin !== window.location.origin) return;
+        
+        if (event.data.type === 'OAUTH_SUCCESS') {
+          window.removeEventListener('message', messageHandler);
+          popup.close();
+          
+          // Store the authorization code and exchange it for tokens
+          this.exchangeCodeForTokens(event.data.code)
+            .then(() => resolve())
+            .catch(reject);
+        } else if (event.data.type === 'OAUTH_ERROR') {
+          window.removeEventListener('message', messageHandler);
+          popup.close();
+          reject(new Error(event.data.error || 'OAuth failed'));
+        }
+      };
+
+      window.addEventListener('message', messageHandler);
+
+      // Check if popup is closed manually
+      const checkClosed = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(checkClosed);
+          window.removeEventListener('message', messageHandler);
+          reject(new Error('Authentication was cancelled'));
+        }
+      }, 1000);
+    });
+  }
+
+  private async exchangeCodeForTokens(code: string): Promise<void> {
+    try {
+      // Exchange authorization code for tokens using our edge function
+      const response = await fetch('/functions/v1/google-auth', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Origin': window.location.origin
+        },
+        body: JSON.stringify({
+          code
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Token exchange failed: ${errorData.error || response.status}`);
+      }
+
+      const data = await response.json();
+      
+      this.accessToken = data.access_token;
+      this.refreshToken = data.refresh_token;
+      // Default to 1 hour if expires_in not provided
+      this.expiresAt = Date.now() + (3600 * 1000);
+      
+      this.saveTokensToStorage();
+      console.log('✅ OAuth successful - tokens stored');
+      
+    } catch (error) {
+      console.error('Token exchange failed:', error);
+      throw new Error('Failed to complete authentication');
+    }
   }
 
   private async refreshAccessToken(): Promise<void> {
