@@ -32,7 +32,7 @@ import {
   Home
 } from "lucide-react";
 import heroImage from "@/assets/hero-video-bg.jpg";
-import { useGoogleDrive } from "@/hooks/useGoogleDrive";
+import { useDirectGoogleDrive } from "@/hooks/useDirectGoogleDrive";
 import { apiClient } from "@/lib/api";
 import GoogleDriveFolderInput from "@/components/GoogleDriveFolderInput";
 import VideoProcessor from "./VideoProcessor";
@@ -54,17 +54,18 @@ const ODriveApp = () => {
     isLoading,
     videos,
     progress,
+    showClientIdInput,
+    setShowClientIdInput,
     connect,
     loadVideos,
     downloadVideo,
-    renameVideo,
-    organizeVideos,
     disconnect,
-  } = useGoogleDrive(selectedFolderId);
+  } = useDirectGoogleDrive(selectedFolderId);
   
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [searchQuery, setSearchQuery] = useState("");
   const [showFolderInput, setShowFolderInput] = useState(false);
+  const [clientId, setClientId] = useState("");
 
   const filteredVideos = videos.filter(video =>
     video.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -123,14 +124,47 @@ const ODriveApp = () => {
                 </div>
               ) : (
                 <div className="space-y-6 -mt-12">
-                  <Button 
-                    onClick={connect}
-                    variant="outline"
-                    className="glass text-white border-white/20 hover:bg-white/10 bg-transparent"
-                  >
-                    <FolderOpen className="mr-3 h-6 w-6" />
-                    Connect Google Drive
-                  </Button>
+                  {showClientIdInput ? (
+                    <div className="space-y-4">
+                      <div className="text-center">
+                        <h3 className="text-lg font-semibold text-white mb-2">Google Client ID Required</h3>
+                        <p className="text-sm text-white/70 mb-4">Enter your Google OAuth Client ID to connect directly to Google Drive</p>
+                      </div>
+                      <Input
+                        placeholder="Enter Google Client ID"
+                        value={clientId}
+                        onChange={(e) => setClientId(e.target.value)}
+                        className="glass border-white/20 text-white placeholder:text-white/50"
+                      />
+                      <div className="flex gap-2">
+                        <Button 
+                          onClick={() => connect(clientId)}
+                          disabled={!clientId.trim()}
+                          variant="outline"
+                          className="glass text-white border-white/20 hover:bg-white/10 bg-transparent flex-1"
+                        >
+                          <FolderOpen className="mr-3 h-6 w-6" />
+                          Connect with Client ID
+                        </Button>
+                        <Button 
+                          onClick={() => setShowClientIdInput(false)}
+                          variant="outline"
+                          className="glass text-white border-white/20 hover:bg-white/10 bg-transparent"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button 
+                      onClick={() => connect()}
+                      variant="outline"
+                      className="glass text-white border-white/20 hover:bg-white/10 bg-transparent"
+                    >
+                      <FolderOpen className="mr-3 h-6 w-6" />
+                      Connect Google Drive
+                    </Button>
+                  )}
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-8">
                     <div className="glass-card text-center p-4">
@@ -478,7 +512,7 @@ const ODriveApp = () => {
             <Button variant="glass" size="sm" className="glass hover:bg-white/5">
               <Filter className="h-4 w-4" />
             </Button>
-            <Button variant="glass" size="sm" onClick={organizeVideos} className="glass hover:bg-white/5">
+            <Button variant="glass" size="sm" className="glass hover:bg-white/5">
               <Calendar className="h-4 w-4 mr-2" />
               Organize by Date
             </Button>
