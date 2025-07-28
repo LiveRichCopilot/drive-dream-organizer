@@ -42,7 +42,7 @@ import { useBackgroundTasks } from "@/hooks/useBackgroundTasks";
 
 type ViewMode = "grid" | "list";
 
-const VideoOrganizerApp = () => {
+const ODriveApp = () => {
   const [selectedFolderId, setSelectedFolderId] = useState<string | undefined>();
   const [showProcessor, setShowProcessor] = useState(false);
   const [processingResults, setProcessingResults] = useState<any>(null);
@@ -71,12 +71,12 @@ const VideoOrganizerApp = () => {
   );
   
   // Debug logging
-  console.log('VideoOrganizerApp - videos array:', videos);
-  console.log('VideoOrganizerApp - videos.length:', videos.length);
-  console.log('VideoOrganizerApp - searchQuery:', searchQuery);
-  console.log('VideoOrganizerApp - filteredVideos.length:', filteredVideos.length);
-  console.log('VideoOrganizerApp - isConnected:', isConnected);
-  console.log('VideoOrganizerApp - selectedFolderId:', selectedFolderId);
+  console.log('ODriveApp - videos array:', videos);
+  console.log('ODriveApp - videos.length:', videos.length);
+  console.log('ODriveApp - searchQuery:', searchQuery);
+  console.log('ODriveApp - filteredVideos.length:', filteredVideos.length);
+  console.log('ODriveApp - isConnected:', isConnected);
+  console.log('ODriveApp - selectedFolderId:', selectedFolderId);
 
   if (!isConnected) {
     return (
@@ -99,11 +99,18 @@ const VideoOrganizerApp = () => {
           <div className="text-center max-w-4xl mx-auto">
             <div className="glass-card max-w-2xl mx-auto">
               <div className="mb-8">
+                <div className="mb-6">
+                  <img 
+                    src="/lovable-uploads/513ecb56-61e2-4e31-9898-d010ccf954a0.png" 
+                    alt="ODrive Logo" 
+                    className="mx-auto h-20 w-auto mb-4"
+                  />
+                </div>
                 <h1 className="text-4xl font-semibold mb-4 text-white">
-                  LiveRich Video Organizer
+                  ODrive
                 </h1>
                 <p className="text-xl text-white/80 mb-8">
-                  Seamlessly organize, analyze, and manage your Google Drive videos with AI-powered chronological sorting and beautiful glassmorphism interface.
+                  Seamlessly organize, analyze, and manage your Google Drive files with AI-powered chronological sorting and beautiful glassmorphism interface.
                 </p>
               </div>
 
@@ -326,7 +333,7 @@ const VideoOrganizerApp = () => {
       <div className="glass-card mb-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-            Video Library
+            ODrive File Library
           </h1>
           <div className="flex items-center gap-4">
             <Badge variant="outline" className="glass border-primary/30">
@@ -585,4 +592,4 @@ const VideoOrganizerApp = () => {
   );
 };
 
-export default VideoOrganizerApp;
+export default ODriveApp;

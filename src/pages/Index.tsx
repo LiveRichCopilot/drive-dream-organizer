@@ -1,7 +1,7 @@
-import VideoOrganizerApp from "@/components/VideoOrganizerApp";
+import ODriveApp from "@/components/ODriveApp";
 
 const Index = () => {
-  return <VideoOrganizerApp />;
+  return <ODriveApp />;
 };
 
 export default Index;
