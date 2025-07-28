@@ -37,6 +37,7 @@ import GoogleDriveFolderInput from "@/components/GoogleDriveFolderInput";
 import VideoProcessor from "./VideoProcessor";
 import ProcessingResults from "./ProcessingResults";
 import BackgroundTaskManager from "./BackgroundTaskManager";
+import PhotoCategorizer from "./PhotoCategorizer";
 import { useBackgroundTasks } from "@/hooks/useBackgroundTasks";
 
 type ViewMode = "grid" | "list";
@@ -44,6 +45,7 @@ type ViewMode = "grid" | "list";
 const ODriveApp = () => {
   const [selectedFolderId, setSelectedFolderId] = useState<string | undefined>();
   const [showProcessor, setShowProcessor] = useState(false);
+  const [showPhotoOrganizer, setShowPhotoOrganizer] = useState(false);
   const [processingResults, setProcessingResults] = useState<any>(null);
   
   const backgroundTasks = useBackgroundTasks();
@@ -478,6 +480,15 @@ const ODriveApp = () => {
             <Button variant="glass" size="sm" className="glass hover:bg-white/5">
               <Calendar className="h-4 w-4 mr-2" />
               Organize by Date
+            </Button>
+            <Button 
+              variant="glass" 
+              size="sm" 
+              className="glass hover:bg-white/5"
+              onClick={() => setShowPhotoOrganizer(!showPhotoOrganizer)}
+            >
+              <Camera className="h-4 w-4 mr-2" />
+              Organize More Photos
             </Button>
           </div>
         </div>
