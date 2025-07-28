@@ -44,7 +44,7 @@ export interface MediaFile {
 export type VideoFile = MediaFile;
 
 class APIClient {
-  private baseURL = 'https://iffvjtfrqaesoehbwtgi.supabase.co/functions/v1';
+  private baseURL = 'https://video-metadata-service-1070421026009.us-central1.run.app';
 
   async authenticate(): Promise<void> {
     try {
@@ -52,7 +52,7 @@ class APIClient {
       console.log('Base URL:', this.baseURL);
       
       // First get the client ID from our backend
-      const authUrl = `${this.baseURL}/google-auth`;
+      const authUrl = `${this.baseURL}/api/drive/authorize`;
       console.log('Attempting to fetch from:', authUrl);
       
       const configResponse = await fetch(authUrl, {
@@ -117,7 +117,7 @@ class APIClient {
             console.log('Received authorization code, exchanging for tokens...');
             
             // Exchange code for token via our Edge Function  
-            const tokenUrl = `${this.baseURL}/google-auth`;
+            const tokenUrl = `${this.baseURL}/api/drive/authorize`;
             console.log('Token exchange URL:', tokenUrl);
             
             const response = await fetch(tokenUrl, {
@@ -181,7 +181,7 @@ class APIClient {
 
   async listMediaFiles(folderId?: string): Promise<MediaFile[]> {
     try {
-      const response = await tokenManager.makeAuthenticatedRequest(`${this.baseURL}/google-drive-list`, {
+      const response = await tokenManager.makeAuthenticatedRequest(`${this.baseURL}/api/drive/list`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -226,7 +226,7 @@ class APIClient {
 
   async downloadFile(fileId: string, fileName: string): Promise<string> {
     try {
-      const response = await tokenManager.makeAuthenticatedRequest(`${this.baseURL}/google-drive-download`, {
+      const response = await tokenManager.makeAuthenticatedRequest(`${this.baseURL}/api/drive/download`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -253,7 +253,7 @@ class APIClient {
 
   async renameFile(fileId: string, newName: string): Promise<void> {
     try {
-      const response = await tokenManager.makeAuthenticatedRequest(`${this.baseURL}/google-drive-rename`, {
+      const response = await tokenManager.makeAuthenticatedRequest(`${this.baseURL}/api/drive/rename`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -281,7 +281,7 @@ class APIClient {
     existingFolders?: any
   ): Promise<any> {
     try {
-      const response = await tokenManager.makeAuthenticatedRequest(`${this.baseURL}/google-drive-organize`, {
+      const response = await tokenManager.makeAuthenticatedRequest(`${this.baseURL}/api/drive/organize`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -317,7 +317,7 @@ class APIClient {
 
   async extractMediaMetadata(fileId: string): Promise<any> {
     try {
-      const response = await tokenManager.makeAuthenticatedRequest(`${this.baseURL}/video-metadata-extractor`, {
+      const response = await tokenManager.makeAuthenticatedRequest(`${this.baseURL}/api/metadata/extract`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
