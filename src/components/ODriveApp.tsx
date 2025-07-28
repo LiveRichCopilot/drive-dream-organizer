@@ -103,7 +103,7 @@ const ODriveApp = () => {
             <img 
               src="/lovable-uploads/513ecb56-61e2-4e31-9898-d010ccf954a0.png"
               alt="ODrive Logo"
-              className="mx-auto h-44 w-auto"
+              className="mx-auto h-52 w-auto"
             />
                 </div>
                 <p className="text-xl text-white/80 mb-8">
