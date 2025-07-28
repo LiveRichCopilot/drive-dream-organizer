@@ -144,6 +144,54 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
     }
   };
 
+  // Extract photo metadata including EXIF data
+  const getPhotoMetadata = async (file: PhotoFile) => {
+    try {
+      console.log('Extracting metadata for:', file.name);
+      
+      // Get creation date from Google Drive file metadata
+      const createdDate = file.createdTime || file.modifiedTime;
+      
+      // For more detailed EXIF data, call video-metadata service
+      if (file.name.toLowerCase().match(/\.(jpg|jpeg|png|tiff|raw|heic)$/)) {
+        const response = await fetch('https://video-metadata-service-1070421026009.us-central1.run.app/extract-metadata', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            fileId: file.id,
+            fileName: file.name
+          })
+        });
+        
+        if (response.ok) {
+          const metadata = await response.json();
+          console.log('EXIF metadata extracted:', metadata);
+          return { 
+            createdDate, 
+            exifData: metadata,
+            hasExif: true
+          };
+        }
+      }
+      
+      return { 
+        createdDate, 
+        exifData: null,
+        hasExif: false
+      };
+    } catch (error) {
+      console.error('Metadata extraction failed for', file.name, ':', error);
+      return { 
+        createdDate: file.createdTime || file.modifiedTime, 
+        exifData: null,
+        hasExif: false,
+        error: error.message
+      };
+    }
+  };
+
   // Send batch completion email using Gmail API
   const sendBatchCompleteEmail = async (batchInfo: {
     current: number;
@@ -224,14 +272,43 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
     setFolderScanProgress({ current: 0, total: unanalyzedPhotos.length });
 
     try {
-      const apiKey = import.meta.env.VITE_OPENAI_API_KEY || 
-                     import.meta.env.OPENAI_API_KEY || 
-                     import.meta.env.VITE_OPENAI_KEY ||
-                     import.meta.env.OPENAI_KEY;
+      // Get API key from Supabase edge function
+      const keyResponse = await fetch(`${window.location.origin}/functions/v1/get-openai-key`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      let apiKey;
+      
+      if (keyResponse.ok) {
+        const keyData = await keyResponse.json();
+        apiKey = keyData.apiKey;
+        console.log('OpenAI API key retrieved from Supabase secrets');
+      } else {
+        const errorData = await keyResponse.json();
+        console.error('Failed to get API key from Supabase:', errorData);
+        // Fallback to environment variables for development
+        apiKey = import.meta.env.VITE_OPENAI_API_KEY || 
+                 import.meta.env.OPENAI_API_KEY || 
+                 import.meta.env.VITE_OPENAI_KEY ||
+                 import.meta.env.OPENAI_KEY;
+        
+        if (apiKey) {
+          console.log('Using environment variable API key');
+        }
+      }
       
       if (!apiKey) {
-        throw new Error('OpenAI API key not configured. Please set VITE_OPENAI_API_KEY environment variable.');
+        console.error('OpenAI API key not found. Checked:');
+        console.error('- Supabase secrets via edge function');
+        console.error('- Environment variables: VITE_OPENAI_API_KEY, OPENAI_API_KEY, VITE_OPENAI_KEY, OPENAI_KEY');
+        console.error('Please use the "Set your OpenAI API key" button above to configure the API key.');
+        throw new Error('OpenAI API key not configured. Please use the button above to set your OpenAI API key.');
       }
+      
+      console.log('OpenAI API key ready for photo analysis');
 
       const batchSize = 100;
       const totalBatches = Math.ceil(unanalyzedPhotos.length / batchSize);
@@ -249,6 +326,10 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
         // Process current batch
         for (const photo of currentBatch) {
           try {
+            // Extract metadata first
+            const metadata = await getPhotoMetadata(photo);
+            console.log('Metadata extracted for', photo.name, ':', metadata);
+            
             const analysis = await analyzePhoto(photo, apiKey);
             
             // Update photo with analysis results
@@ -326,13 +407,30 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
     setAnalyzingPhotoId(photoId);
 
     try {
-      const apiKey = import.meta.env.VITE_OPENAI_API_KEY || 
-                     import.meta.env.OPENAI_API_KEY || 
-                     import.meta.env.VITE_OPENAI_KEY ||
-                     import.meta.env.OPENAI_KEY;
+      // Get API key from Supabase edge function
+      const keyResponse = await fetch(`${window.location.origin}/functions/v1/get-openai-key`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      let apiKey;
+      
+      if (keyResponse.ok) {
+        const keyData = await keyResponse.json();
+        apiKey = keyData.apiKey;
+        console.log('OpenAI API key retrieved for individual analysis');
+      } else {
+        // Fallback to environment variables for development
+        apiKey = import.meta.env.VITE_OPENAI_API_KEY || 
+                 import.meta.env.OPENAI_API_KEY || 
+                 import.meta.env.VITE_OPENAI_KEY ||
+                 import.meta.env.OPENAI_KEY;
+      }
       
       if (!apiKey) {
-        throw new Error('OpenAI API key not configured. Please set VITE_OPENAI_API_KEY environment variable.');
+        throw new Error('OpenAI API key not configured. Please use the button above to set your OpenAI API key.');
       }
 
       const analysis = await analyzePhoto(photo, apiKey);
