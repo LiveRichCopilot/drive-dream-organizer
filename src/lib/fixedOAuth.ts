@@ -175,28 +175,39 @@ export class FixedGoogleOAuth {
   private async exchangeCodeForTokens(code: string): Promise<void> {
     try {
       // Exchange authorization code for tokens using our edge function
-      const response = await fetch('/functions/v1/google-auth', {
+      const response = await fetch(`https://iffvjtfrqaesoehbwtgi.supabase.co/functions/v1/google-auth`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Origin': window.location.origin
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88`
         },
         body: JSON.stringify({
           code
         })
       });
 
+      console.log('Edge function response status:', response.status);
+      console.log('Edge function response headers:', Object.fromEntries(response.headers.entries()));
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`Token exchange failed: ${errorData.error || response.status}`);
+        const errorText = await response.text();
+        console.error('Edge function error response:', errorText);
+        throw new Error(`Token exchange failed: ${response.status} - ${errorText}`);
       }
 
-      const data = await response.json();
+      const responseText = await response.text();
+      console.log('Raw response:', responseText);
+      
+      if (!responseText) {
+        throw new Error('Empty response from token exchange');
+      }
+
+      const data = JSON.parse(responseText);
       
       this.accessToken = data.access_token;
       this.refreshToken = data.refresh_token;
       // Default to 1 hour if expires_in not provided
-      this.expiresAt = Date.now() + (3600 * 1000);
+      this.expiresAt = Date.now() + ((data.expires_in || 3600) * 1000);
       
       this.saveTokensToStorage();
       console.log('✅ OAuth successful - tokens stored');
