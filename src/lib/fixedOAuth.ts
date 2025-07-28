@@ -21,31 +21,10 @@ export class FixedGoogleOAuth {
       const urlParams = new URLSearchParams(window.location.hash.substring(1));
       const accessToken = urlParams.get('access_token');
       const error = urlParams.get('error');
-      const errorDescription = urlParams.get('error_description');
-      
-      console.log('🔍 OAuth Callback Details:');
-      console.log('  - Full URL:', window.location.href);
-      console.log('  - Hash:', window.location.hash);
-      console.log('  - Access Token:', accessToken ? 'Present' : 'Missing');
-      console.log('  - Error:', error);
-      console.log('  - Error Description:', errorDescription);
       
       if (error) {
-        console.error('❌ OAuth Error:', error, errorDescription);
-        
-        // Store error for display
-        localStorage.setItem('google_oauth_error', JSON.stringify({
-          error,
-          errorDescription,
-          timestamp: Date.now()
-        }));
-        
-        // Show user-friendly error message
-        if (error === 'access_denied') {
-          alert('Google authentication was cancelled. Please try again.');
-        } else {
-          alert(`Google authentication failed: ${errorDescription || error}\n\nThis might be due to:\n• OAuth consent screen not properly configured\n• Missing test users (if in testing mode)\n• Incorrect redirect URIs in Google Cloud Console`);
-        }
+        console.error('OAuth Error:', error);
+        alert(`Google authentication failed: ${error}`);
         return;
       }
       
@@ -53,29 +32,15 @@ export class FixedGoogleOAuth {
         this.accessToken = accessToken;
         localStorage.setItem('google_access_token', accessToken);
         
-        // Clear any previous errors
-        localStorage.removeItem('google_oauth_error');
-        
         // Clean up the URL hash
         window.history.replaceState({}, document.title, window.location.pathname);
         
-        console.log('✅ OAuth callback successful - token stored');
+        console.log('✅ OAuth successful - token stored');
       }
-    }
-    
-    // Check if we're coming back from a failed OAuth attempt (no hash, but could be 403)
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('error') || window.location.pathname.includes('error')) {
-      console.error('❌ Possible OAuth 403/error redirect detected');
-      console.log('  - Current URL:', window.location.href);
-      console.log('  - Search params:', window.location.search);
-      
-      alert('Google returned an error (possibly 403). This usually means:\n\n• Your email is not added as a test user in Google Cloud Console\n• The OAuth consent screen is in "Testing" mode\n• The Google Drive API is not enabled\n• Incorrect redirect URIs are configured\n\nPlease check your Google Cloud Console settings.');
     }
   }
 
   async authenticate(): Promise<void> {
-    // Use the current app URL as redirect URI
     const redirectUri = window.location.origin;
     
     const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' +
@@ -86,11 +51,7 @@ export class FixedGoogleOAuth {
       `prompt=select_account&` +
       `include_granted_scopes=true`;
     
-    console.log('🔗 Auth URL:', authUrl);
-    console.log('📍 Redirect URI:', redirectUri);
-    console.log('🆔 Client ID:', this.clientId);
-    
-    // Redirect to Google OAuth
+    console.log('🔗 Redirecting to Google OAuth...');
     window.location.href = authUrl;
   }
 
@@ -131,8 +92,6 @@ export class FixedGoogleOAuth {
       `fields=files(id,name,size,createdTime,thumbnailLink,mimeType,videoMediaMetadata,imageMediaMetadata,webViewLink)&` +
       `pageSize=1000`;
 
-    console.log('📁 Fetching files with query:', query);
-
     const response = await this.makeAuthenticatedRequest(url);
     
     if (!response.ok) {
@@ -140,8 +99,6 @@ export class FixedGoogleOAuth {
     }
 
     const data = await response.json();
-    
-    console.log('📊 Found files:', data.files?.length || 0);
     
     // Transform the data to match expected format
     return (data.files || []).map((file: any) => ({
@@ -170,7 +127,6 @@ export class FixedGoogleOAuth {
   }
 
   async downloadFile(fileId: string): Promise<string> {
-    // For Google Drive, we can use the direct download URL
     return `https://drive.google.com/uc?id=${fileId}&export=download`;
   }
 
