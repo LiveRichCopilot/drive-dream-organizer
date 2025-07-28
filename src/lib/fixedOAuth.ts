@@ -114,7 +114,7 @@ export class FixedGoogleOAuth {
         `scope=${encodeURIComponent('https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/drive.file')}&` +
         `state=${state}&` +
         `access_type=offline&` +
-        `prompt=consent`;
+        `prompt=select_account consent`;
       
       console.log('🔗 Opening OAuth popup...');
       
