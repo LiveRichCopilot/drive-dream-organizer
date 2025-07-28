@@ -23,7 +23,10 @@ const AuthCallback = () => {
 
     // Verify state parameter for security
     const storedState = sessionStorage.getItem('oauth_state');
-    if (state !== storedState) {
+    console.log('Stored state:', storedState);
+    console.log('Received state:', state);
+    
+    if (state && storedState && state !== storedState) {
       console.error('State mismatch - possible CSRF attack');
       if (window.opener) {
         window.opener.postMessage({
@@ -34,6 +37,9 @@ const AuthCallback = () => {
       window.close();
       return;
     }
+    
+    // Clear the state after verification
+    sessionStorage.removeItem('oauth_state');
 
     if (code) {
       console.log('Sending success message to parent');
