@@ -6,6 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { CheckCircle2, XCircle, Clock, AlertTriangle, RefreshCw, Info, MapPin, Camera, Monitor, FileVideo } from 'lucide-react';
 import { VideoFile, apiClient } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
+import PremiereExporter from './PremiereExporter';
 
 interface MetadataVerificationProps {
   videos: VideoFile[];
@@ -356,6 +357,42 @@ const MetadataVerification: React.FC<MetadataVerificationProps> = ({
           </div>
         </CardContent>
       </Card>
+
+      {/* Adobe Premiere Export - Only show if metadata verification is complete and has successful results */}
+      {!isVerifying && successCount > 0 && !results.every(r => r.status === 'pending') && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileVideo className="w-5 h-5" />
+              Export Options
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <PremiereExporter
+              videos={results
+                .filter(r => r.status === 'success' && r.originalDate)
+                .map(r => ({
+                  id: r.video.id,
+                  originalName: r.video.name,
+                  originalDate: new Date(r.originalDate!),
+                  metadata: {
+                    duration: r.metadata?.videoMetadata?.durationMillis ? 
+                      parseInt(r.metadata.videoMetadata.durationMillis) : 5000,
+                    resolution: r.metadata?.videoMetadata?.resolution || `1920x1080`,
+                    fps: r.metadata?.videoMetadata?.fps || 30
+                  }
+                }))
+              }
+              onExport={(type) => {
+                toast({
+                  title: "Export Initiated",
+                  description: `Exporting ${type === 'original' ? 'original filenames' : 'date-based filenames'} timeline...`,
+                });
+              }}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Enhanced Metadata Info Modal */}
       {selectedMetadata && (
