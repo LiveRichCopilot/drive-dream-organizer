@@ -1,3 +1,5 @@
+import { tokenManager, AuthError, NetworkError } from './auth/TokenManager';
+
 export interface DriveFile {
   id: string;
   name: string;
@@ -25,82 +27,7 @@ export interface VideoFile {
 }
 
 class APIClient {
-  private accessToken: string | null = null;
-  private refreshToken: string | null = null;
   private baseURL = 'https://iffvjtfrqaesoehbwtgi.supabase.co/functions/v1';
-
-  constructor() {
-    // Check for existing tokens in localStorage
-    this.accessToken = localStorage.getItem('google_access_token');
-    this.refreshToken = localStorage.getItem('google_refresh_token');
-  }
-
-  private async refreshAccessToken(): Promise<boolean> {
-    if (!this.refreshToken) {
-      return false;
-    }
-
-    try {
-      const response = await fetch(`${this.baseURL}/google-auth`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88`,
-        },
-        body: JSON.stringify({ 
-          refresh_token: this.refreshToken,
-          grant_type: 'refresh_token'
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        this.accessToken = data.access_token;
-        localStorage.setItem('google_access_token', this.accessToken!);
-        
-        // Update refresh token if provided
-        if (data.refresh_token) {
-          this.refreshToken = data.refresh_token;
-          localStorage.setItem('google_refresh_token', this.refreshToken);
-        }
-        
-        return true;
-      }
-    } catch (error) {
-      console.error('Token refresh failed:', error);
-    }
-
-    return false;
-  }
-
-  private async makeAuthenticatedRequest(url: string, options: RequestInit, retryCount = 0): Promise<Response> {
-    const response = await fetch(url, options);
-    
-    // If we get a 401 and haven't retried yet, try to refresh the token
-    if (response.status === 401 && retryCount === 0) {
-      const refreshed = await this.refreshAccessToken();
-      
-      if (refreshed) {
-        // Update the Authorization header with the new token
-        const updatedOptions = {
-          ...options,
-          headers: {
-            ...options.headers,
-            'Authorization': `Bearer ${this.accessToken}`,
-          },
-        };
-        
-        // Retry the request with the new token
-        return this.makeAuthenticatedRequest(url, updatedOptions, retryCount + 1);
-      } else {
-        // If refresh fails, clear tokens and throw auth error
-        this.logout();
-        throw new Error('Google Drive authentication expired. Please reconnect to continue.');
-      }
-    }
-    
-    return response;
-  }
 
   async authenticate(): Promise<void> {
     try {
@@ -176,14 +103,9 @@ class APIClient {
             }
             
             const data = await response.json();
-            this.accessToken = data.access_token;
-            localStorage.setItem('google_access_token', this.accessToken!);
             
-            // Store refresh token if provided
-            if (data.refresh_token) {
-              this.refreshToken = data.refresh_token;
-              localStorage.setItem('google_refresh_token', this.refreshToken);
-            }
+            // Store tokens using the new token manager
+            tokenManager.setTokens(data.access_token, data.refresh_token, data.expires_in);
             
             resolve();
           } catch (error) {
@@ -213,97 +135,143 @@ class APIClient {
   }
 
   async listVideoFiles(folderId?: string): Promise<VideoFile[]> {
-    const response = await this.makeAuthenticatedRequest(`${this.baseURL}/google-drive-list`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.accessToken}`,
-        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88',
-      },
-      body: JSON.stringify({ folderId }),
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage = errorData.error || `Failed to fetch video files (${response.status})`;
-      throw new Error(errorMessage);
+    try {
+      const response = await tokenManager.makeAuthenticatedRequest(`${this.baseURL}/google-drive-list`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88',
+        },
+        body: JSON.stringify({ folderId }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error || `Failed to fetch video files (${response.status})`;
+        
+        if (response.status === 401) {
+          throw new AuthError('Authentication expired - please reconnect to Google Drive');
+        }
+        throw new NetworkError(errorMessage, response.status);
+      }
+      
+      const data = await response.json();
+      console.log('API Response data:', data);
+      console.log('Files found:', data.files?.length || 0);
+      return data.files || [];
+    } catch (error) {
+      if (error instanceof AuthError) {
+        throw error;
+      }
+      throw new NetworkError('Failed to fetch video files');
     }
-    
-    const data = await response.json();
-    console.log('API Response data:', data);
-    console.log('Files found:', data.files?.length || 0);
-    return data.files || [];
   }
 
   async downloadFile(fileId: string, fileName: string): Promise<string> {
-    const response = await this.makeAuthenticatedRequest(`${this.baseURL}/google-drive-download`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.accessToken}`,
-        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88',
-      },
-      body: JSON.stringify({ fileId }),
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to get download URL');
+    try {
+      const response = await tokenManager.makeAuthenticatedRequest(`${this.baseURL}/google-drive-download`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88',
+        },
+        body: JSON.stringify({ fileId }),
+      });
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new AuthError('Authentication expired - please reconnect to Google Drive');
+        }
+        throw new NetworkError('Failed to get download URL', response.status);
+      }
+      
+      const data = await response.json();
+      return data.downloadUrl;
+    } catch (error) {
+      if (error instanceof AuthError) {
+        throw error;
+      }
+      throw new NetworkError('Failed to download file');
     }
-    
-    const data = await response.json();
-    return data.downloadUrl;
   }
 
   async renameFile(fileId: string, newName: string): Promise<void> {
-    const response = await this.makeAuthenticatedRequest(`${this.baseURL}/google-drive-rename`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.accessToken}`,
-        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88',
-      },
-      body: JSON.stringify({ fileId, newName }),
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to rename file');
+    try {
+      const response = await tokenManager.makeAuthenticatedRequest(`${this.baseURL}/google-drive-rename`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88',
+        },
+        body: JSON.stringify({ fileId, newName }),
+      });
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new AuthError('Authentication expired - please reconnect to Google Drive');
+        }
+        throw new NetworkError('Failed to rename file', response.status);
+      }
+    } catch (error) {
+      if (error instanceof AuthError) {
+        throw error;
+      }
+      throw new NetworkError('Failed to rename file');
     }
   }
 
   async organizeVideosByDate(fileIds: string[], sourceFolderId?: string): Promise<void> {
-    const response = await this.makeAuthenticatedRequest(`${this.baseURL}/google-drive-organize`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.accessToken}`,
-        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88',
-      },
-      body: JSON.stringify({ fileIds, sourceFolderId }),
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to organize files');
+    try {
+      const response = await tokenManager.makeAuthenticatedRequest(`${this.baseURL}/google-drive-organize`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88',
+        },
+        body: JSON.stringify({ fileIds, sourceFolderId }),
+      });
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new AuthError('Authentication expired - please reconnect to Google Drive');
+        }
+        throw new NetworkError('Failed to organize files', response.status);
+      }
+    } catch (error) {
+      if (error instanceof AuthError) {
+        throw error;
+      }
+      throw new NetworkError('Failed to organize files');
     }
   }
 
   async extractVideoMetadata(fileId: string): Promise<any> {
-    const response = await this.makeAuthenticatedRequest(`${this.baseURL}/video-metadata-extractor`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.accessToken}`,
-        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88',
-      },
-      body: JSON.stringify({ fileId }),
-    });
+    try {
+      const response = await tokenManager.makeAuthenticatedRequest(`${this.baseURL}/video-metadata-extractor`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88',
+        },
+        body: JSON.stringify({ fileId }),
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Metadata extraction error:', response.status, errorText);
-      throw new Error(`Failed to extract metadata: ${errorText}`);
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new AuthError('Authentication expired - please reconnect to Google Drive');
+        }
+        const errorText = await response.text();
+        console.error('Metadata extraction error:', response.status, errorText);
+        throw new NetworkError(`Failed to extract metadata: ${errorText}`, response.status);
+      }
+
+      return response.json();
+    } catch (error) {
+      if (error instanceof AuthError) {
+        throw error;
+      }
+      throw new NetworkError('Failed to extract video metadata');
     }
-
-    return response.json();
   }
 
   async generateProjectFiles(videos: any[], settings: any): Promise<any> {
@@ -324,29 +292,38 @@ class APIClient {
   }
 
   async uploadOrganizedVideos(processedVideos: any[], destinationFolderName: string, organizationStructure: any, sourceFolderId?: string, projectFiles?: any[]): Promise<any> {
-    const response = await this.makeAuthenticatedRequest(`${this.baseURL}/google-drive-upload`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.accessToken}`,
-        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88',
-      },
-      body: JSON.stringify({ 
-        processedVideos, 
-        destinationFolderName,
-        organizationStructure,
-        sourceFolderId,
-        projectFiles
-      }),
-    });
+    try {
+      const response = await tokenManager.makeAuthenticatedRequest(`${this.baseURL}/google-drive-upload`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88',
+        },
+        body: JSON.stringify({ 
+          processedVideos, 
+          destinationFolderName,
+          organizationStructure,
+          sourceFolderId,
+          projectFiles
+        }),
+      });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Upload error response:', errorText);
-      throw new Error(`Failed to upload organized videos: ${response.status} ${errorText}`);
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new AuthError('Authentication expired - please reconnect to Google Drive');
+        }
+        const errorText = await response.text();
+        console.error('Upload error response:', errorText);
+        throw new NetworkError(`Failed to upload organized videos: ${response.status} ${errorText}`, response.status);
+      }
+
+      return response.json();
+    } catch (error) {
+      if (error instanceof AuthError) {
+        throw error;
+      }
+      throw new NetworkError('Failed to upload organized videos');
     }
-
-    return response.json();
   }
 
   async batchProcessVideos(videoIds: string[], onProgress?: (progress: number) => void): Promise<any[]> {
@@ -373,18 +350,15 @@ class APIClient {
   }
 
   isAuthenticated(): boolean {
-    return !!this.accessToken;
+    return tokenManager.isAuthenticated();
   }
 
   getAccessToken(): string | null {
-    return this.accessToken;
+    return tokenManager.getAccessToken();
   }
 
   logout(): void {
-    this.accessToken = null;
-    this.refreshToken = null;
-    localStorage.removeItem('google_access_token');
-    localStorage.removeItem('google_refresh_token');
+    tokenManager.logout();
   }
 }
 
