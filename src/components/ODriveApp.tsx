@@ -122,7 +122,7 @@ const ODriveApp = () => {
                   </div>
                 </div>
               ) : (
-                <div className="space-y-6 -mt-4">
+                <div className="space-y-6 -mt-12">
                   <Button 
                     onClick={connect}
                     variant="outline"
