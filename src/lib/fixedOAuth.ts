@@ -1,18 +1,54 @@
-// Fixed Google OAuth implementation that actually works
+
+// Enhanced Google OAuth implementation following Google's best practices
 export class FixedGoogleOAuth {
   private clientId = '1070421026009-ihbdicu5n4b198qi8uoav1b284fefdcd.apps.googleusercontent.com';
   private accessToken: string | null = null;
+  private refreshToken: string | null = null;
+  private expiresAt: number | null = null;
   
   constructor() {
-    // Load existing token from localStorage
-    this.accessToken = localStorage.getItem('google_access_token');
+    // Load existing tokens from localStorage
+    this.loadTokensFromStorage();
     
     // Check if we're returning from OAuth redirect
     this.handleOAuthCallback();
   }
 
+  private loadTokensFromStorage(): void {
+    try {
+      this.accessToken = localStorage.getItem('google_access_token');
+      this.refreshToken = localStorage.getItem('google_refresh_token');
+      const expiresAt = localStorage.getItem('google_expires_at');
+      this.expiresAt = expiresAt ? parseInt(expiresAt) : null;
+    } catch (error) {
+      console.warn('Failed to load tokens from storage:', error);
+    }
+  }
+
+  private saveTokensToStorage(): void {
+    try {
+      if (this.accessToken) {
+        localStorage.setItem('google_access_token', this.accessToken);
+      }
+      if (this.refreshToken) {
+        localStorage.setItem('google_refresh_token', this.refreshToken);
+      }
+      if (this.expiresAt) {
+        localStorage.setItem('google_expires_at', this.expiresAt.toString());
+      }
+    } catch (error) {
+      console.warn('Failed to save tokens to storage:', error);
+    }
+  }
+
   isAuthenticated(): boolean {
-    return !!this.accessToken;
+    return !!this.accessToken && !this.isTokenExpired();
+  }
+
+  private isTokenExpired(): boolean {
+    if (!this.expiresAt) return false;
+    // Add 5 minute buffer to prevent edge cases
+    return Date.now() >= (this.expiresAt - 300000);
   }
 
   private handleOAuthCallback(): void {
@@ -21,48 +57,109 @@ export class FixedGoogleOAuth {
       const urlParams = new URLSearchParams(window.location.hash.substring(1));
       const accessToken = urlParams.get('access_token');
       const error = urlParams.get('error');
+      const expiresIn = urlParams.get('expires_in');
       
       if (error) {
         console.error('OAuth Error:', error);
-        alert(`Google authentication failed: ${error}`);
-        return;
+        const errorDescription = urlParams.get('error_description') || error;
+        throw new Error(`Google authentication failed: ${errorDescription}`);
       }
       
       if (accessToken) {
         this.accessToken = accessToken;
-        localStorage.setItem('google_access_token', accessToken);
+        // Calculate expiry time (Google typically returns 3600 seconds)
+        const expiresInSeconds = expiresIn ? parseInt(expiresIn) : 3600;
+        this.expiresAt = Date.now() + (expiresInSeconds * 1000);
+        
+        this.saveTokensToStorage();
         
         // Clean up the URL hash
         window.history.replaceState({}, document.title, window.location.pathname);
         
-        console.log('✅ OAuth successful - token stored');
+        console.log('✅ OAuth successful - tokens stored');
       }
     }
   }
 
   async authenticate(): Promise<void> {
+    // Check if we already have valid tokens
+    if (this.isAuthenticated()) {
+      console.log('Already authenticated');
+      return;
+    }
+
+    // Try to refresh token if we have one
+    if (this.refreshToken && this.isTokenExpired()) {
+      try {
+        await this.refreshAccessToken();
+        return;
+      } catch (error) {
+        console.warn('Token refresh failed, proceeding with full authentication');
+      }
+    }
+
     const redirectUri = window.location.origin;
     
+    // Following Google's OAuth 2.0 documentation
     const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' +
       `client_id=${this.clientId}&` +
       `redirect_uri=${encodeURIComponent(redirectUri)}&` +
       `response_type=token&` +
       `scope=${encodeURIComponent('https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/drive.file')}&` +
-      `prompt=select_account&` +
+      `prompt=consent&` +
+      `access_type=offline&` +
       `include_granted_scopes=true`;
     
     console.log('🔗 Redirecting to Google OAuth...');
     window.location.href = authUrl;
   }
 
+  private async refreshAccessToken(): Promise<void> {
+    if (!this.refreshToken) {
+      throw new Error('No refresh token available');
+    }
+
+    const response = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        client_id: this.clientId,
+        refresh_token: this.refreshToken,
+        grant_type: 'refresh_token',
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Token refresh failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    this.accessToken = data.access_token;
+    this.expiresAt = Date.now() + (data.expires_in * 1000);
+    
+    // Update refresh token if provided
+    if (data.refresh_token) {
+      this.refreshToken = data.refresh_token;
+    }
+
+    this.saveTokensToStorage();
+    console.log('✅ Access token refreshed');
+  }
+
   async makeAuthenticatedRequest(url: string, options: RequestInit = {}): Promise<Response> {
-    if (!this.accessToken) {
-      throw new Error('Not authenticated - please call authenticate() first');
+    // Ensure we have a valid token
+    if (!this.isAuthenticated()) {
+      if (this.refreshToken) {
+        await this.refreshAccessToken();
+      } else {
+        throw new Error('Not authenticated - please call authenticate() first');
+      }
     }
 
     const headers = {
       'Authorization': `Bearer ${this.accessToken}`,
-      'Content-Type': 'application/json',
       ...options.headers,
     };
 
@@ -71,31 +168,54 @@ export class FixedGoogleOAuth {
       headers,
     });
 
+    // Handle token expiration
     if (response.status === 401) {
-      // Token expired, clear it
-      this.logout();
-      throw new Error('Authentication expired - please reconnect to Google Drive');
+      if (this.refreshToken) {
+        try {
+          await this.refreshAccessToken();
+          // Retry the request with new token
+          return await fetch(url, {
+            ...options,
+            headers: {
+              ...options.headers,
+              'Authorization': `Bearer ${this.accessToken}`,
+            },
+          });
+        } catch (refreshError) {
+          this.logout();
+          throw new Error('Authentication expired and refresh failed - please reconnect');
+        }
+      } else {
+        this.logout();
+        throw new Error('Authentication expired - please reconnect to Google Drive');
+      }
     }
 
     return response;
   }
 
   async listFiles(folderId?: string): Promise<any[]> {
+    // Build query following Google Drive API best practices
     let query = "mimeType contains 'video/' or mimeType contains 'image/'";
     
     if (folderId) {
       query += ` and '${folderId}' in parents`;
     }
 
+    // Add additional filters to exclude system files
+    query += " and trashed = false";
+
     const url = `https://www.googleapis.com/drive/v3/files?` +
       `q=${encodeURIComponent(query)}&` +
-      `fields=files(id,name,size,createdTime,thumbnailLink,mimeType,videoMediaMetadata,imageMediaMetadata,webViewLink)&` +
-      `pageSize=1000`;
+      `fields=files(id,name,size,createdTime,modifiedTime,thumbnailLink,mimeType,videoMediaMetadata,imageMediaMetadata,webViewLink,parents)&` +
+      `pageSize=1000&` +
+      `orderBy=createdTime desc`;
 
     const response = await this.makeAuthenticatedRequest(url);
     
     if (!response.ok) {
-      throw new Error(`Failed to fetch files: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(`Failed to fetch files: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
     const data = await response.json();
@@ -107,6 +227,7 @@ export class FixedGoogleOAuth {
       size: parseInt(file.size) || 0,
       sizeFormatted: this.formatFileSize(parseInt(file.size) || 0),
       createdTime: file.createdTime,
+      modifiedTime: file.modifiedTime,
       thumbnailLink: file.thumbnailLink,
       webViewLink: file.webViewLink,
       mimeType: file.mimeType,
@@ -119,6 +240,7 @@ export class FixedGoogleOAuth {
       thumbnail: file.thumbnailLink || '',
       format: this.getFileExtension(file.name),
       dateCreated: new Date(file.createdTime).toLocaleDateString(),
+      parents: file.parents || [],
       metadata: {
         video: file.videoMediaMetadata,
         image: file.imageMediaMetadata
@@ -126,8 +248,58 @@ export class FixedGoogleOAuth {
     }));
   }
 
+  async getFileMetadata(fileId: string): Promise<any> {
+    const url = `https://www.googleapis.com/drive/v3/files/${fileId}?` +
+      `fields=id,name,size,createdTime,modifiedTime,thumbnailLink,mimeType,videoMediaMetadata,imageMediaMetadata,webViewLink,parents`;
+
+    const response = await this.makeAuthenticatedRequest(url);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch file metadata: ${response.status} ${response.statusText}`);
+    }
+
+    return await response.json();
+  }
+
   async downloadFile(fileId: string): Promise<string> {
-    return `https://drive.google.com/uc?id=${fileId}&export=download`;
+    // For Google Drive, we can use the direct download URL with authentication
+    const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+    
+    // Verify we can access the file first
+    const response = await this.makeAuthenticatedRequest(url, { method: 'HEAD' });
+    
+    if (!response.ok) {
+      throw new Error(`Cannot access file for download: ${response.status} ${response.statusText}`);
+    }
+
+    // Return the authenticated download URL
+    return url;
+  }
+
+  async createFolder(name: string, parentId?: string): Promise<string> {
+    const metadata = {
+      name,
+      mimeType: 'application/vnd.google-apps.folder',
+      ...(parentId && { parents: [parentId] })
+    };
+
+    const response = await this.makeAuthenticatedRequest(
+      'https://www.googleapis.com/drive/v3/files',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(metadata),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to create folder: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.id;
   }
 
   private formatFileSize(bytes: number): string {
@@ -155,8 +327,18 @@ export class FixedGoogleOAuth {
 
   logout(): void {
     this.accessToken = null;
-    localStorage.removeItem('google_access_token');
-    console.log('🚪 Logged out - token cleared');
+    this.refreshToken = null;
+    this.expiresAt = null;
+    
+    try {
+      localStorage.removeItem('google_access_token');
+      localStorage.removeItem('google_refresh_token');
+      localStorage.removeItem('google_expires_at');
+    } catch (error) {
+      console.warn('Failed to clear tokens from storage:', error);
+    }
+    
+    console.log('🚪 Logged out - tokens cleared');
   }
 }
 
