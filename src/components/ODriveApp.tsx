@@ -136,44 +136,44 @@ const ODriveApp = () => {
                     <div className="glass-card text-center p-4">
                       <Camera className="h-8 w-8 mx-auto mb-3 text-primary" />
                       <h3 className="font-semibold mb-2">Photos & Videos</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Organize both photos and videos with AI-powered chronological sorting
-                      </p>
+                       <p className="text-sm text-muted-foreground">
+                         Multi-Agent AI system using Claude, GPT-4, and Gemini to intelligently organize your entire media library. Supports ALL file types - photos, videos, documents.
+                       </p>
                     </div>
                     <div className="glass-card text-center p-4">
                       <Mic className="h-8 w-8 mx-auto mb-3 text-secondary" />
                       <h3 className="font-semibold mb-2">Voice Assistant</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Ask questions and get help navigating your media library
-                      </p>
+                       <p className="text-sm text-muted-foreground">
+                         Powered by ElevenLabs AI voice. Ask "Why aren't my photos showing?" or "How do I organize by face?" Get instant help with natural conversation.
+                       </p>
                     </div>
                     <div className="glass-card text-center p-4">
                       <Settings className="h-8 w-8 mx-auto mb-3 text-accent" />
                       <h3 className="font-semibold mb-2">Smart Analysis</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Extract metadata, faces, objects, and locations from your media
-                      </p>
+                       <p className="text-sm text-muted-foreground">
+                         Three AI agents working together: Gemini for vision (detects faces, objects, scenes), GPT-4 for metadata extraction, Claude for intelligent organization strategies.
+                       </p>
                     </div>
                     <div className="glass-card text-center p-4">
                       <Video className="h-8 w-8 mx-auto mb-3 text-primary" />
                       <h3 className="font-semibold mb-2">Super Vision Agents</h3>
-                      <p className="text-sm text-muted-foreground">
-                        AI agents that can see, categorize, and organize your videos automatically
-                      </p>
+                       <p className="text-sm text-muted-foreground">
+                         AI agents that can SEE inside your photos/videos: Detect red dresses, count people, identify beaches, recognize faces. Creates smart folders automatically.
+                       </p>
                     </div>
                     <div className="glass-card text-center p-4">
                       <Camera className="h-8 w-8 mx-auto mb-3 text-secondary" />
                       <h3 className="font-semibold mb-2">Photo Categorization</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Let robots organize your photos on Google Drive and local storage
-                      </p>
+                       <p className="text-sm text-muted-foreground">
+                         Permission-based AI organization: Automatically creates Google Sheets with your photo data, builds folder structures, tags by location/date/content. Your AI assistant working 24/7.
+                       </p>
                     </div>
                     <div className="glass-card text-center p-4">
                       <Cog className="h-8 w-8 mx-auto mb-3 text-accent" />
                       <h3 className="font-semibold mb-2">Automated Organization</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Complete hands-free media management powered by AI agents
-                      </p>
+                       <p className="text-sm text-muted-foreground">
+                         Set it and forget it: Multi-agent system organizes thousands of files while you sleep. Creates timelines for video editors, sorts by events, generates project files.
+                       </p>
                     </div>
                   </div>
                 </div>
