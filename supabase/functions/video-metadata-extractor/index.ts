@@ -25,7 +25,7 @@ serve(async (req) => {
     // Call the Cloud Run service for metadata extraction
     console.log(`🚀 Calling Cloud Run service for metadata extraction: ${fileId}`);
     
-    const cloudRunUrl = 'https://video-metadata-service-1070421026009.us-central1.run.app/extract';
+    const cloudRunUrl = 'https://video-metadata-service-1070421026009.us-central1.run.app/extract-metadata';
     
     const serviceResponse = await fetch(cloudRunUrl, {
       method: 'POST',
