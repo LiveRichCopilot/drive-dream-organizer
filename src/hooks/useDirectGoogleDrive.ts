@@ -1,10 +1,10 @@
 import { useState, useCallback } from 'react';
-import { directGoogleDrive } from '@/lib/directGoogleDrive';
+import { fixedGoogleOAuth } from '@/lib/fixedOAuth';
 import { toast } from '@/hooks/use-toast';
 import { MediaFile } from '@/lib/api';
 
 export const useDirectGoogleDrive = (folderId?: string) => {
-  const [isConnected, setIsConnected] = useState(directGoogleDrive.isAuthenticated());
+  const [isConnected, setIsConnected] = useState(fixedGoogleOAuth.isAuthenticated());
   const [isLoading, setIsLoading] = useState(false);
   const [videos, setVideos] = useState<MediaFile[]>([]);
   const [progress, setProgress] = useState(0);
@@ -18,7 +18,7 @@ export const useDirectGoogleDrive = (folderId?: string) => {
         setProgress(prev => Math.min(prev + 15, 90));
       }, 300);
 
-      await directGoogleDrive.authenticate();
+      await fixedGoogleOAuth.authenticate();
       
       clearInterval(progressInterval);
       setProgress(100);
@@ -64,7 +64,7 @@ export const useDirectGoogleDrive = (folderId?: string) => {
       const targetFolderId = specificFolderId !== undefined ? specificFolderId : folderId;
       console.log('Loading files with folderId:', targetFolderId);
       
-      const files = await directGoogleDrive.listFiles(targetFolderId);
+      const files = await fixedGoogleOAuth.listFiles(targetFolderId);
       console.log('Raw files response:', files);
       
       setVideos(files);
@@ -100,7 +100,7 @@ export const useDirectGoogleDrive = (folderId?: string) => {
 
   const downloadVideo = useCallback(async (fileId: string, fileName: string) => {
     try {
-      const downloadUrl = await directGoogleDrive.downloadFile(fileId);
+      const downloadUrl = await fixedGoogleOAuth.downloadFile(fileId);
       
       // Open download in new tab
       window.open(downloadUrl, '_blank');
@@ -120,7 +120,7 @@ export const useDirectGoogleDrive = (folderId?: string) => {
   }, []);
 
   const disconnect = useCallback(() => {
-    directGoogleDrive.logout();
+    fixedGoogleOAuth.logout();
     setIsConnected(false);
     setVideos([]);
     setProgress(0);
