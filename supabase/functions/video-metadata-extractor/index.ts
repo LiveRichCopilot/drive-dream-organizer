@@ -22,7 +22,7 @@ serve(async (req) => {
       });
     }
 
-    console.log(`🎬 Using ExifTool API for metadata extraction: ${fileId}`);
+    console.log(`🎬 Starting real metadata extraction with download: ${fileId}`);
 
     // Get file info from Google Drive
     const fileResponse = await fetch(
@@ -37,53 +37,46 @@ serve(async (req) => {
     const fileData = await fileResponse.json();
     console.log(`📁 File: ${fileData.name} (${fileData.size} bytes)`);
     
-    // Try ExifTool API for metadata extraction
+    // Actually download and parse the video file
     try {
-      const driveFileUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+      console.log(`⬇️ Downloading video file for real metadata extraction...`);
+      const downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
       
-      const metadataResponse = await fetch('https://exiftool.app/api/extract', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          url: driveFileUrl,
-          auth: `Bearer ${accessToken}`
-        })
+      const videoResponse = await fetch(downloadUrl, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
       });
 
-      if (metadataResponse.ok) {
-        const metadata = await metadataResponse.json();
-        console.log('📊 ExifTool metadata:', Object.keys(metadata));
-        
-        // Extract the creation date from various possible fields
-        const creationDate = 
-          metadata.CreateDate || 
-          metadata.DateTimeOriginal || 
-          metadata.MediaCreateDate ||
-          metadata.TrackCreateDate ||
-          metadata.CreationDate ||
-          metadata['Date/Time Original'];
-        
-        if (creationDate) {
-          console.log(`✅ Found original date: ${creationDate}`);
-          return new Response(JSON.stringify({
-            fileId,
-            fileName: fileData.name,
-            fileSize: fileData.size,
-            originalDate: creationDate,
-            extractionMethod: 'exiftool-api',
-            confidence: 'high',
-            allMetadata: metadata
-          }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
+      if (!videoResponse.ok) {
+        throw new Error(`Failed to download video: ${videoResponse.status}`);
+      }
+
+      // Read the first chunk to parse MOV/MP4 atoms
+      const buffer = await videoResponse.arrayBuffer();
+      const uint8Array = new Uint8Array(buffer);
+      
+      console.log(`📊 Downloaded ${buffer.byteLength} bytes, parsing atoms...`);
+      
+      // Parse QuickTime/MP4 atoms for metadata
+      const metadata = parseVideoMetadata(uint8Array, fileData.name);
+      
+      if (metadata.originalDate) {
+        console.log(`✅ Found embedded date: ${metadata.originalDate}`);
+        return new Response(JSON.stringify({
+          fileId,
+          fileName: fileData.name,
+          fileSize: fileData.size,
+          originalDate: metadata.originalDate,
+          extractionMethod: 'video-download-parse',
+          confidence: 'high',
+          allMetadata: metadata
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       } else {
-        console.log('⚠️ ExifTool API failed, trying fallback methods');
+        console.log(`⚠️ No embedded date found in video atoms`);
       }
     } catch (error) {
-      console.error('❌ ExifTool API error:', error.message);
+      console.error('❌ Video download/parse error:', error.message);
     }
     
     // Fallback to filename pattern extraction
@@ -125,6 +118,98 @@ serve(async (req) => {
     });
   }
 });
+
+function parseVideoMetadata(data: Uint8Array, fileName: string): any {
+  console.log(`🔍 Parsing metadata for ${fileName}`);
+  
+  try {
+    // Look for QuickTime/MP4 atoms
+    const metadata: any = {};
+    let offset = 0;
+    
+    while (offset < Math.min(data.length, 1024 * 1024)) { // Only parse first 1MB
+      if (offset + 8 > data.length) break;
+      
+      // Read atom size and type
+      const atomSize = (data[offset] << 24) | (data[offset + 1] << 16) | 
+                      (data[offset + 2] << 8) | data[offset + 3];
+      const atomType = String.fromCharCode(data[offset + 4], data[offset + 5], 
+                                          data[offset + 6], data[offset + 7]);
+      
+      if (atomSize < 8 || atomSize > data.length - offset) break;
+      
+      console.log(`📦 Found atom: ${atomType} (${atomSize} bytes)`);
+      
+      // Look for creation time in mvhd atom
+      if (atomType === 'mvhd' && atomSize >= 32) {
+        const creationTime = readMacTime(data, offset + 12);
+        if (creationTime) {
+          metadata.originalDate = creationTime;
+          console.log(`📅 Found mvhd creation time: ${creationTime}`);
+        }
+      }
+      
+      // Look for metadata in udta atom
+      if (atomType === 'udta') {
+        parseUdtaAtom(data, offset + 8, atomSize - 8, metadata);
+      }
+      
+      offset += atomSize;
+    }
+    
+    return metadata;
+    
+  } catch (error) {
+    console.error('Error parsing video metadata:', error);
+    return {};
+  }
+}
+
+function readMacTime(data: Uint8Array, offset: number): string | null {
+  try {
+    // Read 32-bit big-endian timestamp
+    const macTime = (data[offset] << 24) | (data[offset + 1] << 16) | 
+                   (data[offset + 2] << 8) | data[offset + 3];
+    
+    // Mac epoch starts Jan 1, 1904, Unix epoch starts Jan 1, 1970
+    const macToUnixOffset = 2082844800;
+    const unixTime = macTime - macToUnixOffset;
+    
+    if (unixTime > 0 && unixTime < Date.now() / 1000) {
+      return new Date(unixTime * 1000).toISOString();
+    }
+  } catch (error) {
+    console.error('Error reading Mac time:', error);
+  }
+  return null;
+}
+
+function parseUdtaAtom(data: Uint8Array, offset: number, size: number, metadata: any): void {
+  let pos = offset;
+  const end = offset + size;
+  
+  while (pos + 8 < end) {
+    const atomSize = (data[pos] << 24) | (data[pos + 1] << 16) | 
+                    (data[pos + 2] << 8) | data[pos + 3];
+    const atomType = String.fromCharCode(data[pos + 4], data[pos + 5], 
+                                        data[pos + 6], data[pos + 7]);
+    
+    if (atomSize < 8 || pos + atomSize > end) break;
+    
+    // Look for creation date in ©day atom
+    if (atomType === '©day' && atomSize > 16) {
+      try {
+        const dateStr = String.fromCharCode(...data.slice(pos + 16, pos + atomSize));
+        metadata.creationDateString = dateStr.trim();
+        console.log(`📅 Found ©day: ${dateStr}`);
+      } catch (error) {
+        console.error('Error reading ©day atom:', error);
+      }
+    }
+    
+    pos += atomSize;
+  }
+}
 
 function extractFromFilename(fileName: string): string | null {
   const patterns = [
