@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+
 import { 
   Camera, 
   Sparkles, 
@@ -142,54 +142,96 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
     setAnalysisProgress(0);
 
     try {
-      // Process in batches for efficiency
-      const batchSize = 10;
-      const batches = [];
-      
-      for (let i = 0; i < unanalyzedPhotos.length; i += batchSize) {
-        batches.push(unanalyzedPhotos.slice(i, i + batchSize));
+      const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+      if (!apiKey) {
+        throw new Error('OpenAI API key not configured');
       }
 
       let processedCount = 0;
 
-      for (const batch of batches) {
-        const imageRequests = batch.map(photo => ({
-          imageUrl: photo.thumbnailLink || photo.webViewLink,
-          fileName: photo.name
-        }));
+      for (const photo of unanalyzedPhotos) {
+        try {
+          const imageUrl = photo.thumbnailLink || photo.webViewLink;
+          
+          const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${apiKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              model: "gpt-4o-mini",
+              messages: [{
+                role: "user",
+                content: [
+                  { 
+                    type: "text", 
+                    text: "Analyze this image and return a JSON object with the following structure: {\"categories\": [\"category1\", \"category2\"], \"colors\": [\"color1\", \"color2\"], \"faces\": 0, \"landmarks\": [], \"objects\": [\"object1\", \"object2\"], \"scene\": \"indoor/outdoor/people/food/event/travel/general\", \"confidence\": 0.85}. Provide 2-5 categories, 1-3 dominant colors, count of faces, any landmarks, 2-5 main objects, scene type, and confidence score." 
+                  },
+                  { 
+                    type: "image_url", 
+                    image_url: { url: imageUrl } 
+                  }
+                ]
+              }],
+              max_tokens: 500
+            })
+          });
 
-        const response = await supabase.functions.invoke('photo-analysis', {
-          body: { images: imageRequests }
-        });
+          if (!response.ok) {
+            throw new Error(`OpenAI API error: ${response.statusText}`);
+          }
 
-        if (response.error) {
-          throw new Error(response.error.message);
-        }
-
-        const { results } = response.data;
-
-        // Update photos with analysis results
-        setPhotos(prev => prev.map(photo => {
-          const result = results.find((r: any) => r.fileName === photo.name);
-          if (result) {
-            return {
-              ...photo,
-              analysis: {
-                categories: result.categories || [],
-                colors: result.colors || [],
-                faces: result.faces || 0,
-                landmarks: result.landmarks || [],
-                objects: result.objects || [],
-                scene: result.scene || 'unknown',
-                confidence: result.confidence || 0
-              }
+          const data = await response.json();
+          const analysisText = data.choices[0].message.content;
+          
+          // Parse JSON response
+          let analysis;
+          try {
+            analysis = JSON.parse(analysisText);
+          } catch (parseError) {
+            console.error('Failed to parse analysis:', analysisText);
+            // Fallback analysis
+            analysis = {
+              categories: ['unanalyzed'],
+              colors: ['unknown'],
+              faces: 0,
+              landmarks: [],
+              objects: ['unknown'],
+              scene: 'general',
+              confidence: 0.5
             };
           }
-          return photo;
-        }));
 
-        processedCount += results.length;
-        setAnalysisProgress((processedCount / unanalyzedPhotos.length) * 100);
+          // Update photo with analysis results
+          setPhotos(prev => prev.map(p => {
+            if (p.id === photo.id) {
+              return {
+                ...p,
+                analysis: {
+                  categories: analysis.categories || [],
+                  colors: analysis.colors || [],
+                  faces: analysis.faces || 0,
+                  landmarks: analysis.landmarks || [],
+                  objects: analysis.objects || [],
+                  scene: analysis.scene || 'general',
+                  confidence: analysis.confidence || 0.5
+                }
+              };
+            }
+            return p;
+          }));
+
+          processedCount++;
+          setAnalysisProgress((processedCount / unanalyzedPhotos.length) * 100);
+
+          // Small delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 100));
+
+        } catch (error) {
+          console.error(`Error analyzing ${photo.name}:`, error);
+          // Continue with other photos
+        }
       }
 
       // Auto-generate categories based on analysis
