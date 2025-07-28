@@ -671,9 +671,9 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
         <Button
           onClick={scanAndAnalyzeFolder}
           disabled={isAnalyzing || photos.length === 0}
-          variant="ghost"
+          variant="glass"
           size="sm"
-          className="w-full glass backdrop-blur-sm bg-white/5 text-white/90 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all duration-200"
+          className="w-full"
         >
             {isAnalyzing ? (
               <Loader2 className="h-5 w-5 mr-2 animate-spin" />
@@ -687,28 +687,20 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
         {/* Controls */}
         <div className="flex items-center gap-3 flex-wrap">
           <Button
-            variant="ghost"
+            variant="glass"
             size="sm"
             onClick={() => setViewMode('photos')}
-            className={`glass backdrop-blur-md border border-white/20 transition-all duration-300 ${
-              viewMode === 'photos' 
-                ? 'bg-white/20 text-white shadow-md' 
-                : 'bg-white/5 text-white/80 hover:bg-white/10 hover:text-white'
-            }`}
+            className={viewMode === 'photos' ? 'bg-white/20' : ''}
           >
             <Image className="h-4 w-4 mr-2" />
             Photos ({photos.length})
           </Button>
           
           <Button
-            variant="ghost"
+            variant="glass"
             size="sm"
             onClick={() => setViewMode('categories')}
-            className={`glass backdrop-blur-md border border-white/20 transition-all duration-300 ${
-              viewMode === 'categories' 
-                ? 'bg-white/20 text-white shadow-md' 
-                : 'bg-white/5 text-white/80 hover:bg-white/10 hover:text-white'
-            }`}
+            className={viewMode === 'categories' ? 'bg-white/20' : ''}
           >
             <Tags className="h-4 w-4 mr-2" />
             Categories ({categories.length})
@@ -717,9 +709,8 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
           <Button
             onClick={() => setShowCreateCategory(!showCreateCategory)}
             disabled={selectedPhotos.size === 0}
-            variant="ghost"
+            variant="glass"
             size="sm"
-            className="glass backdrop-blur-md bg-white/5 border border-white/20 text-white/80 hover:bg-white/10 hover:text-white transition-all duration-300 disabled:opacity-50"
           >
             <Plus className="h-4 w-4 mr-2" />
             Create Category
@@ -728,9 +719,8 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
           <Button
             onClick={loadPhotos}
             disabled={isLoading}
-            variant="ghost"
+            variant="glass"
             size="sm"
-            className="glass backdrop-blur-md bg-white/5 border border-white/20 text-white/80 hover:bg-white/10 hover:text-white transition-all duration-300"
           >
             {isLoading ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -765,15 +755,14 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
                 />
                 <Button 
                   onClick={createCustomCategory}
-                  className="glass hover:bg-white/10"
+                  variant="glass"
                 >
                   <FolderPlus className="h-4 w-4 mr-2" />
                   Create
                 </Button>
                 <Button 
-                  variant="ghost" 
+                  variant="glass" 
                   onClick={() => setShowCreateCategory(false)}
-                  className="glass hover:bg-white/10"
                 >
                   Cancel
                 </Button>
@@ -855,9 +844,9 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
                           analyzeIndividualPhoto(photo.id);
                         }}
                         disabled={analyzingPhotoId === photo.id}
-                        variant="ghost"
+                        variant="glass"
                         size="sm"
-                        className="w-full glass text-xs hover:bg-white/10"
+                        className="w-full text-xs"
                       >
                         {analyzingPhotoId === photo.id ? (
                           <Loader2 className="h-3 w-3 mr-1 animate-spin" />
