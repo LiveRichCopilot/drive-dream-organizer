@@ -37,43 +37,46 @@ serve(async (req) => {
     const fileData = await fileResponse.json();
     console.log(`📁 File: ${fileData.name} (${fileData.size} bytes)`);
     
-    // Actually download and parse the video file
+    // Download and parse video file with streaming for efficiency
     try {
-      console.log(`⬇️ Downloading video file for real metadata extraction...`);
+      console.log(`⬇️ Streaming video file for metadata extraction...`);
       const downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
       
       const videoResponse = await fetch(downloadUrl, {
-        headers: { 'Authorization': `Bearer ${accessToken}` }
+        headers: { 
+          'Authorization': `Bearer ${accessToken}`,
+          'Range': 'bytes=0-1048575' // Only download first 1MB for metadata parsing
+        }
       });
 
       if (!videoResponse.ok) {
         throw new Error(`Failed to download video: ${videoResponse.status}`);
       }
 
-      // Read the first chunk to parse MOV/MP4 atoms
+      // Read partial content for metadata parsing
       const buffer = await videoResponse.arrayBuffer();
       const uint8Array = new Uint8Array(buffer);
       
-      console.log(`📊 Downloaded ${buffer.byteLength} bytes, parsing atoms...`);
+      console.log(`📊 Downloaded ${buffer.byteLength} bytes, parsing QuickTime atoms...`);
       
       // Parse QuickTime/MP4 atoms for metadata
       const metadata = parseVideoMetadata(uint8Array, fileData.name);
       
       if (metadata.originalDate) {
-        console.log(`✅ Found embedded date: ${metadata.originalDate}`);
+        console.log(`✅ SUCCESS: Found embedded creation date: ${metadata.originalDate}`);
         return new Response(JSON.stringify({
           fileId,
           fileName: fileData.name,
           fileSize: fileData.size,
           originalDate: metadata.originalDate,
-          extractionMethod: 'video-download-parse',
+          extractionMethod: 'quicktime-atoms',
           confidence: 'high',
           allMetadata: metadata
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       } else {
-        console.log(`⚠️ No embedded date found in video atoms`);
+        console.log(`⚠️ No creation date found in QuickTime atoms`);
       }
     } catch (error) {
       console.error('❌ Video download/parse error:', error.message);
