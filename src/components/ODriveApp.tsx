@@ -132,7 +132,7 @@ const ODriveApp = () => {
                     Connect Google Drive
                   </Button>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-8">
                     <div className="glass-card text-center p-4">
                       <Camera className="h-8 w-8 mx-auto mb-3 text-primary" />
                       <h3 className="font-semibold mb-2">Photos & Videos</h3>
@@ -142,9 +142,9 @@ const ODriveApp = () => {
                     </div>
                     <div className="glass-card text-center p-4">
                       <Mic className="h-8 w-8 mx-auto mb-3 text-secondary" />
-                      <h3 className="font-semibold mb-2">Voice Interface</h3>
+                      <h3 className="font-semibold mb-2">Voice Assistant</h3>
                       <p className="text-sm text-muted-foreground">
-                        Control your media library with natural voice commands
+                        Ask questions and get help navigating your media library
                       </p>
                     </div>
                     <div className="glass-card text-center p-4">
@@ -152,6 +152,27 @@ const ODriveApp = () => {
                       <h3 className="font-semibold mb-2">Smart Analysis</h3>
                       <p className="text-sm text-muted-foreground">
                         Extract metadata, faces, objects, and locations from your media
+                      </p>
+                    </div>
+                    <div className="glass-card text-center p-4">
+                      <Video className="h-8 w-8 mx-auto mb-3 text-primary" />
+                      <h3 className="font-semibold mb-2">Super Vision Agents</h3>
+                      <p className="text-sm text-muted-foreground">
+                        AI agents that can see, categorize, and organize your videos automatically
+                      </p>
+                    </div>
+                    <div className="glass-card text-center p-4">
+                      <Camera className="h-8 w-8 mx-auto mb-3 text-secondary" />
+                      <h3 className="font-semibold mb-2">Photo Categorization</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Let robots organize your photos on Google Drive and local storage
+                      </p>
+                    </div>
+                    <div className="glass-card text-center p-4">
+                      <Cog className="h-8 w-8 mx-auto mb-3 text-accent" />
+                      <h3 className="font-semibold mb-2">Automated Organization</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Complete hands-free media management powered by AI agents
                       </p>
                     </div>
                   </div>
