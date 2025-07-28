@@ -75,8 +75,26 @@ export class FixedGoogleOAuth {
   }
 
   async authenticate(): Promise<void> {
+    console.log('🚀 === STARTING GOOGLE OAUTH AUTHENTICATION ===');
+    console.log('📱 Environment Details:');
+    console.log('  - Current Domain:', window.location.origin);
+    console.log('  - Current URL:', window.location.href);
+    console.log('  - User Agent:', navigator.userAgent);
+    console.log('  - Browser:', navigator.userAgent.includes('Chrome') ? 'Chrome' : 'Other');
+    
     // Use the current app URL as redirect URI
     const redirectUri = window.location.origin;
+    
+    console.log('🔧 OAuth Configuration:');
+    console.log('  - Client ID:', this.clientId);
+    console.log('  - Redirect URI:', redirectUri);
+    console.log('  - Scopes: drive + drive.file');
+    console.log('  - Response Type: token (implicit flow)');
+    
+    // Check if this domain might be causing issues
+    if (redirectUri.includes('lovableproject.com')) {
+      console.log('⚠️  Using Lovable preview domain - checking if this is configured in Google Cloud Console...');
+    }
     
     const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' +
       `client_id=${this.clientId}&` +
@@ -86,12 +104,29 @@ export class FixedGoogleOAuth {
       `prompt=select_account&` +
       `include_granted_scopes=true`;
     
-    console.log('🔗 Auth URL:', authUrl);
-    console.log('📍 Redirect URI:', redirectUri);
-    console.log('🆔 Client ID:', this.clientId);
+    console.log('🌐 Complete OAuth URL:', authUrl);
+    console.log('🔍 URL Breakdown:');
+    console.log('  - Base: https://accounts.google.com/o/oauth2/v2/auth');
+    console.log('  - client_id:', this.clientId);
+    console.log('  - redirect_uri:', redirectUri);
+    console.log('  - response_type: token');
+    console.log('  - scope: https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/drive.file');
+    console.log('  - prompt: select_account');
+    console.log('  - include_granted_scopes: true');
     
-    // Redirect to Google OAuth
-    window.location.href = authUrl;
+    console.log('🚀 Redirecting to Google in 2 seconds...');
+    console.log('📝 If you get a 403 error, check these in Google Cloud Console:');
+    console.log('  1. OAuth consent screen status (Testing vs Production)');
+    console.log('  2. Test users added (if in Testing mode)');
+    console.log('  3. Authorized redirect URIs include:', redirectUri);
+    console.log('  4. Google Drive API is enabled');
+    console.log('  5. OAuth 2.0 Client ID is active');
+    
+    // Add delay to see logs
+    setTimeout(() => {
+      console.log('🌐 === REDIRECTING TO GOOGLE NOW ===');
+      window.location.href = authUrl;
+    }, 2000);
   }
 
   async makeAuthenticatedRequest(url: string, options: RequestInit = {}): Promise<Response> {
