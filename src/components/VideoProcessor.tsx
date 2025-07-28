@@ -4,7 +4,7 @@ import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Download, Play, Pause, RotateCcw, FileText, Clock, HardDrive, Search } from 'lucide-react';
+import { Download, Play, Pause, RotateCcw, FileText, Clock, HardDrive, Search, Archive, Upload, RefreshCw } from 'lucide-react';
 import { VideoFile, apiClient } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { VideoPreview } from './VideoPreview';
@@ -686,6 +686,67 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
     }
   };
 
+  const downloadAsZip = async () => {
+    if (!previewResults?.downloadedVideos) return;
+    
+    try {
+      // Import JSZip dynamically
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+      
+      // Add a status indicator
+      toast({
+        title: "Creating Zip File",
+        description: "Preparing your organized videos for download...",
+      });
+      
+      // Add each renamed video to the zip
+      for (const video of previewResults.downloadedVideos) {
+        try {
+          // Download the video file as a blob
+          const response = await fetch(`https://drive.google.com/uc?id=${video.id}&export=download`, {
+            headers: {
+              'Authorization': `Bearer ${apiClient.getAccessToken()}`,
+            },
+          });
+          
+          if (response.ok) {
+            const blob = await response.blob();
+            // Use the new renamed filename
+            const fileName = video.newName || video.originalName;
+            zip.file(fileName, blob);
+          }
+        } catch (error) {
+          console.error(`Failed to add ${video.originalName} to zip:`, error);
+        }
+      }
+      
+      // Generate and download the zip file
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${settings.destinationFolderName || 'organized-videos'}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Download Started",
+        description: "Your organized videos are being downloaded as a zip file",
+      });
+      
+    } catch (error) {
+      console.error('Failed to create zip file:', error);
+      toast({
+        title: "Download Failed",
+        description: "Failed to create zip file. Please try downloading individual videos.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const retryUpload = async () => {
     if (!previewResults) return;
     
@@ -694,10 +755,18 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
       status: 'uploading',
       currentStep: 6,
       progress: 90,
-      currentFile: 'Retrying upload to Google Drive...'
+      currentFile: 'Refreshing authentication and retrying upload...'
     }));
 
     try {
+      // Force a fresh authentication
+      await apiClient.authenticate();
+      
+      setProcessingState(prev => ({
+        ...prev,
+        currentFile: 'Uploading organized videos to Google Drive...'
+      }));
+      
       await uploadToGoogleDrive(previewResults);
       
       setProcessingState(prev => ({
@@ -824,13 +893,34 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
           )}
           
           {processingState.status === 'error' && previewResults && (
+            <>
+              <Button 
+                onClick={retryUpload} 
+                variant="outline"
+                className="glass text-white border-white/20 hover:bg-white/10 bg-white/5"
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Retry Upload to Google Drive
+              </Button>
+              <Button 
+                onClick={downloadAsZip} 
+                variant="outline"
+                className="glass text-white border-white/20 hover:bg-white/10 bg-white/5"
+              >
+                <Archive className="mr-2 h-4 w-4" />
+                Download as Zip
+              </Button>
+            </>
+          )}
+          
+          {processingState.status === 'completed' && previewResults && (
             <Button 
-              onClick={retryUpload} 
+              onClick={downloadAsZip} 
               variant="outline"
               className="glass text-white border-white/20 hover:bg-white/10 bg-white/5"
             >
-              <Download className="mr-2 h-4 w-4" />
-              Retry Upload
+              <Archive className="mr-2 h-4 w-4" />
+              Download as Zip
             </Button>
           )}
           
