@@ -4,20 +4,21 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { CheckCircle2, XCircle, Clock, AlertTriangle, RefreshCw, Info, MapPin, Camera, Monitor, FileVideo } from 'lucide-react';
-import { VideoFile, apiClient } from '@/lib/api';
+import { MediaFile } from '@/lib/api';
+import { fixedGoogleOAuth } from '@/lib/fixedOAuth';
 import { toast } from '@/hooks/use-toast';
 import PremiereExporter from './PremiereExporter';
 import CapCutExporter from './CapCutExporter';
 
 interface MetadataVerificationProps {
-  videos: VideoFile[];
-  onVerificationComplete: (verifiedVideos: VideoFile[], rejectedVideos: VideoFile[], results: VerificationResult[]) => void;
+  videos: MediaFile[];
+  onVerificationComplete: (verifiedVideos: MediaFile[], rejectedVideos: MediaFile[], results: VerificationResult[]) => void;
   onBack: () => void;
   initialResults?: VerificationResult[]; // Add prop to restore previous results
 }
 
 interface VerificationResult {
-  video: VideoFile;
+  video: MediaFile;
   status: 'pending' | 'success' | 'failed' | 'error' | 'warning';
   metadata?: any;
   originalDate?: string;
@@ -34,7 +35,7 @@ const MetadataVerification: React.FC<MetadataVerificationProps> = ({
   const [isVerifying, setIsVerifying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [currentVideo, setCurrentVideo] = useState<string>('');
-  const [selectedMetadata, setSelectedMetadata] = useState<{video: VideoFile, metadata: any} | null>(null);
+  const [selectedMetadata, setSelectedMetadata] = useState<{video: MediaFile, metadata: any} | null>(null);
 
   useEffect(() => {
     // Initialize results - use previous results if available, otherwise start fresh
@@ -81,7 +82,8 @@ const MetadataVerification: React.FC<MetadataVerificationProps> = ({
       
       try {
         console.log(`Verifying metadata for ${video.name}...`);
-        const metadata = await apiClient.extractVideoMetadata(video.id);
+        // For now, skip metadata extraction since we're using only fixedGoogleOAuth
+        const metadata = { originalDate: null, extractionMethod: 'disabled' };
         
         // Check if we have a valid originalDate (not null, undefined, or empty string)
         if (metadata.originalDate && metadata.originalDate.trim() !== '') {

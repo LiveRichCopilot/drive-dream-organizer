@@ -33,7 +33,6 @@ import {
 } from "lucide-react";
 import heroImage from "@/assets/hero-video-bg.jpg";
 import { useDirectGoogleDrive } from "@/hooks/useDirectGoogleDrive";
-import { apiClient } from "@/lib/api";
 import GoogleDriveFolderInput from "@/components/GoogleDriveFolderInput";
 import VideoProcessor from "./VideoProcessor";
 import ProcessingResults from "./ProcessingResults";

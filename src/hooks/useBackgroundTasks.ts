@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { apiClient } from '@/lib/api';
+import { fixedGoogleOAuth } from '@/lib/fixedOAuth';
 import { toast } from '@/hooks/use-toast';
 
 interface BackgroundTask {
@@ -66,7 +66,8 @@ export const useBackgroundTasks = () => {
         const videoId = videoIds[i];
         
         try {
-          const metadata = await apiClient.extractVideoMetadata(videoId);
+          // For now, skip metadata extraction since we're using only fixedGoogleOAuth
+          const metadata = { originalDate: null, extractionMethod: 'disabled' };
           results.push(metadata);
           
           updateTask(taskId, {
@@ -137,7 +138,7 @@ export const useBackgroundTasks = () => {
         const video = videos[i];
         
         try {
-          const downloadUrl = await apiClient.downloadFile(video.id, video.name);
+          const downloadUrl = await fixedGoogleOAuth.downloadFile(video.id);
           
           // In a real implementation, this would trigger the actual download
           // For now, we'll simulate the download process
@@ -207,7 +208,8 @@ export const useBackgroundTasks = () => {
 
       updateTask(taskId, { progress: 25 });
 
-      const result = await apiClient.generateProjectFiles(videos, settings);
+      // For now, skip project generation since we're using only fixedGoogleOAuth
+      const result = { success: false, projectFiles: [] };
       
       updateTask(taskId, { progress: 75 });
 

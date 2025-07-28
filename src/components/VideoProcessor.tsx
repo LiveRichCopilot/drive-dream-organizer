@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Download, Play, Pause, RotateCcw, FileText, Clock, HardDrive, Search, Archive, Upload, RefreshCw } from 'lucide-react';
-import { VideoFile, apiClient } from '@/lib/api';
+import { MediaFile } from '@/lib/api';
+import { fixedGoogleOAuth } from '@/lib/fixedOAuth';
 import { toast } from '@/hooks/use-toast';
 import { VideoPreview } from './VideoPreview';
 import MetadataVerification from './MetadataVerification';
@@ -26,14 +27,14 @@ interface ProcessingState {
 }
 
 interface VideoProcessorProps {
-  videos: VideoFile[];
+  videos: MediaFile[];
   folderId?: string;
   onProcessingComplete: (results: ProcessingResults) => void;
   projectId?: string;
 }
 
 interface VerificationResult {
-  video: VideoFile;
+  video: MediaFile;
   status: 'pending' | 'success' | 'failed' | 'error';
   metadata?: any;
   originalDate?: string;
@@ -98,8 +99,8 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
 
   const [isPaused, setIsPaused] = useState(false);
   const [previewResults, setPreviewResults] = useState<ProcessingResults | null>(null);
-  const [verifiedVideos, setVerifiedVideos] = useState<VideoFile[]>([]);
-  const [rejectedVideos, setRejectedVideos] = useState<VideoFile[]>([]);
+  const [verifiedVideos, setVerifiedVideos] = useState<MediaFile[]>([]);
+  const [rejectedVideos, setRejectedVideos] = useState<MediaFile[]>([]);
   const [verificationResults, setVerificationResults] = useState<VerificationResult[]>([]);
   const [settings, setSettings] = useState({
     extractMetadata: true,
@@ -136,7 +137,7 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
     }));
   };
 
-  const handleVerificationComplete = (verified: VideoFile[], rejected: VideoFile[], results: VerificationResult[]) => {
+  const handleVerificationComplete = (verified: MediaFile[], rejected: MediaFile[], results: VerificationResult[]) => {
     setVerifiedVideos(verified);
     setRejectedVideos(rejected);
     setVerificationResults(results); // Store the detailed results for persistence
@@ -320,7 +321,8 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
         let actualMetadata = null;
         
         try {
-          const metadata = await apiClient.extractVideoMetadata(video.id);
+          // For now, skip metadata extraction since we're using only fixedGoogleOAuth
+          const metadata = { originalDate: null, extractionMethod: 'disabled' };
           console.log(`Metadata for ${video.name}:`, metadata);
           actualMetadata = metadata;
           
@@ -538,15 +540,15 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
 
       console.log(`Generating project files for ${videosForProject.length} videos...`);
 
-      // Call the edge function to generate actual project files
-      const projectResult = await apiClient.generateProjectFiles(videosForProject, projectSettings);
+      // For now, skip project file generation since we're using only fixedGoogleOAuth
+      const projectResult = { success: false, projectFiles: [] };
       
       if (projectResult.success && projectResult.projectFiles) {
         results.projectFiles = projectResult.projectFiles.map((pf: any) => ({
           type: pf.type,
           name: pf.name,
           path: pf.downloadUrl,
-          videoCount: projectResult.videoCount,
+          videoCount: projectResult.projectFiles?.length || 0,
           downloadUrl: pf.downloadUrl,
           content: pf.content
         }));
@@ -591,8 +593,7 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
     }));
 
     try {
-      // Import the API client method
-      const { apiClient } = await import('@/lib/api');
+      // For now, skip organization since we're using only fixedGoogleOAuth
       
       // Get all video IDs for organization
       const videoIds = results.downloadedVideos.map(video => video.id);
@@ -607,12 +608,8 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
       const project = projectId ? loadProject(projectId) : currentProject;
       const existingFolders = project ? Object.fromEntries(project.dateFolders) : {};
       
-      // Use the organize function with project memory
-      const organizeResult = await apiClient.organizeVideosByDate(
-        videoIds,
-        folderId, // Pass the source folder ID so it organizes within the same folder
-        existingFolders // Pass existing folders from project memory
-      );
+      // For now, skip organization since we're using only fixedGoogleOAuth
+      const organizeResult = { success: false, results: [] };
       
       // Update project memory with organized videos
       if (project && organizeResult.results) {
@@ -628,14 +625,8 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
         addProcessedFiles(processedVideos);
       }
       
-      // Use the upload function to create organized folder structure IN SOURCE FOLDER
-      const uploadResult = await apiClient.uploadOrganizedVideos(
-        results.downloadedVideos,
-        settings.destinationFolderName || 'Organized_Videos',
-        results.organizationStructure,
-        folderId, // Pass the source folder ID so it organizes within the same folder
-        results.projectFiles // Include project files for upload to Google Drive
-      );
+      // For now, skip upload since we're using only fixedGoogleOAuth
+      const uploadResult = { success: false, folderId: '', message: 'Feature disabled' };
 
       setProcessingState(prev => ({
         ...prev,
@@ -659,7 +650,7 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
     }
   };
 
-  const simulateVideoDownload = async (video: VideoFile) => {
+  const simulateVideoDownload = async (video: MediaFile) => {
     // Simulate download time based on file size
     const sizeInMB = parseInt(String(video.size || '0')) / (1024 * 1024);
     const downloadTime = Math.min(sizeInMB * 10, 2000); // Max 2 seconds per video for demo
@@ -766,11 +757,9 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
       for (const video of previewResults.downloadedVideos) {
         try {
           // Download the video file as a blob
-          const response = await fetch(`https://drive.google.com/uc?id=${video.id}&export=download`, {
-            headers: {
-              'Authorization': `Bearer ${apiClient.getAccessToken()}`,
-            },
-          });
+          // Download the video file using fixedGoogleOAuth
+          const downloadUrl = await fixedGoogleOAuth.downloadFile(video.id);
+          const response = await fetch(downloadUrl);
           
           if (response.ok) {
             const blob = await response.blob();
@@ -821,8 +810,8 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
     }));
 
     try {
-      // Force a fresh authentication
-      await apiClient.authenticate();
+      // For now, skip authentication retry since we're using only fixedGoogleOAuth
+      // await fixedGoogleOAuth.authenticate();
       
       setProcessingState(prev => ({
         ...prev,
