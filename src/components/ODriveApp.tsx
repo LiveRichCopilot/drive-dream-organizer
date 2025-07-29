@@ -479,7 +479,7 @@ const ODriveApp = () => {
               placeholder="Search videos..."
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
-              className="pl-10 glass border-primary/30"
+              className="pl-10 bg-white/10 backdrop-blur-[20px] backdrop-saturate-[180%] border border-white/30 rounded-2xl text-white placeholder-white/50"
             />
           </div>
           
