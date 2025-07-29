@@ -496,13 +496,13 @@ const ODriveApp = () => {
           <div className="mb-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">Video Processing Pipeline</h2>
-              <Button 
+                <Button 
                 onClick={() => setShowProcessor(!showProcessor)}
                 variant="outline"
                 size="sm"
               >
                 <Cog className="mr-2 h-4 w-4" />
-                {showProcessor ? "Hide" : "Show"} Processor
+                Organize Drive
               </Button>
             </div>
             
