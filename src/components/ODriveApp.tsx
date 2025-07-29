@@ -415,7 +415,7 @@ const ODriveApp = () => {
               onClick={() => { setSelectedFolderId(undefined); disconnect(); }} 
               className="text-white/40 hover:text-white/80 text-sm px-3 py-1 h-8"
             >
-              <LogOut className="h-4 w-4 mr-2 inline" />
+              <LogOut className="h-4 w-4 mr-2 inline text-red-400" />
               Disconnect
             </button>
           </div>
