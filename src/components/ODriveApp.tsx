@@ -430,7 +430,7 @@ const ODriveApp = () => {
 
         {/* Folder Selection - Always Show */}
         <div className="mb-6">
-          <div className="bg-transparent backdrop-blur-[25px] backdrop-saturate-[200%] border border-white/15 rounded-2xl p-6 shadow-lg">
+          <div className="bg-black backdrop-blur-[25px] backdrop-saturate-[200%] border border-white/15 rounded-2xl p-6 shadow-lg">
             <div className="flex items-center gap-4 mb-4">
               <FolderOpen className="h-5 w-5 text-primary" />
               <h2 className="text-lg font-semibold">Folder Access</h2>
