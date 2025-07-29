@@ -421,7 +421,7 @@ const ODriveApp = () => {
 
         {/* Folder Selection - Always Show */}
         <div className="mb-6">
-          <div className="bg-white/5 backdrop-blur-[20px] backdrop-saturate-[180%] border border-white/20 rounded-2xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] p-6">
+          <div className="bg-white/10 backdrop-blur-[25px] backdrop-saturate-[200%] border border-white/30 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.1),inset_0_1px_2px_rgba(255,255,255,0.4),inset_0_-1px_1px_rgba(255,255,255,0.1)] p-6 relative before:absolute before:inset-0 before:rounded-2xl before:bg-gradient-to-br before:from-white/20 before:via-transparent before:to-transparent before:pointer-events-none">
             <div className="flex items-center gap-4 mb-4">
               <FolderOpen className="h-5 w-5 text-primary" />
               <h2 className="text-lg font-semibold">Folder Access</h2>
