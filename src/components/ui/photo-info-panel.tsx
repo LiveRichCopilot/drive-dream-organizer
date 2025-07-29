@@ -77,7 +77,7 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-white/5 scrollbar-thumb-white/20 hover:scrollbar-thumb-white/30">
+          <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gradient-to-b scrollbar-thumb-from-teal-200/30 scrollbar-thumb-to-blue-200/30 hover:scrollbar-thumb-from-teal-200/40 hover:scrollbar-thumb-to-blue-200/40 scrollbar-w-1">
             {/* Preview */}
             <div className="p-3">
               <div className="aspect-[3/4] max-w-[180px] mx-auto bg-black/20 rounded-xl overflow-hidden border border-white/10 mb-3">
