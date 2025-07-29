@@ -59,7 +59,7 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
-      <DialogContent className="max-w-2xl w-[95vw] p-0 overflow-hidden bg-white/10 backdrop-blur-[20px] backdrop-saturate-[180%] border border-white/30 shadow-[0_0_30px_rgba(255,255,255,0.1),inset_0_1px_1px_rgba(255,255,255,0.4)] rounded-2xl z-[100]">
+      <DialogContent className="max-w-2xl min-w-[400px] w-[95vw] min-h-[300px] max-h-[90vh] p-0 bg-white/10 backdrop-blur-[20px] backdrop-saturate-[180%] border border-white/30 shadow-[0_0_30px_rgba(255,255,255,0.1),inset_0_1px_1px_rgba(255,255,255,0.4)] rounded-2xl z-[100] resize overflow-auto cursor-move hover:shadow-[0_0_40px_rgba(255,255,255,0.2),inset_0_1px_1px_rgba(255,255,255,0.6)] transition-all duration-200 transform hover:scale-[1.02]">
         <div className="relative">
           {/* Header with close button */}
           <div className="flex items-center justify-between p-6 border-b border-white/10">
