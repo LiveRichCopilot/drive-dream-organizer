@@ -888,9 +888,9 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
         <CardTitle className="flex items-center gap-2">
           <Download className="h-5 w-5" />
           Video Processing Pipeline
-          <Badge variant={processingState.status === 'completed' ? 'default' : 'secondary'}>
+          <span className="text-green-500 font-medium">
             {videos.length} videos
-          </Badge>
+          </span>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
