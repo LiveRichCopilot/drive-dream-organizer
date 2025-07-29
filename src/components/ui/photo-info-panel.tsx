@@ -64,7 +64,7 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
   const [downloadProgress, setDownloadProgress] = React.useState(0);
   const [isGeneratingCaption, setIsGeneratingCaption] = React.useState(false);
   const [generatedCaption, setGeneratedCaption] = React.useState<string | null>(null);
-  const [captionStyle, setCaptionStyle] = React.useState<'social' | 'professional' | 'creative' | 'funny'>('social');
+  const [captionStyle, setCaptionStyle] = React.useState<'instagram' | 'onlyfans' | 'fansly' | 'subs'>('instagram');
   
   // Get file size in MB for display
   const getFileSizeDisplay = (sizeString: string) => {
@@ -245,12 +245,12 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
       const keyData = await keyResponse.json();
       const apiKey = keyData.apiKey;
 
-      // Create caption prompt based on style
-      const stylePrompts = {
-        social: "Create a fun, engaging social media caption with emojis and hashtags",
-        professional: "Write a professional, business-appropriate caption",
-        creative: "Generate a creative, artistic caption with storytelling elements",
-        funny: "Make a humorous, witty caption that will make people laugh"
+      // Platform-specific caption strategies
+      const platformPrompts = {
+        instagram: "Create an Instagram caption with strong SEO hooks, trending hashtags, and engagement-driving CTAs. Focus on discoverability and viral potential.",
+        onlyfans: "Write an exclusive, teasing caption that creates intrigue and desire. Use sultry language that hints at premium content while staying within platform guidelines.",
+        fansly: "Craft a caption with AI transparency and authenticity. Mention this content was enhanced/analyzed by AI while maintaining personal connection and genuine appeal.",
+        subs: "Generate an educational caption that provides value and insights. Focus on teaching moments, behind-the-scenes knowledge, or skill-building content."
       };
 
       const analysisContext = photo.analysis ? 
@@ -267,9 +267,9 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
           model: "gpt-4.1-2025-04-14",
           messages: [{
             role: "user",
-            content: `${stylePrompts[captionStyle]} for this image. Context: ${analysisContext}. Image name: ${photo.name}. Keep it under 280 characters and make it engaging.`
+            content: `${platformPrompts[captionStyle]} Context: ${analysisContext}. Image name: ${photo.name}. Keep it engaging and platform-appropriate.`
           }],
-          max_tokens: 100,
+          max_tokens: 150,
           temperature: 0.8
         })
       });
@@ -465,21 +465,28 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                     </Button>
                   </div>
 
-                  {/* Chat-style Caption Categories */}
+                  {/* Platform-Specific Caption Categories */}
                   <div className="mb-4">
-                    <p className="text-xs text-white/60 mb-2">Choose your caption style:</p>
+                    <p className="text-xs text-white/60 mb-2">Choose your platform:</p>
                     <div className="flex flex-wrap gap-2">
-                      {['social', 'professional', 'creative', 'funny'].map((style) => (
+                      {[
+                        { key: 'instagram', label: 'Instagram', desc: 'SEO hooks' },
+                        { key: 'onlyfans', label: 'OnlyFans', desc: 'exclusive/teasing' },
+                        { key: 'fansly', label: 'Fansly', desc: 'AI transparency' },
+                        { key: 'subs', label: 'Subs.com', desc: 'educational' }
+                      ].map((platform) => (
                         <button
-                          key={style}
-                          onClick={() => setCaptionStyle(style as any)}
-                          className={`px-3 py-1 rounded-full text-xs border transition-all ${
-                            captionStyle === style
+                          key={platform.key}
+                          onClick={() => setCaptionStyle(platform.key as any)}
+                          className={`px-3 py-2 rounded-lg text-xs border transition-all flex flex-col items-center ${
+                            captionStyle === platform.key
                               ? 'bg-teal-500/30 border-teal-400/50 text-teal-200'
                               : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10'
                           }`}
+                          title={platform.desc}
                         >
-                          {style.charAt(0).toUpperCase() + style.slice(1)}
+                          <span className="font-medium">{platform.label}</span>
+                          <span className="text-xs opacity-70">{platform.desc}</span>
                         </button>
                       ))}
                     </div>
