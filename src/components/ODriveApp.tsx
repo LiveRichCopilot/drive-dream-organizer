@@ -648,7 +648,7 @@ const ODriveApp = () => {
           ))}
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-4 opacity-50">
           {filteredVideos.map((video) => (
             <Card key={video.id} className="bg-gray-500/60 backdrop-blur-sm border border-gray-400/20 drop-shadow-lg drop-shadow-black/20">
               <div className="flex items-center gap-4 p-6">
