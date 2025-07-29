@@ -767,7 +767,7 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
             variant="ghost" 
             size="sm" 
             onClick={onClose}
-            className="glass hover:bg-white/10"
+            className="bg-white/5 backdrop-blur-[20px] backdrop-saturate-[180%] border border-white/20 rounded-lg shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] hover:bg-white/10"
           >
             <X className="h-4 w-4" />
           </Button>
@@ -799,10 +799,10 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
             variant="glass"
             size="sm"
             onClick={() => setViewMode('photos')}
-            className={`bg-gradient-to-br backdrop-blur-xl border ${
+            className={`bg-white/5 backdrop-blur-[20px] backdrop-saturate-[180%] border shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] ${
               viewMode === 'photos' 
-                ? 'from-white/30 to-white/15 border-white/40 text-white shadow-md' 
-                : 'from-white/15 to-white/5 border-white/20 text-white/80 hover:from-white/25 hover:to-white/10'
+                ? 'border-white/40 text-white bg-white/10' 
+                : 'border-white/20 text-white/80 hover:bg-white/8'
             }`}
           >
             <Image className="h-4 w-4 mr-2" />
@@ -813,10 +813,10 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
             variant="glass"
             size="sm"
             onClick={() => setViewMode('categories')}
-            className={`bg-gradient-to-br backdrop-blur-xl border ${
+            className={`bg-white/5 backdrop-blur-[20px] backdrop-saturate-[180%] border shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] ${
               viewMode === 'categories' 
-                ? 'from-white/30 to-white/15 border-white/40 text-white shadow-md' 
-                : 'from-white/15 to-white/5 border-white/20 text-white/80 hover:from-white/25 hover:to-white/10'
+                ? 'border-white/40 text-white bg-white/10' 
+                : 'border-white/20 text-white/80 hover:bg-white/8'
             }`}
           >
             <Tags className="h-4 w-4 mr-2" />
@@ -828,6 +828,7 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
             disabled={selectedPhotos.size === 0}
             variant="glass"
             size="sm"
+            className="bg-white/5 backdrop-blur-[20px] backdrop-saturate-[180%] border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] hover:bg-white/8"
           >
             <Plus className="h-4 w-4 mr-2" />
             Create Category
@@ -838,6 +839,7 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
             disabled={isLoading}
             variant="glass"
             size="sm"
+            className="bg-white/5 backdrop-blur-[20px] backdrop-saturate-[180%] border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] hover:bg-white/8"
           >
             {isLoading ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -873,7 +875,7 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
                 <Button 
                   onClick={createCustomCategory}
                   variant="glass"
-                  className="bg-gradient-to-br from-white/20 to-white/5 backdrop-blur-xl border border-white/30"
+                  className="bg-white/5 backdrop-blur-[20px] backdrop-saturate-[180%] border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] hover:bg-white/8"
                 >
                   <FolderPlus className="h-4 w-4 mr-2" />
                   Create
@@ -881,7 +883,7 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
                 <Button 
                   variant="glass" 
                   onClick={() => setShowCreateCategory(false)}
-                  className="bg-gradient-to-br from-white/15 to-white/5 backdrop-blur-xl border border-white/20"
+                  className="bg-white/5 backdrop-blur-[20px] backdrop-saturate-[180%] border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] hover:bg-white/8"
                 >
                   Cancel
                 </Button>
