@@ -566,9 +566,6 @@ const ODriveApp = () => {
             >
               <List className="h-4 w-4" />
             </Button>
-            <Button variant="glass" size="sm" className="bg-white/2 backdrop-blur-[24px] backdrop-saturate-[200%] border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] rounded-full w-10 h-10 p-0 hover:bg-white/4">
-              <Filter className="h-4 w-4" />
-            </Button>
             <Button 
               variant="glass" 
               size="sm" 
