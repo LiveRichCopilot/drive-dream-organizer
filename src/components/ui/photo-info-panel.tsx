@@ -656,14 +656,15 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                     </div>
                   )}
 
-                  {/* Colors - Icons only, no bubbles */}
+                  {/* Colors - Show actual color names */}
                   {photo.analysis.colors.length > 0 && (
                     <div className="space-y-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-xs text-white/60">Colors:</span>
                         {photo.analysis.colors.map((color, index) => (
-                          <div key={index} title={color}>
+                          <div key={index} className="flex items-center gap-1 bg-white/10 px-2 py-1 rounded-full border border-white/20">
                             <Palette className="w-3 h-3 text-white/70" />
+                            <span className="text-xs text-white/80">{color}</span>
                           </div>
                         ))}
                       </div>
