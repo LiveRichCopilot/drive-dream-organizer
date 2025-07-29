@@ -630,7 +630,7 @@ const ODriveApp = () => {
                   {video.format}
                 </Badge>
               </div>
-              <div className="space-y-2 bg-gray-900/60 backdrop-blur-[15px] backdrop-saturate-[180%] border border-white/10 rounded-xl p-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
+              <div className="space-y-2 bg-black/40 backdrop-blur-[15px] backdrop-saturate-[180%] border border-white/10 rounded-xl p-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
                 <h3 className="font-semibold text-sm leading-tight break-words">{video.name}</h3>
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <div className="flex items-center gap-1">
