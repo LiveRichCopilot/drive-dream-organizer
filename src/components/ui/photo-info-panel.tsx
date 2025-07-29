@@ -420,64 +420,128 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                 )}
               </div>
 
-              {/* Caption Maker Section - Right under image! */}
-              <div className="px-4 py-2 border-b border-white/10">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Tag className="w-3 h-3 text-white/70" />
-                    <h3 className="text-xs font-medium text-white/90">Caption Maker</h3>
-                  </div>
-                  <Button
-                    onClick={generateCaption}
-                    disabled={isGeneratingCaption}
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0 bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 hover:text-teal-200"
-                    title="Generate Caption"
-                  >
-                    {isGeneratingCaption ? (
-                      <div className="w-3 h-3 border-2 border-teal-300/30 border-t-teal-300 rounded-full animate-spin" />
-                    ) : (
-                      <Sparkles className="w-3 h-3" />
-                    )}
-                  </Button>
-                </div>
-
-                {/* Caption Categories - Tell me your categories! */}
-                <div className="ml-5 mb-3">
-                  <div className="flex flex-wrap gap-2">
-                    <div className="cursor-pointer hover:text-teal-300" title="Add your categories here">
-                      <Plus className="w-4 h-4 text-white/50" />
-                    </div>
-                    <span className="text-xs text-white/60">Tell me your specific categories</span>
-                  </div>
-                </div>
-
-                {/* Generated Caption Display */}
-                {generatedCaption && (
-                  <div className="ml-5 space-y-2">
-                    <div className="p-3 bg-white/5 rounded-lg border border-white/10">
-                      <p className="text-xs text-white/90 leading-relaxed">
-                        {generatedCaption}
-                      </p>
+              {/* Caption Chatbot - Liquid Glass Expandable Interface */}
+              <div className="relative overflow-hidden">
+                <div className="px-4 py-3 bg-gradient-to-r from-teal-500/10 to-blue-500/10 backdrop-blur-md border border-white/20 rounded-xl mx-2 mb-4 shadow-lg">
+                  {/* Chatbot Header */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-400/20 to-blue-400/20 backdrop-blur-sm border border-white/30 flex items-center justify-center">
+                        <img 
+                          src="/lovable-uploads/86e12b2b-20b7-4e0c-86c4-e6006280bc1c.png" 
+                          alt="Caption AI" 
+                          className="w-4 h-4"
+                        />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-medium text-white/95">Caption AI Assistant</h3>
+                        <p className="text-xs text-white/70">Let me craft the perfect caption for you</p>
+                      </div>
                     </div>
                     <Button
-                      onClick={copyCaption}
+                      onClick={generateCaption}
+                      disabled={isGeneratingCaption}
                       variant="ghost"
                       size="sm"
-                      className="h-6 w-6 p-0 bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 hover:text-pink-200"
-                      title="Copy Caption"
+                      className="h-8 w-8 p-0 bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 hover:text-teal-200 rounded-full border border-teal-400/30"
+                      title="Generate Caption"
                     >
-                      📋
+                      {isGeneratingCaption ? (
+                        <div className="w-4 h-4 border-2 border-teal-300/30 border-t-teal-300 rounded-full animate-spin" />
+                      ) : (
+                        <Sparkles className="w-4 h-4" />
+                      )}
                     </Button>
                   </div>
-                )}
 
-                {!generatedCaption && !isGeneratingCaption && (
-                  <div className="ml-5 text-xs text-white/60">
-                    Select a category and click the sparkle icon to generate
+                  {/* Chat-style Caption Categories */}
+                  <div className="mb-4">
+                    <p className="text-xs text-white/60 mb-2">Choose your caption style:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {['social', 'professional', 'creative', 'funny'].map((style) => (
+                        <button
+                          key={style}
+                          onClick={() => setCaptionStyle(style as any)}
+                          className={`px-3 py-1 rounded-full text-xs border transition-all ${
+                            captionStyle === style
+                              ? 'bg-teal-500/30 border-teal-400/50 text-teal-200'
+                              : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10'
+                          }`}
+                        >
+                          {style.charAt(0).toUpperCase() + style.slice(1)}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                )}
+
+                  {/* Generated Caption Display - Chat Bubble Style */}
+                  {generatedCaption && (
+                    <div className="space-y-3">
+                      {/* AI Response Bubble */}
+                      <div className="flex items-start gap-2">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-teal-400/30 to-blue-400/30 flex items-center justify-center flex-shrink-0">
+                          <img 
+                            src="/lovable-uploads/86e12b2b-20b7-4e0c-86c4-e6006280bc1c.png" 
+                            alt="AI" 
+                            className="w-3 h-3"
+                          />
+                        </div>
+                        <div className="flex-1 bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm rounded-xl p-3 border border-white/20">
+                          <p className="text-xs text-white/90 leading-relaxed">
+                            {generatedCaption}
+                          </p>
+                          <div className="flex gap-2 mt-3">
+                            <Button
+                              onClick={copyCaption}
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2 text-xs bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 rounded-lg border border-teal-400/30"
+                            >
+                              📋 Copy
+                            </Button>
+                            <Button
+                              onClick={() => setGeneratedCaption(null)}
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2 text-xs bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 rounded-lg border border-pink-400/30"
+                            >
+                              🔄 New
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Loading State - Typing Indicator */}
+                  {isGeneratingCaption && (
+                    <div className="flex items-center gap-2 mt-3">
+                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-teal-400/30 to-blue-400/30 flex items-center justify-center">
+                        <img 
+                          src="/lovable-uploads/86e12b2b-20b7-4e0c-86c4-e6006280bc1c.png" 
+                          alt="AI" 
+                          className="w-3 h-3"
+                        />
+                      </div>
+                      <div className="bg-white/10 rounded-xl px-3 py-2 border border-white/20">
+                        <div className="flex space-x-1">
+                          <div className="w-2 h-2 bg-teal-400/60 rounded-full animate-bounce"></div>
+                          <div className="w-2 h-2 bg-teal-400/60 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                          <div className="w-2 h-2 bg-teal-400/60 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Welcome Message */}
+                  {!generatedCaption && !isGeneratingCaption && (
+                    <div className="text-center py-2">
+                      <p className="text-xs text-white/60">
+                        ✨ Pick a style above and click the sparkle to generate your perfect caption
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
