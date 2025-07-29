@@ -461,7 +461,7 @@ const ODriveApp = () => {
               >
                 <div className="flex items-center gap-3">
                   <div className="flex items-center justify-center">
-                    <Settings className="h-8 w-8 text-white/60" />
+                    <Settings className="h-8 w-8 text-orange-300" />
                   </div>
                   <div>
                     <h3 className="font-semibold">Specific Folder</h3>
