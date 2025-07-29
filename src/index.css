@@ -114,8 +114,6 @@ All colors MUST be HSL.
 
   .glass-card:hover {
     box-shadow: var(--shadow-medium);
-    outline: 2px solid hsl(320 100% 70%);
-    outline-offset: 4px;
   }
 
   /* Gradient utilities */
