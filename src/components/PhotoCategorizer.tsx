@@ -937,7 +937,7 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
             {isAnalyzing ? (
               <Loader2 className="h-5 w-5 mr-2 animate-spin" />
             ) : (
-              <Sparkles className="h-5 w-5 mr-2" />
+              <img src="/lovable-uploads/13de2dcb-c9be-4fec-9b7b-6bd290e10f13.png" alt="Scan & Analyze" className="h-5 w-5 mr-2" />
             )}
             Scan & Analyze Folder
           </div>
