@@ -378,7 +378,20 @@ const ODriveApp = () => {
   }
 
   return (
-    <div className="min-h-screen p-6 bg-gray-300/10 relative before:absolute before:inset-x-0 before:bottom-0 before:h-32 before:bg-gradient-to-t before:from-black before:to-transparent before:pointer-events-none before:z-10">
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Background Image */}
+      <div 
+        className="absolute inset-0 z-0"
+        style={{
+          backgroundImage: `url(/lovable-uploads/dc64f127-2b10-47ef-85f9-dae7993d47c4.png)`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundAttachment: 'fixed'
+        }}
+      >
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+      </div>
+      <div className="relative z-10 p-6 before:absolute before:inset-x-0 before:bottom-0 before:h-32 before:bg-gradient-to-t before:from-black before:to-transparent before:pointer-events-none before:z-10">
       {/* Heavy grain overlay */}
       <div className="absolute inset-0 opacity-40 mix-blend-overlay pointer-events-none" 
            style={{
@@ -721,6 +734,7 @@ const ODriveApp = () => {
         onToggle={() => setShowAssistant(!showAssistant)}
         onAnalyticsEvent={analytics.trackEvent}
       />
+      </div>
     </div>
   );
 };
