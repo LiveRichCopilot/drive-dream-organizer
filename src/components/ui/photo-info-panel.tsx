@@ -59,49 +59,28 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
-      <DialogContent className="fixed top-[10%] left-[10%] max-w-none min-w-[400px] w-[600px] min-h-[400px] h-[600px] max-h-[80vh] p-0 bg-white/10 backdrop-blur-[20px] backdrop-saturate-[180%] border border-white/30 shadow-[0_0_30px_rgba(255,255,255,0.1),inset_0_1px_1px_rgba(255,255,255,0.4)] rounded-2xl z-[100] resize overflow-hidden transform translate-x-0 translate-y-0">
+      <DialogContent className="max-w-md w-[90vw] max-h-[85vh] p-0 bg-white/10 backdrop-blur-[20px] backdrop-saturate-[180%] border border-white/30 shadow-[0_0_30px_rgba(255,255,255,0.1),inset_0_1px_1px_rgba(255,255,255,0.4)] rounded-2xl z-[100] overflow-hidden">
         <div className="relative h-full flex flex-col">
-          {/* Draggable Header */}
-          <div className="flex items-center justify-between p-6 border-b border-white/10 cursor-move select-none bg-white/5 rounded-t-2xl">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
-                <FileImage className="w-4 h-4 text-white/90" />
+          {/* Compact Header */}
+          <div className="flex items-center justify-between p-4 border-b border-white/10">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
+                <FileImage className="w-3 h-3 text-white/90" />
               </div>
-              <div>
-                <h2 className="text-lg font-medium text-white/90 truncate max-w-md">
+              <div className="min-w-0 flex-1">
+                <h2 className="text-sm font-medium text-white/90 truncate">
                   {photo.name}
                 </h2>
-                <p className="text-sm text-white/60">{photo.size}</p>
+                <p className="text-xs text-white/60">{photo.size}</p>
               </div>
             </div>
-            {/* Window Controls */}
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-yellow-400/60 border border-yellow-400/80"></div>
-              <div className="w-3 h-3 rounded-full bg-green-400/60 border border-green-400/80"></div>
-              <div className="w-3 h-3 rounded-full bg-red-400/60 border border-red-400/80"></div>
-            </div>
-          </div>
-
-          {/* Resize Handles */}
-          <div className="absolute inset-0 pointer-events-none">
-            {/* Corner handles */}
-            <div className="absolute top-0 left-0 w-4 h-4 cursor-nw-resize pointer-events-auto bg-white/20 rounded-tl-2xl"></div>
-            <div className="absolute top-0 right-0 w-4 h-4 cursor-ne-resize pointer-events-auto bg-white/20 rounded-tr-2xl"></div>
-            <div className="absolute bottom-0 left-0 w-4 h-4 cursor-sw-resize pointer-events-auto bg-white/20 rounded-bl-2xl"></div>
-            <div className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize pointer-events-auto bg-white/20 rounded-br-2xl"></div>
-            
-            {/* Edge handles */}
-            <div className="absolute top-0 left-4 right-4 h-2 cursor-n-resize pointer-events-auto"></div>
-            <div className="absolute bottom-0 left-4 right-4 h-2 cursor-s-resize pointer-events-auto"></div>
-            <div className="absolute left-0 top-4 bottom-4 w-2 cursor-w-resize pointer-events-auto"></div>
-            <div className="absolute right-0 top-4 bottom-4 w-2 cursor-e-resize pointer-events-auto"></div>
           </div>
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-white/5 scrollbar-thumb-white/20 hover:scrollbar-thumb-white/30">
             {/* Preview */}
-            <div className="p-6">
-              <div className="aspect-[9/16] max-w-xs mx-auto bg-black/20 rounded-xl overflow-hidden border border-white/10 mb-6">
+            <div className="p-3">
+              <div className="aspect-[9/16] max-w-[200px] mx-auto bg-black/20 rounded-xl overflow-hidden border border-white/10 mb-3">
                 <img
                   src={photo.thumbnailLink || photo.webViewLink}
                   alt={photo.name}
@@ -111,27 +90,27 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
             </div>
 
             {/* General Info */}
-            <div className="px-6 pb-4">
-              <div className="flex items-center gap-2 mb-4">
-                <Info className="w-4 h-4 text-white/70" />
-                <h3 className="text-sm font-medium text-white/90">General</h3>
+            <div className="px-4 pb-2">
+              <div className="flex items-center gap-2 mb-2">
+                <Info className="w-3 h-3 text-white/70" />
+                <h3 className="text-xs font-medium text-white/90">General</h3>
               </div>
-              <div className="space-y-3 ml-6">
+              <div className="space-y-1.5 ml-5">
                 <div className="flex justify-between">
-                  <span className="text-sm text-white/60">Kind:</span>
-                  <span className="text-sm text-white/90">JPEG image</span>
+                  <span className="text-xs text-white/60">Kind:</span>
+                  <span className="text-xs text-white/90">JPEG image</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-white/60">Size:</span>
-                  <span className="text-sm text-white/90">{photo.size}</span>
+                  <span className="text-xs text-white/60">Size:</span>
+                  <span className="text-xs text-white/90">{photo.size}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-white/60">Created:</span>
-                  <span className="text-sm text-white/90">{photo.createdTime}</span>
+                  <span className="text-xs text-white/60">Created:</span>
+                  <span className="text-xs text-white/90">{photo.createdTime}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-white/60">Modified:</span>
-                  <span className="text-sm text-white/90">{photo.modifiedTime}</span>
+                  <span className="text-xs text-white/60">Modified:</span>
+                  <span className="text-xs text-white/90">{photo.modifiedTime}</span>
                 </div>
               </div>
             </div>
@@ -139,11 +118,11 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
             <Separator className="bg-white/10" />
 
             {/* AI Analysis Section */}
-            <div className="px-6 py-4">
-              <div className="flex items-center justify-between mb-4">
+            <div className="px-4 py-2">
+              <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-white/70" />
-                  <h3 className="text-sm font-medium text-white/90">AI Analysis</h3>
+                  <Sparkles className="w-3 h-3 text-white/70" />
+                  <h3 className="text-xs font-medium text-white/90">AI Analysis</h3>
                 </div>
                 {!photo.analysis && onAnalyze && (
                   <Button
@@ -151,17 +130,17 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                     disabled={isAnalyzing}
                     variant="glass"
                     size="sm"
-                    className="bg-white/10 backdrop-blur-md border border-white/20 text-white/90 hover:bg-white/20"
+                    className="bg-white/10 backdrop-blur-md border border-white/20 text-white/90 hover:bg-white/20 text-xs px-2 py-1"
                   >
                     {isAnalyzing ? (
                       <>
-                        <div className="w-3 h-3 mr-2 border-2 border-white/30 border-t-white/90 rounded-full animate-spin" />
+                        <div className="w-2 h-2 mr-1.5 border-2 border-white/30 border-t-white/90 rounded-full animate-spin" />
                         Analyzing...
                       </>
                     ) : (
                       <>
-                        <Sparkles className="w-3 h-3 mr-2" />
-                        Analyze Photo
+                        <Sparkles className="w-2 h-2 mr-1.5" />
+                        Analyze
                       </>
                     )}
                   </Button>
