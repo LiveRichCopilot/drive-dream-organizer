@@ -360,31 +360,43 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                     </p>
                   </div>
                 ) : (
-                  <div className="relative w-full min-h-[300px] flex items-center justify-center">
+                  <div className="relative w-full min-h-[300px] flex items-center justify-center bg-gradient-to-br from-white/5 to-white/10">
                     {/* THE MAIN IMAGE - PROMINENTLY DISPLAYED */}
                     <img
-                      src={hdImageUrl || photo.thumbnailLink || `https://www.googleapis.com/drive/v3/files/${photo.id}?alt=media&access_token=${localStorage.getItem('google_access_token')}`} 
+                      src={photo.thumbnailLink || `https://drive.google.com/thumbnail?id=${photo.id}&sz=w800-h600`}
                       alt={photo.name}
                       className="max-w-full max-h-[500px] object-contain rounded-xl"
                       style={{ 
                         width: 'auto',
                         height: 'auto',
-                        minHeight: '200px',
+                        minHeight: '150px',
                         display: 'block',
-                        visibility: 'visible'
+                        visibility: 'visible',
+                        backgroundColor: 'rgba(255,255,255,0.05)'
                       }}
                       loading="eager"
                       fetchPriority="high"
-                      onLoad={() => {
+                      onLoad={(e) => {
                         setFullResLoaded(true);
                         console.log('✅ Image loaded successfully:', photo.name);
+                        console.log('✅ Image src:', e.currentTarget.src);
+                        console.log('✅ Image dimensions:', e.currentTarget.naturalWidth, 'x', e.currentTarget.naturalHeight);
                       }}
                       onError={(e) => {
-                        console.error('❌ Image failed to load, trying fallback for:', photo.name);
-                        console.log('Failed URL:', e.currentTarget.src);
-                        const fallbackUrl = `https://www.googleapis.com/drive/v3/files/${photo.id}?alt=media&access_token=${localStorage.getItem('google_access_token')}`;
-                        console.log('Trying fallback URL:', fallbackUrl);
-                        e.currentTarget.src = fallbackUrl;
+                        console.error('❌ Image failed to load for:', photo.name);
+                        console.log('❌ Failed URL:', e.currentTarget.src);
+                        
+                        // Try multiple fallback strategies
+                        if (e.currentTarget.src.includes('thumbnailLink')) {
+                          console.log('🔄 Trying Google Drive thumbnail URL...');
+                          e.currentTarget.src = `https://drive.google.com/thumbnail?id=${photo.id}&sz=w800-h600`;
+                        } else if (e.currentTarget.src.includes('drive.google.com/thumbnail')) {
+                          console.log('🔄 Trying Google Drive file URL...');
+                          e.currentTarget.src = `https://drive.google.com/file/d/${photo.id}/view`;
+                        } else if (!e.currentTarget.src.includes('placeholder')) {
+                          console.log('🔄 Using placeholder image...');
+                          e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMzMzIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIE5vdCBBdmFpbGFibGU8L3RleHQ+PC9zdmc+';
+                        }
                       }}
                     />
                     
@@ -404,6 +416,11 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                       >
                         <Download className="h-4 w-4" />
                       </Button>
+                    </div>
+                    
+                    {/* Debug Info - Remove this later */}
+                    <div className="absolute bottom-2 left-2 text-xs text-white/60 bg-black/50 p-1 rounded">
+                      ID: {photo.id.substring(0, 8)}...
                     </div>
                   </div>
                 )}
