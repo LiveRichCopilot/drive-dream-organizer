@@ -926,11 +926,13 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
       <CardContent className="space-y-6">
         {/* Main Scan Button */}
         <div className="mb-4 space-y-3">
-          <Button
+          <div
             onClick={scanAndAnalyzeFolder}
-            disabled={isAnalyzing || photos.length === 0}
-            variant="outline"
-            size="sm"
+            className={`flex items-center cursor-pointer ${
+              isAnalyzing || photos.length === 0
+                ? 'text-white/40 cursor-not-allowed' 
+                : 'text-white/80 hover:text-white'
+            }`}
           >
             {isAnalyzing ? (
               <Loader2 className="h-5 w-5 mr-2 animate-spin" />
@@ -938,7 +940,7 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
               <Sparkles className="h-5 w-5 mr-2" />
             )}
             Scan & Analyze Folder
-          </Button>
+          </div>
 
           {/* Organization Buttons */}
           <div className="flex gap-3">
