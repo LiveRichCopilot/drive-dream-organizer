@@ -464,8 +464,8 @@ const ODriveApp = () => {
                 onClick={() => setShowFolderInput(!showFolderInput)}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center">
-                    <Settings className="h-5 w-5 text-secondary" />
+                  <div className="flex items-center justify-center">
+                    <Settings className="h-8 w-8 text-secondary" />
                   </div>
                   <div>
                     <h3 className="font-semibold">Specific Folder</h3>
