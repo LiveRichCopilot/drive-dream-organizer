@@ -394,13 +394,11 @@ const ODriveApp = () => {
             </span>
           </div>
           <div className="flex items-center gap-4">
-            <Badge variant="outline" className="glass border-white/10 shadow-none text-sm px-2 py-1 text-white/40">
-              <FolderOpen className="h-4 w-4 mr-2 text-white/40" />
+            <div className="text-sm px-2 py-1 text-white/40">
+              <FolderOpen className="h-4 w-4 mr-2 text-white/40 inline" />
               Connected ({videos.length})
-            </Badge>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            </div>
+            <button 
               onClick={() => {
                 setProcessingResults(null);
                 setShowProcessor(false);
@@ -408,20 +406,18 @@ const ODriveApp = () => {
                 setSelectedFolderId(undefined);
                 loadVideos();
               }}
-              className="glass border-white/10 text-white/40 hover:bg-white/5 shadow-none text-sm px-3 py-1 h-8"
+              className="text-white/40 hover:text-white/80 text-sm px-3 py-1 h-8"
             >
-              <Play className="h-4 w-4 mr-2" />
+              <Play className="h-4 w-4 mr-2 inline" />
               New Session
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            </button>
+            <button 
               onClick={() => { setSelectedFolderId(undefined); disconnect(); }} 
               className="text-white/40 hover:text-white/80 text-sm px-3 py-1 h-8"
             >
-              <LogOut className="h-4 w-4 mr-2" />
+              <LogOut className="h-4 w-4 mr-2 inline" />
               Disconnect
-            </Button>
+            </button>
           </div>
         </div>
 
