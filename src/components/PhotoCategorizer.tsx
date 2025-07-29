@@ -980,9 +980,10 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
+                    e.preventDefault();
                     togglePhotoSelection(photo.id);
                   }}
-                  className="absolute bottom-3 right-3 w-8 h-8 bg-white/10 backdrop-blur-md rounded-full border border-white/20 hover:bg-white/20 transition-all duration-200 flex items-center justify-center"
+                  className="absolute bottom-3 right-3 w-8 h-8 bg-white/10 backdrop-blur-md rounded-full border border-white/20 hover:bg-white/20 transition-all duration-200 flex items-center justify-center z-10 pointer-events-auto"
                 >
                   <Plus className="w-4 h-4 text-white/80" />
                 </button>
