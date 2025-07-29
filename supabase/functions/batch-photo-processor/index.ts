@@ -31,28 +31,61 @@ interface PhotoAnalysis {
   objects: string[];
   scene: string;
   confidence: number;
+  prompt?: string; // AI generation prompt extracted from analysis
 }
 
 async function analyzePhoto(photo: any, apiKey: string): Promise<PhotoAnalysis> {
-  const imageUrl = photo.thumbnailLink || photo.webViewLink;
+  console.log('Downloading photo for analysis:', photo.name);
   
-  const requestBody = {
-    model: "gpt-4o-mini",
-    messages: [{
-      role: "user",
-      content: [
-        { 
-          type: "text", 
-          text: "Analyze this image and return a JSON object with the following structure: {\"categories\": [\"category1\", \"category2\"], \"colors\": [\"color1\", \"color2\"], \"faces\": 0, \"landmarks\": [], \"objects\": [\"object1\", \"object2\"], \"scene\": \"indoor/outdoor/people/food/event/travel/general\", \"confidence\": 0.85}. For clothing photos, focus on style details like 'Black Outfits', 'Swimwear/Bikini', 'Casual/Street'. Provide 2-5 specific categories, 1-3 dominant colors, count of faces, any landmarks, 2-5 main objects, scene type, and confidence score." 
-        },
-        { 
-          type: "image_url", 
-          image_url: { url: imageUrl } 
-        }
-      ]
-    }],
-    max_tokens: 500
-  };
+  try {
+    // Download the actual file for high-quality analysis
+    const downloadUrl = `https://www.googleapis.com/drive/v3/files/${photo.id}?alt=media`;
+    
+    // Note: In edge functions, we'd need the access token passed from the client
+    // For now, we'll use a placeholder - this should be passed in the request
+    const accessToken = photo.accessToken; // This should be provided by the client
+    
+    if (!accessToken) {
+      throw new Error('Access token required for downloading photos');
+    }
+    
+    const downloadResponse = await fetch(downloadUrl, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!downloadResponse.ok) {
+      throw new Error(`Failed to download photo: ${downloadResponse.status}`);
+    }
+
+    // Convert to base64 for OpenAI Vision API
+    const imageBlob = await downloadResponse.blob();
+    const arrayBuffer = await imageBlob.arrayBuffer();
+    const base64Image = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+
+    console.log('Photo downloaded, sending to OpenAI for analysis');
+
+    const requestBody = {
+      model: "gpt-4o-mini",
+      messages: [{
+        role: "user",
+        content: [
+          { 
+            type: "text", 
+            text: "Analyze this high-resolution image and return a detailed JSON object with the following structure: {\"categories\": [\"category1\", \"category2\"], \"colors\": [\"color1\", \"color2\"], \"faces\": 0, \"landmarks\": [], \"objects\": [\"object1\", \"object2\"], \"scene\": \"indoor/outdoor/people/food/event/travel/general\", \"confidence\": 0.85, \"prompt\": \"detailed description for AI art generation\"}. For clothing photos, focus on style details like 'Black Outfits', 'Swimwear/Bikini', 'Casual/Street'. Provide 2-5 specific categories, 1-3 dominant colors, count of faces, any landmarks, 2-5 main objects, scene type, confidence score, and a detailed prompt suitable for AI image generation that captures the essence, style, and details of this image." 
+          },
+          { 
+            type: "image_url", 
+            image_url: { 
+              url: `data:${imageBlob.type};base64,${base64Image}`,
+              detail: "high" // Request high detail analysis
+            } 
+          }
+        ]
+      }],
+      max_tokens: 800 // Increased for detailed analysis
+    };
   
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -70,18 +103,26 @@ async function analyzePhoto(photo: any, apiKey: string): Promise<PhotoAnalysis> 
   const data = await response.json();
   const analysisText = data.choices[0].message.content;
   
-  try {
-    return JSON.parse(analysisText);
-  } catch (parseError) {
-    return {
-      categories: ['unanalyzed'],
-      colors: ['unknown'],
-      faces: 0,
-      landmarks: [],
-      objects: ['unknown'],
-      scene: 'general',
-      confidence: 0.5
-    };
+    try {
+      const analysis = JSON.parse(analysisText);
+      console.log('Analysis complete:', analysis);
+      return analysis;
+    } catch (parseError) {
+      console.error('Failed to parse OpenAI response:', analysisText);
+      return {
+        categories: ['unanalyzed'],
+        colors: ['unknown'],
+        faces: 0,
+        landmarks: [],
+        objects: ['unknown'],
+        scene: 'general',
+        confidence: 0.5,
+        prompt: 'Unable to generate prompt for this image'
+      };
+    }
+  } catch (error) {
+    console.error('Photo analysis error:', error);
+    throw error;
   }
 }
 

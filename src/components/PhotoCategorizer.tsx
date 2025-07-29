@@ -42,6 +42,7 @@ interface PhotoFile {
     objects: string[];
     scene: string;
     confidence: number;
+    prompt?: string; // AI generation prompt extracted from analysis
   };
 }
 
@@ -449,28 +450,64 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
     }
   };
 
-  // Common analysis function
+  // Common analysis function - now downloads full resolution images
   const analyzePhoto = async (photo: PhotoFile, apiKey: string) => {
-    const imageUrl = photo.thumbnailLink || photo.webViewLink;
-    console.log('PhotoCategorizer - Analyzing photo:', photo.name, 'URL:', imageUrl);
+    console.log('PhotoCategorizer - Downloading and analyzing photo:', photo.name);
     
-    const requestBody = {
-      model: "gpt-4o-mini",
-      messages: [{
-        role: "user",
-        content: [
-          { 
-            type: "text", 
-            text: "Analyze this image and return a JSON object with the following structure: {\"categories\": [\"category1\", \"category2\"], \"colors\": [\"color1\", \"color2\"], \"faces\": 0, \"landmarks\": [], \"objects\": [\"object1\", \"object2\"], \"scene\": \"indoor/outdoor/people/food/event/travel/general\", \"confidence\": 0.85}. For clothing photos, focus on style details like 'Black Outfits', 'Swimwear/Bikini', 'Casual/Street'. Provide 2-5 specific categories, 1-3 dominant colors, count of faces, any landmarks, 2-5 main objects, scene type, and confidence score." 
-          },
-          { 
-            type: "image_url", 
-            image_url: { url: imageUrl } 
-          }
-        ]
-      }],
-      max_tokens: 500
-    };
+    try {
+      // Download the actual file for high-quality analysis
+      const token = localStorage.getItem('google_access_token');
+      if (!token) throw new Error('No access token available');
+
+      // Use Google Drive download API for full resolution
+      const downloadUrl = `https://www.googleapis.com/drive/v3/files/${photo.id}?alt=media`;
+      
+      const downloadResponse = await fetch(downloadUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!downloadResponse.ok) {
+        throw new Error(`Failed to download photo: ${downloadResponse.status}`);
+      }
+
+      // Convert to base64 for OpenAI Vision API
+      const imageBlob = await downloadResponse.blob();
+      const base64Image = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          // Remove data URL prefix to get pure base64
+          const base64 = result.split(',')[1];
+          resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(imageBlob);
+      });
+
+      console.log('PhotoCategorizer - Photo downloaded, sending to OpenAI for analysis');
+
+      const requestBody = {
+        model: "gpt-4o-mini",
+        messages: [{
+          role: "user",
+          content: [
+            { 
+              type: "text", 
+              text: "Analyze this high-resolution image and return a detailed JSON object with the following structure: {\"categories\": [\"category1\", \"category2\"], \"colors\": [\"color1\", \"color2\"], \"faces\": 0, \"landmarks\": [], \"objects\": [\"object1\", \"object2\"], \"scene\": \"indoor/outdoor/people/food/event/travel/general\", \"confidence\": 0.85, \"prompt\": \"detailed description for AI art generation\"}. For clothing photos, focus on style details like 'Black Outfits', 'Swimwear/Bikini', 'Casual/Street'. Provide 2-5 specific categories, 1-3 dominant colors, count of faces, any landmarks, 2-5 main objects, scene type, confidence score, and a detailed prompt suitable for AI image generation that captures the essence, style, and details of this image." 
+            },
+            { 
+              type: "image_url", 
+              image_url: { 
+                url: `data:${imageBlob.type};base64,${base64Image}`,
+                detail: "high" // Request high detail analysis
+              } 
+            }
+          ]
+        }],
+        max_tokens: 800 // Increased for detailed analysis
+      };
     
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -515,8 +552,14 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
       landmarks: analysis.landmarks || [],
       objects: analysis.objects || [],
       scene: analysis.scene || 'general',
-      confidence: analysis.confidence || 0.5
+      confidence: analysis.confidence || 0.5,
+      prompt: analysis.prompt || 'No prompt generated'
     };
+    
+    } catch (error) {
+      console.error('Photo analysis error:', error);
+      throw error;
+    }
   };
 
   const generateSmartCategories = () => {
