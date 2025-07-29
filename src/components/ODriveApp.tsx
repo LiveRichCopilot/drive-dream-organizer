@@ -387,8 +387,8 @@ const ODriveApp = () => {
             </span>
           </div>
           <div className="flex items-center gap-2 md:gap-4">
-            <Badge variant="outline" className="glass border-white/20 shadow-none text-xs md:text-sm px-2 py-1">
-              <FolderOpen className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+            <Badge variant="outline" className="glass border-white/10 shadow-none text-xs md:text-sm px-2 py-1 text-white/40">
+              <FolderOpen className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2 text-white/40" />
               <span className="hidden sm:inline">Connected</span> ({videos.length})
             </Badge>
             <Button 
@@ -401,7 +401,7 @@ const ODriveApp = () => {
                 setSelectedFolderId(undefined);
                 loadVideos();
               }}
-              className="glass border-white/20 text-white/80 hover:bg-white/10 text-xs md:text-sm px-2 md:px-3 py-1 h-7 md:h-8"
+              className="glass border-white/10 text-white/40 hover:bg-white/5 shadow-none text-xs md:text-sm px-2 md:px-3 py-1 h-7 md:h-8"
             >
               <Play className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
               <span className="hidden sm:inline">New </span>Session
@@ -410,7 +410,7 @@ const ODriveApp = () => {
               variant="outline" 
               size="sm" 
               onClick={() => { setSelectedFolderId(undefined); disconnect(); }} 
-              className="glass border-white/20 text-white/80 hover:bg-white/10 text-xs md:text-sm px-2 md:px-3 py-1 h-7 md:h-8"
+              className="glass border-white/10 text-white/40 hover:bg-white/5 shadow-none text-xs md:text-sm px-2 md:px-3 py-1 h-7 md:h-8"
             >
               <LogOut className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
               <span className="hidden sm:inline">Disconnect</span>
