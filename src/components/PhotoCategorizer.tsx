@@ -799,10 +799,10 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
             variant="glass"
             size="sm"
             onClick={() => setViewMode('photos')}
-            className={`bg-white/5 backdrop-blur-[20px] backdrop-saturate-[180%] border shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] ${
+            className={`bg-white/3 backdrop-blur-[24px] backdrop-saturate-[200%] border shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),0_0_20px_rgba(255,255,255,0.05)] rounded-xl ${
               viewMode === 'photos' 
-                ? 'border-white/40 text-white bg-white/10' 
-                : 'border-white/20 text-white/80 hover:bg-white/8'
+                ? 'border-white/30 text-white bg-white/6' 
+                : 'border-white/15 text-white/80 hover:bg-white/5'
             }`}
           >
             <Image className="h-4 w-4 mr-2" />
@@ -813,10 +813,10 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
             variant="glass"
             size="sm"
             onClick={() => setViewMode('categories')}
-            className={`bg-white/5 backdrop-blur-[20px] backdrop-saturate-[180%] border shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] ${
+            className={`bg-white/3 backdrop-blur-[24px] backdrop-saturate-[200%] border shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),0_0_20px_rgba(255,255,255,0.05)] rounded-xl ${
               viewMode === 'categories' 
-                ? 'border-white/40 text-white bg-white/10' 
-                : 'border-white/20 text-white/80 hover:bg-white/8'
+                ? 'border-white/30 text-white bg-white/6' 
+                : 'border-white/15 text-white/80 hover:bg-white/5'
             }`}
           >
             <Tags className="h-4 w-4 mr-2" />
@@ -828,7 +828,7 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
             disabled={selectedPhotos.size === 0}
             variant="glass"
             size="sm"
-            className="bg-white/5 backdrop-blur-[20px] backdrop-saturate-[180%] border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] hover:bg-white/8"
+            className="bg-white/3 backdrop-blur-[24px] backdrop-saturate-[200%] border border-white/15 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),0_0_20px_rgba(255,255,255,0.05)] rounded-xl hover:bg-white/5"
           >
             <Plus className="h-4 w-4 mr-2" />
             Create Category
@@ -839,7 +839,7 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
             disabled={isLoading}
             variant="glass"
             size="sm"
-            className="bg-white/5 backdrop-blur-[20px] backdrop-saturate-[180%] border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] hover:bg-white/8"
+            className="bg-white/3 backdrop-blur-[24px] backdrop-saturate-[200%] border border-white/15 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),0_0_20px_rgba(255,255,255,0.05)] rounded-xl hover:bg-white/5"
           >
             {isLoading ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
