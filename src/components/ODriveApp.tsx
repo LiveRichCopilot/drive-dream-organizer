@@ -375,9 +375,15 @@ const ODriveApp = () => {
       {/* Header */}
       <div className="bg-white/5 border border-white/20 rounded-2xl p-6 mb-8">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-            ODrive File Library
-          </h1>
+          <div className="flex items-center gap-3">
+            {/* Logo placeholder - replace with your actual logo */}
+            <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">O</span>
+            </div>
+            <span className="text-sm font-sf font-medium text-white/70 tracking-wide">
+              File Library
+            </span>
+          </div>
           <div className="flex items-center gap-4">
             <Badge variant="outline" className="glass border-white/20">
               <FolderOpen className="h-4 w-4 mr-2" />
