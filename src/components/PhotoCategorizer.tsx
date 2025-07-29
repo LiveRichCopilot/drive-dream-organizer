@@ -805,7 +805,7 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
                 : 'border-white/15 text-white/80 hover:bg-white/5'
             }`}
           >
-            <Image className="h-4 w-4 mr-2" />
+            <Image className="h-3 w-3 mr-1.5 opacity-60" />
             Photos ({photos.length})
           </Button>
           
@@ -819,7 +819,7 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
                 : 'border-white/15 text-white/80 hover:bg-white/5'
             }`}
           >
-            <Tags className="h-4 w-4 mr-2" />
+            <Tags className="h-3 w-3 mr-1.5 opacity-60" />
             Categories ({categories.length})
           </Button>
 
@@ -830,7 +830,7 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
             size="sm"
             className="bg-white/3 backdrop-blur-[24px] backdrop-saturate-[200%] border border-white/15 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)] rounded-xl hover:bg-white/5"
           >
-            <Plus className="h-4 w-4 mr-2" />
+            <Plus className="h-3 w-3 mr-1.5 opacity-60" />
             Create Category
           </Button>
 
@@ -842,9 +842,9 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
             className="bg-white/3 backdrop-blur-[24px] backdrop-saturate-[200%] border border-white/15 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)] rounded-xl hover:bg-white/5"
           >
             {isLoading ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              <Loader2 className="h-3 w-3 mr-1.5 animate-spin opacity-60" />
             ) : (
-              <Upload className="h-4 w-4 mr-2" />
+              <Upload className="h-3 w-3 mr-1.5 opacity-60" />
             )}
             Refresh
           </Button>
@@ -852,7 +852,7 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
 
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground opacity-60" />
           <Input
             placeholder="Search photos by content, objects, colors..."
             value={searchQuery}
@@ -877,7 +877,7 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
                   variant="glass"
                   className="bg-white/5 backdrop-blur-[20px] backdrop-saturate-[180%] border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] hover:bg-white/8"
                 >
-                  <FolderPlus className="h-4 w-4 mr-2" />
+                  <FolderPlus className="h-3 w-3 mr-1.5 opacity-60" />
                   Create
                 </Button>
                 <Button 
