@@ -59,10 +59,10 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
-      <DialogContent className="max-w-2xl min-w-[400px] w-[95vw] min-h-[300px] max-h-[90vh] p-0 bg-white/10 backdrop-blur-[20px] backdrop-saturate-[180%] border border-white/30 shadow-[0_0_30px_rgba(255,255,255,0.1),inset_0_1px_1px_rgba(255,255,255,0.4)] rounded-2xl z-[100] resize overflow-auto cursor-move hover:shadow-[0_0_40px_rgba(255,255,255,0.2),inset_0_1px_1px_rgba(255,255,255,0.6)] transition-all duration-200 transform hover:scale-[1.02]">
-        <div className="relative">
-          {/* Header with close button */}
-          <div className="flex items-center justify-between p-6 border-b border-white/10">
+      <DialogContent className="fixed top-[10%] left-[10%] max-w-none min-w-[400px] w-[600px] min-h-[400px] h-[600px] max-h-[80vh] p-0 bg-white/10 backdrop-blur-[20px] backdrop-saturate-[180%] border border-white/30 shadow-[0_0_30px_rgba(255,255,255,0.1),inset_0_1px_1px_rgba(255,255,255,0.4)] rounded-2xl z-[100] resize overflow-hidden transform translate-x-0 translate-y-0">
+        <div className="relative h-full flex flex-col">
+          {/* Draggable Header */}
+          <div className="flex items-center justify-between p-6 border-b border-white/10 cursor-move select-none bg-white/5 rounded-t-2xl">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
                 <FileImage className="w-4 h-4 text-white/90" />
@@ -74,10 +74,31 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                 <p className="text-sm text-white/60">{photo.size}</p>
               </div>
             </div>
+            {/* Window Controls */}
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-yellow-400/60 border border-yellow-400/80"></div>
+              <div className="w-3 h-3 rounded-full bg-green-400/60 border border-green-400/80"></div>
+              <div className="w-3 h-3 rounded-full bg-red-400/60 border border-red-400/80"></div>
+            </div>
+          </div>
+
+          {/* Resize Handles */}
+          <div className="absolute inset-0 pointer-events-none">
+            {/* Corner handles */}
+            <div className="absolute top-0 left-0 w-4 h-4 cursor-nw-resize pointer-events-auto bg-white/20 rounded-tl-2xl"></div>
+            <div className="absolute top-0 right-0 w-4 h-4 cursor-ne-resize pointer-events-auto bg-white/20 rounded-tr-2xl"></div>
+            <div className="absolute bottom-0 left-0 w-4 h-4 cursor-sw-resize pointer-events-auto bg-white/20 rounded-bl-2xl"></div>
+            <div className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize pointer-events-auto bg-white/20 rounded-br-2xl"></div>
+            
+            {/* Edge handles */}
+            <div className="absolute top-0 left-4 right-4 h-2 cursor-n-resize pointer-events-auto"></div>
+            <div className="absolute bottom-0 left-4 right-4 h-2 cursor-s-resize pointer-events-auto"></div>
+            <div className="absolute left-0 top-4 bottom-4 w-2 cursor-w-resize pointer-events-auto"></div>
+            <div className="absolute right-0 top-4 bottom-4 w-2 cursor-e-resize pointer-events-auto"></div>
           </div>
 
           {/* Content */}
-          <div className="max-h-[70vh] overflow-y-auto">
+          <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-white/5 scrollbar-thumb-white/20 hover:scrollbar-thumb-white/30">
             {/* Preview */}
             <div className="p-6">
               <div className="aspect-[9/16] max-w-xs mx-auto bg-black/20 rounded-xl overflow-hidden border border-white/10 mb-6">
