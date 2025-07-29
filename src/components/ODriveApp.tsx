@@ -374,7 +374,7 @@ const ODriveApp = () => {
   return (
     <div className="min-h-screen p-6">
       {/* Header */}
-      <div className="bg-white/5 border border-white/20 rounded-2xl p-6 mb-8">
+      <div className="bg-white/2.5 border border-white/10 rounded-2xl p-6 mb-8">
         <div className="flex items-center justify-between mb-6">
           <div className="flex flex-col items-center gap-0">
             {/* ODrive Logo */}
@@ -421,7 +421,7 @@ const ODriveApp = () => {
 
         {/* Folder Selection - Always Show */}
         <div className="mb-6">
-          <div className="bg-white/10 backdrop-blur-[25px] backdrop-saturate-[200%] border border-white/30 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.1),inset_0_1px_2px_rgba(255,255,255,0.4),inset_0_-1px_1px_rgba(255,255,255,0.1)] p-6 relative before:absolute before:inset-0 before:rounded-2xl before:bg-gradient-to-br before:from-white/20 before:via-transparent before:to-transparent before:pointer-events-none">
+          <div className="bg-white/5 backdrop-blur-[25px] backdrop-saturate-[200%] border border-white/15 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.05),inset_0_1px_2px_rgba(255,255,255,0.2),inset_0_-1px_1px_rgba(255,255,255,0.05)] p-6 relative before:absolute before:inset-0 before:rounded-2xl before:bg-gradient-to-br before:from-white/10 before:via-transparent before:to-transparent before:pointer-events-none">
             <div className="flex items-center gap-4 mb-4">
               <FolderOpen className="h-5 w-5 text-primary" />
               <h2 className="text-lg font-semibold">Folder Access</h2>
@@ -539,7 +539,7 @@ const ODriveApp = () => {
               placeholder="Search videos..."
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
-              className="pl-8 py-2 text-sm bg-white/5 backdrop-blur-[40px] backdrop-saturate-[200%] border border-white/15 rounded-xl text-white placeholder-white/40 h-9 focus:border-teal-200/40 focus:ring-2 focus:ring-teal-200/20"
+              className="pl-8 py-2 text-sm bg-white/2.5 backdrop-blur-[40px] backdrop-saturate-[200%] border border-white/7.5 rounded-xl text-white placeholder-white/40 h-9 focus:border-teal-200/40 focus:ring-2 focus:ring-teal-200/20"
             />
           </div>
           
@@ -709,7 +709,7 @@ const ODriveApp = () => {
       )}
 
       {filteredVideos.length === 0 && (
-        <div className="bg-white/5 backdrop-blur-[20px] backdrop-saturate-[180%] border border-white/20 rounded-2xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] text-center py-12 px-6">
+        <div className="bg-white/2.5 backdrop-blur-[20px] backdrop-saturate-[180%] border border-white/10 rounded-2xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] text-center py-12 px-6">
           <Video className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
           <h3 className="text-xl font-semibold mb-2">No videos found</h3>
           <p className="text-muted-foreground mb-6">
