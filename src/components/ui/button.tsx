@@ -9,14 +9,14 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-gradient-primary text-primary-foreground hover:shadow-medium hover:scale-[1.02]",
-        destructive: "bg-gradient-pink text-destructive-foreground hover:shadow-medium hover:scale-[1.02]",
-        outline: "glass border-primary/30 text-primary hover:bg-primary/10",
-        secondary: "bg-gradient-secondary text-secondary-foreground hover:shadow-medium hover:scale-[1.02]",
-        ghost: "hover:bg-accent/10 hover:text-accent",
-        link: "text-primary underline-offset-4 hover:underline hover:text-accent",
-        glass: "glass text-foreground hover:bg-primary/10",
-        glow: "bg-gradient-primary text-primary-foreground hover:shadow-medium hover:scale-[1.02]",
+        default: "bg-gradient-to-br from-white/20 to-white/5 backdrop-blur-2xl border border-white/30 text-white/90 shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:from-white/30 hover:to-white/10 transition-all",
+        destructive: "bg-gradient-to-br from-red-500/20 to-red-600/5 backdrop-blur-2xl border border-red-400/30 text-white/90 shadow-[0_0_20px_rgba(239,68,68,0.2)] hover:shadow-[0_0_30px_rgba(239,68,68,0.4)] hover:from-red-400/30 hover:to-red-500/10 transition-all",
+        outline: "bg-gradient-to-br from-white/10 to-transparent backdrop-blur-2xl border border-white/30 text-white/80 hover:from-white/20 hover:to-white/5 hover:text-white/90 transition-all",
+        secondary: "bg-gradient-to-br from-purple-500/20 to-purple-600/5 backdrop-blur-2xl border border-purple-400/30 text-white/90 shadow-[0_0_20px_rgba(168,85,247,0.2)] hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] hover:from-purple-400/30 hover:to-purple-500/10 transition-all",
+        ghost: "bg-gradient-to-br from-white/5 to-transparent backdrop-blur-xl hover:from-white/15 hover:to-white/5 text-white/70 hover:text-white/90 transition-all",
+        link: "text-white/80 underline-offset-4 hover:underline hover:text-white/90 transition-colors",
+        glass: "bg-gradient-to-br from-white/15 to-white/5 backdrop-blur-2xl border border-white/20 text-white/80 hover:from-white/25 hover:to-white/10 hover:text-white/90 transition-all",
+        glow: "bg-gradient-to-br from-blue-500/30 to-cyan-500/15 backdrop-blur-2xl border border-blue-400/40 text-white shadow-[0_0_30px_rgba(59,130,246,0.3)] hover:shadow-[0_0_40px_rgba(59,130,246,0.5)] hover:from-blue-400/40 hover:to-cyan-400/20 transition-all",
       },
       size: {
         default: "h-12 px-6 py-3",

@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { TooltipInfo } from "@/components/ui/tooltip-info";
 import { 
   Play, 
   Upload, 
@@ -29,7 +30,10 @@ import {
   Mic,
   GraduationCap,
   Users,
-  Home
+  Home,
+  Zap,
+  Wand2,
+  FileText
 } from "lucide-react";
 import heroImage from "@/assets/hero-video-bg.jpg";
 import { useDirectGoogleDrive } from "@/hooks/useDirectGoogleDrive";
@@ -78,20 +82,36 @@ const ODriveApp = () => {
   console.log('ODriveApp - selectedFolderId:', selectedFolderId);
 
   if (!isConnected) {
-    return (
-      <div className="min-h-screen relative overflow-hidden">
-        {/* Background */}
-        <div 
-          className="absolute inset-0 z-0"
-          style={{
-            backgroundImage: `url(${heroImage})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backgroundAttachment: 'fixed'
-          }}
-        >
-          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" />
-        </div>
+          return (
+        <div className="min-h-screen relative overflow-hidden">
+          {/* Background */}
+          <div 
+            className="absolute inset-0 z-0"
+            style={{
+              backgroundImage: `url(${heroImage})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundAttachment: 'fixed'
+            }}
+          >
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" />
+          </div>
+
+          {/* Onboarding Cards for First Time Users */}
+          <div className="relative z-10 px-8 pt-16">
+            <div className="max-w-4xl mx-auto">
+              <div className="liquid-glass-card p-8 mb-8 bg-gradient-to-br from-white/15 to-white/5 backdrop-blur-2xl border border-white/30 rounded-3xl shadow-[0_0_40px_rgba(255,255,255,0.1)]">
+                <div className="text-center">
+                  <h3 className="text-2xl font-semibold text-white mb-4">Step 1: Connect Drive</h3>
+                  <p className="text-white/80 mb-6">Select which Google Drive to organize and analyze with AI</p>
+                  <Button variant="glow" size="lg">
+                    <Zap className="mr-2 h-5 w-5" />
+                    Learn More
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
 
         {/* Hero Section */}
         <div className="relative z-10 flex items-end justify-center px-8 pt-96 pb-4">
@@ -124,8 +144,8 @@ const ODriveApp = () => {
                 <div className="space-y-6 -mt-12">
                   <Button 
                     onClick={() => connect()}
-                    variant="outline"
-                    className="glass text-white border-white/20 hover:bg-white/10 bg-transparent"
+                    variant="glass"
+                    size="lg"
                   >
                     <FolderOpen className="mr-3 h-6 w-6" />
                     Connect Google Drive
@@ -585,10 +605,10 @@ const ODriveApp = () => {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => window.open(video.webViewLink, '_blank')}>
+                  <Button variant="glass" size="sm" onClick={() => window.open(video.webViewLink, '_blank')}>
                     <Play className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => downloadVideo(video.id, video.name)}>
+                  <Button variant="secondary" size="sm" onClick={() => downloadVideo(video.id, video.name)}>
                     <Download className="h-4 w-4" />
                   </Button>
                 </div>
@@ -611,7 +631,7 @@ const ODriveApp = () => {
             }
           </p>
           {!selectedFolderId && (
-            <Button variant="glass">
+            <Button variant="glow">
               <Upload className="h-4 w-4 mr-2" />
               Upload Videos
             </Button>
