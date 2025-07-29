@@ -60,6 +60,7 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
   const [fullResLoaded, setFullResLoaded] = React.useState(false);
   const [hdImageUrl, setHdImageUrl] = React.useState<string | null>(null);
   const [isLoadingHdImage, setIsLoadingHdImage] = React.useState(false);
+  const [downloadProgress, setDownloadProgress] = React.useState(0);
   
   // Get file size in MB for display
   const getFileSizeDisplay = (sizeString: string) => {
@@ -95,11 +96,13 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
     }
   };
 
-  // Load HD image for analysis
+  // Load HD image for analysis with progress tracking
   const loadHdImage = async () => {
     if (hdImageUrl || isLoadingHdImage) return; // Already loaded or loading
     
     setIsLoadingHdImage(true);
+    setDownloadProgress(0);
+    
     try {
       const token = localStorage.getItem('google_access_token');
       if (!token) throw new Error('No access token available');
@@ -117,12 +120,49 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
         throw new Error(`Failed to load HD image: ${response.status}`);
       }
 
-      const blob = await response.blob();
+      const contentLength = response.headers.get('content-length');
+      const totalSize = contentLength ? parseInt(contentLength, 10) : 0;
+      
+      if (!response.body) {
+        throw new Error('Response body is not available');
+      }
+
+      const reader = response.body.getReader();
+      const chunks: Uint8Array[] = [];
+      let receivedLength = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) break;
+        
+        chunks.push(value);
+        receivedLength += value.length;
+        
+        // Update progress
+        if (totalSize > 0) {
+          const progress = Math.round((receivedLength / totalSize) * 100);
+          setDownloadProgress(progress);
+        }
+      }
+
+      // Combine chunks into single Uint8Array
+      const chunksAll = new Uint8Array(receivedLength);
+      let position = 0;
+      for (const chunk of chunks) {
+        chunksAll.set(chunk, position);
+        position += chunk.length;
+      }
+
+      // Create blob and object URL
+      const blob = new Blob([chunksAll]);
       const url = URL.createObjectURL(blob);
       setHdImageUrl(url);
+      setDownloadProgress(100);
       
     } catch (error) {
       console.error('Failed to load HD image:', error);
+      setDownloadProgress(0);
     } finally {
       setIsLoadingHdImage(false);
     }
@@ -181,9 +221,43 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
               <div className="liquid-glass-modal relative aspect-[4/5] w-full max-w-[280px] mx-auto bg-black/20 rounded-xl overflow-hidden border border-white/10 mb-4">
                 {isDownloading || isLoadingHdImage ? (
                   <div className="loading w-full h-full flex flex-col items-center justify-center bg-black/30">
-                    <Loader className="w-6 h-6 text-white animate-spin mb-2" />
-                    <p className="text-xs text-white/80">
-                      {isLoadingHdImage ? "Loading HD image for analysis..." : "Downloading high-resolution image..."}
+                    {/* Circular Progress Meter */}
+                    <div className="relative w-16 h-16 mb-3">
+                      {/* Background circle */}
+                      <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 64 64">
+                        <circle
+                          cx="32"
+                          cy="32"
+                          r="28"
+                          stroke="rgba(255,255,255,0.2)"
+                          strokeWidth="4"
+                          fill="none"
+                        />
+                        {/* Progress circle */}
+                        <circle
+                          cx="32"
+                          cy="32"
+                          r="28"
+                          stroke="rgba(59,130,246,0.8)"
+                          strokeWidth="4"
+                          fill="none"
+                          strokeDasharray={`${2 * Math.PI * 28}`}
+                          strokeDashoffset={`${2 * Math.PI * 28 * (1 - downloadProgress / 100)}`}
+                          className="transition-all duration-300 ease-out"
+                        />
+                      </svg>
+                      {/* Percentage text */}
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-sm font-bold text-white">
+                          {downloadProgress}%
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-white/80 text-center px-4">
+                      {isLoadingHdImage ? "Downloading HD image..." : "Downloading high-resolution image..."}
+                    </p>
+                    <p className="text-xs text-white/60 text-center px-4 mt-1">
+                      {photo.size}
                     </p>
                   </div>
                 ) : (
