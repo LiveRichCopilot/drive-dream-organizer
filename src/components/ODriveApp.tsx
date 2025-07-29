@@ -438,7 +438,7 @@ const ODriveApp = () => {
               <FolderOpen className="h-5 w-5 text-primary" />
               <h2 className="text-lg font-semibold">Folder Access</h2>
               {selectedFolderId && (
-                <Badge variant="outline" className="glass border-green-400/20 text-green-400">
+                <Badge variant="outline" className="border-green-400/20 text-green-400 bg-transparent">
                   Folder Selected
                 </Badge>
               )}
