@@ -19,7 +19,8 @@ import {
   Image as ImageIcon,
   Sparkles,
   X,
-  Loader
+  Loader,
+  Plus
 } from "lucide-react";
 
 interface PhotoAnalysis {
@@ -584,42 +585,26 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                 <Button
                   onClick={generateCaption}
                   disabled={isGeneratingCaption}
-                  variant="glass"
+                  variant="ghost"
                   size="sm"
-                  className="bg-white/3 backdrop-blur-md border border-white/10 text-white/70 hover:bg-white/5 hover:text-white/90 text-xs px-2 py-1"
+                  className="h-6 w-6 p-0 bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 hover:text-teal-200"
+                  title="Generate Caption"
                 >
                   {isGeneratingCaption ? (
-                    <>
-                      <div className="w-2 h-2 mr-1.5 border-2 border-white/30 border-t-white/90 rounded-full animate-spin" />
-                      Creating...
-                    </>
+                    <div className="w-3 h-3 border-2 border-teal-300/30 border-t-teal-300 rounded-full animate-spin" />
                   ) : (
-                    <>
-                      <Sparkles className="w-2 h-2 mr-1.5" />
-                      Generate
-                    </>
+                    <Sparkles className="w-3 h-3" />
                   )}
                 </Button>
               </div>
 
-              {/* Caption Style Selector */}
+              {/* Caption Categories - Tell me your categories! */}
               <div className="ml-5 mb-3">
-                <div className="flex flex-wrap gap-1">
-                  {(['social', 'professional', 'creative', 'funny'] as const).map((style) => (
-                    <Button
-                      key={style}
-                      onClick={() => setCaptionStyle(style)}
-                      variant={captionStyle === style ? "secondary" : "outline"}
-                      size="sm"
-                      className={`text-[10px] px-2 py-1 h-6 ${
-                        captionStyle === style 
-                          ? "bg-white/20 border-white/30 text-white/90" 
-                          : "bg-white/5 border-white/20 text-white/70 hover:bg-white/10"
-                      }`}
-                    >
-                      {style.charAt(0).toUpperCase() + style.slice(1)}
-                    </Button>
-                  ))}
+                <div className="flex flex-wrap gap-2">
+                  <div className="cursor-pointer hover:text-teal-300" title="Add your categories here">
+                    <Plus className="w-4 h-4 text-white/50" />
+                  </div>
+                  <span className="text-xs text-white/60">Tell me your specific categories</span>
                 </div>
               </div>
 
@@ -635,16 +620,17 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                     onClick={copyCaption}
                     variant="ghost"
                     size="sm"
-                    className="bg-white/5 hover:bg-white/10 text-white/70 hover:text-white/90 text-xs px-2 py-1"
+                    className="h-6 w-6 p-0 bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 hover:text-pink-200"
+                    title="Copy Caption"
                   >
-                    📋 Copy Caption
+                    📋
                   </Button>
                 </div>
               )}
 
               {!generatedCaption && !isGeneratingCaption && (
                 <div className="ml-5 text-xs text-white/60">
-                  Select a style and click "Generate" to create a caption
+                  Select a category and click the sparkle icon to generate
                 </div>
               )}
             </div>
