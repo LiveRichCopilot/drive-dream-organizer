@@ -34,6 +34,8 @@ const GoogleDriveFolderInput = ({ onFolderSelected }: GoogleDriveFolderInputProp
   };
 
   const validateFolder = async (url: string) => {
+    console.log('validateFolder called with:', { url, trimmedUrl: url.trim() });
+    
     if (!url.trim()) {
       setIsValid(null);
       return;
@@ -43,6 +45,7 @@ const GoogleDriveFolderInput = ({ onFolderSelected }: GoogleDriveFolderInputProp
     
     try {
       const folderId = extractFolderIdFromUrl(url);
+      console.log('Extracted folder ID:', folderId);
       
       if (!folderId) {
         setIsValid(false);
@@ -55,7 +58,9 @@ const GoogleDriveFolderInput = ({ onFolderSelected }: GoogleDriveFolderInputProp
       }
 
       setIsValid(true);
+      console.log('About to call onFolderSelected with:', folderId);
       onFolderSelected?.(folderId);
+      console.log('onFolderSelected called successfully');
       
       toast({
         title: "Folder Selected",
@@ -76,6 +81,11 @@ const GoogleDriveFolderInput = ({ onFolderSelected }: GoogleDriveFolderInputProp
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('GoogleDriveFolderInput - handleSubmit called with:', {
+      folderUrl,
+      onFolderSelected: !!onFolderSelected,
+      isValidating
+    });
     validateFolder(folderUrl);
   };
 
