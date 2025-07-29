@@ -360,13 +360,15 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                     </p>
                   </div>
                 ) : (
-                  <div className="relative w-full">
+                  <div className="relative w-full min-h-[300px] flex items-center justify-center">
                     {/* THE MAIN IMAGE - PROMINENTLY DISPLAYED */}
                     <img
                       src={hdImageUrl || photo.thumbnailLink || `https://www.googleapis.com/drive/v3/files/${photo.id}?alt=media&access_token=${localStorage.getItem('google_access_token')}`} 
                       alt={photo.name}
-                      className="w-full h-auto max-h-[500px] object-contain bg-black/10 rounded-xl block"
+                      className="max-w-full max-h-[500px] object-contain rounded-xl"
                       style={{ 
+                        width: 'auto',
+                        height: 'auto',
                         minHeight: '200px',
                         display: 'block',
                         visibility: 'visible'
@@ -375,11 +377,14 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                       fetchPriority="high"
                       onLoad={() => {
                         setFullResLoaded(true);
-                        console.log('Image loaded successfully:', photo.name);
+                        console.log('✅ Image loaded successfully:', photo.name);
                       }}
                       onError={(e) => {
-                        console.error('Image failed to load, trying fallback:', photo.name);
-                        e.currentTarget.src = `https://www.googleapis.com/drive/v3/files/${photo.id}?alt=media&access_token=${localStorage.getItem('google_access_token')}`;
+                        console.error('❌ Image failed to load, trying fallback for:', photo.name);
+                        console.log('Failed URL:', e.currentTarget.src);
+                        const fallbackUrl = `https://www.googleapis.com/drive/v3/files/${photo.id}?alt=media&access_token=${localStorage.getItem('google_access_token')}`;
+                        console.log('Trying fallback URL:', fallbackUrl);
+                        e.currentTarget.src = fallbackUrl;
                       }}
                     />
                     
