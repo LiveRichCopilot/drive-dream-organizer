@@ -116,7 +116,7 @@ const ODriveApp = () => {
           <div 
             className="absolute inset-0 z-0"
             style={{
-              backgroundImage: `url(/lovable-uploads/d9421dc6-5ee7-4ba9-8734-0782c9debc81.png)`,
+              backgroundImage: `url(/lovable-uploads/e2cd01d3-0c3c-4702-bf1e-555a7652ad76.png)`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
               backgroundAttachment: 'fixed'
@@ -383,7 +383,7 @@ const ODriveApp = () => {
       <div 
         className="absolute inset-0 z-0"
         style={{
-          backgroundImage: `url(/lovable-uploads/d9421dc6-5ee7-4ba9-8734-0782c9debc81.png)`,
+          backgroundImage: `url(/lovable-uploads/e2cd01d3-0c3c-4702-bf1e-555a7652ad76.png)`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundAttachment: 'fixed'
