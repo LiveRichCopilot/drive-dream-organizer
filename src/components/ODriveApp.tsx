@@ -417,7 +417,7 @@ const ODriveApp = () => {
               variant="outline" 
               size="sm" 
               onClick={() => { setSelectedFolderId(undefined); disconnect(); }} 
-              className="glass border-white/10 text-white/40 hover:bg-white/5 shadow-none text-sm px-3 py-1 h-8"
+              className="text-white/40 hover:text-white/80 text-sm px-3 py-1 h-8"
             >
               <LogOut className="h-4 w-4 mr-2" />
               Disconnect
