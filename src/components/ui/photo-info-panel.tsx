@@ -317,7 +317,7 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
           <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gradient-to-b scrollbar-thumb-from-teal-200/30 scrollbar-thumb-to-blue-200/30 hover:scrollbar-thumb-from-teal-200/40 hover:scrollbar-thumb-to-blue-200/40 scrollbar-w-1">
             {/* HD Preview - The Star of the Show */}
             <div className="p-4">
-              <div className="liquid-glass-modal relative aspect-[4/5] w-full max-w-[450px] mx-auto bg-black/20 rounded-xl overflow-hidden border border-white/10 mb-4 shadow-2xl">
+              <div className="liquid-glass-modal relative w-full max-w-[450px] mx-auto bg-black/20 rounded-xl overflow-hidden border border-white/10 mb-4 shadow-2xl">
                 {isDownloading || isLoadingHdImage ? (
                   <div className="loading w-full h-full flex flex-col items-center justify-center bg-black/30">
                     {/* Circular Progress Meter */}
@@ -364,7 +364,7 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                     <img
                       src={hdImageUrl || photo.thumbnailLink || `https://www.googleapis.com/drive/v3/files/${photo.id}?alt=media&access_token=${localStorage.getItem('google_access_token')}`} 
                       alt={photo.name}
-                      className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                      className="w-full h-auto object-contain transition-transform duration-300 hover:scale-105"
                       loading="eager" // Load immediately for quality
                       fetchPriority="high" // Prioritize this image
                       onLoad={() => setFullResLoaded(true)}
@@ -392,6 +392,66 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                       </Button>
                     </div>
                   </>
+                )}
+              </div>
+
+              {/* Caption Maker Section - Right under image! */}
+              <div className="px-4 py-2 border-b border-white/10">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Tag className="w-3 h-3 text-white/70" />
+                    <h3 className="text-xs font-medium text-white/90">Caption Maker</h3>
+                  </div>
+                  <Button
+                    onClick={generateCaption}
+                    disabled={isGeneratingCaption}
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 hover:text-teal-200"
+                    title="Generate Caption"
+                  >
+                    {isGeneratingCaption ? (
+                      <div className="w-3 h-3 border-2 border-teal-300/30 border-t-teal-300 rounded-full animate-spin" />
+                    ) : (
+                      <Sparkles className="w-3 h-3" />
+                    )}
+                  </Button>
+                </div>
+
+                {/* Caption Categories - Tell me your categories! */}
+                <div className="ml-5 mb-3">
+                  <div className="flex flex-wrap gap-2">
+                    <div className="cursor-pointer hover:text-teal-300" title="Add your categories here">
+                      <Plus className="w-4 h-4 text-white/50" />
+                    </div>
+                    <span className="text-xs text-white/60">Tell me your specific categories</span>
+                  </div>
+                </div>
+
+                {/* Generated Caption Display */}
+                {generatedCaption && (
+                  <div className="ml-5 space-y-2">
+                    <div className="p-3 bg-white/5 rounded-lg border border-white/10">
+                      <p className="text-xs text-white/90 leading-relaxed">
+                        {generatedCaption}
+                      </p>
+                    </div>
+                    <Button
+                      onClick={copyCaption}
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 hover:text-pink-200"
+                      title="Copy Caption"
+                    >
+                      📋
+                    </Button>
+                  </div>
+                )}
+
+                {!generatedCaption && !isGeneratingCaption && (
+                  <div className="ml-5 text-xs text-white/60">
+                    Select a category and click the sparkle icon to generate
+                  </div>
                 )}
               </div>
             </div>
@@ -464,59 +524,47 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                     </Badge>
                   </div>
 
-                  {/* Categories */}
+                  {/* Categories - Icons only, no bubbles */}
                   <div className="space-y-1">
-                    <span className="text-xs text-white/60">Categories:</span>
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-white/60">Categories:</span>
                       {photo.analysis.categories.map((category, index) => (
-                        <Badge 
-                          key={index} 
-                          variant="outline" 
-                          className="bg-white/5 border-white/20 text-white/80 text-[10px] px-1.5 py-0.5 h-5"
-                        >
-                          {category}
-                        </Badge>
+                        <div key={index} title={category}>
+                          <Tag className="w-3 h-3 text-white/70" />
+                        </div>
                       ))}
                     </div>
                   </div>
 
-                  {/* Objects */}
+                  {/* Objects - Icons only, no bubbles */}
                   {photo.analysis.objects.length > 0 && (
                     <div className="space-y-1">
-                      <span className="text-xs text-white/60">Objects:</span>
-                      <div className="flex flex-wrap gap-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-white/60">Objects:</span>
                         {photo.analysis.objects.map((object, index) => (
-                          <Badge 
-                            key={index} 
-                            variant="outline" 
-                            className="bg-white/5 border-white/20 text-white/80 text-[10px] px-1.5 py-0.5 h-5"
-                          >
-                            {object}
-                          </Badge>
+                          <div key={index} title={object}>
+                            <Eye className="w-3 h-3 text-white/70" />
+                          </div>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  {/* Colors */}
+                  {/* Colors - Icons only, no bubbles */}
                   {photo.analysis.colors.length > 0 && (
                     <div className="space-y-1">
-                      <span className="text-xs text-white/60">Colors:</span>
-                      <div className="flex flex-wrap gap-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-white/60">Colors:</span>
                         {photo.analysis.colors.map((color, index) => (
-                          <Badge 
-                            key={index} 
-                            variant="outline" 
-                            className="bg-white/5 border-white/20 text-white/80 text-[10px] px-1.5 py-0.5 h-5"
-                          >
-                            {color}
-                          </Badge>
+                          <div key={index} title={color}>
+                            <Palette className="w-3 h-3 text-white/70" />
+                          </div>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  {/* People */}
+                  {/* People - Just icon */}
                   {photo.analysis.faces > 0 && (
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-white/60">People detected:</span>
@@ -527,20 +575,15 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                     </div>
                   )}
 
-                  {/* Landmarks */}
+                  {/* Landmarks - Just icons */}
                   {photo.analysis.landmarks.length > 0 && (
-                    <div className="space-y-2">
-                      <span className="text-sm text-white/60">Landmarks:</span>
-                      <div className="flex flex-wrap gap-2">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-white/60">Landmarks:</span>
                         {photo.analysis.landmarks.map((landmark, index) => (
-                          <Badge 
-                            key={index} 
-                            variant="outline" 
-                            className="bg-white/5 border-white/20 text-white/80 text-xs"
-                          >
-                            <MapPin className="w-3 h-3 mr-1" />
-                            {landmark}
-                          </Badge>
+                          <div key={index} title={landmark}>
+                            <MapPin className="w-3 h-3 text-white/70" />
+                          </div>
                         ))}
                       </div>
                     </div>
