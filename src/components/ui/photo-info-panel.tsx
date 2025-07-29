@@ -621,13 +621,14 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                     </Badge>
                   </div>
 
-                  {/* Categories - Icons only, no bubbles */}
+                  {/* Categories - Show actual tag names */}
                   <div className="space-y-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs text-white/60">Categories:</span>
                       {photo.analysis.categories.map((category, index) => (
-                        <div key={index} title={category}>
+                        <div key={index} className="flex items-center gap-1 bg-white/10 px-2 py-1 rounded-full border border-white/20">
                           <Tag className="w-3 h-3 text-white/70" />
+                          <span className="text-xs text-white/80">{category}</span>
                         </div>
                       ))}
                     </div>
