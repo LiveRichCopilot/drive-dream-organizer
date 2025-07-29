@@ -767,7 +767,7 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
             variant="ghost" 
             size="sm" 
             onClick={onClose}
-            className="bg-white/5 backdrop-blur-[20px] backdrop-saturate-[180%] border border-white/20 rounded-lg shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] hover:bg-white/10"
+            className="bg-white/2 backdrop-blur-[24px] backdrop-saturate-[200%] border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] rounded-full w-10 h-10 p-0 hover:bg-white/4"
           >
             <X className="h-4 w-4" />
           </Button>
