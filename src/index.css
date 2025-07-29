@@ -89,7 +89,7 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground overflow-x-hidden;
-    background: radial-gradient(ellipse at top, hsl(0 0% 10%), hsl(0 0% 6%));
+    background: hsl(0 0% 6%);
     min-height: 100vh;
   }
 
