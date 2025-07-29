@@ -545,7 +545,7 @@ const ODriveApp = () => {
               placeholder="Search videos..."
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
-              className="pl-8 py-2 text-sm bg-white/2.5 backdrop-blur-[40px] backdrop-saturate-[200%] border border-white/7.5 rounded-xl text-white placeholder-white/40 h-9 focus:border-teal-200/40 focus:ring-2 focus:ring-teal-200/20"
+              className="pl-8 py-2 text-sm bg-transparent backdrop-blur-[40px] backdrop-saturate-[200%] border border-white/7.5 rounded-xl text-white placeholder-white/40 h-9 focus:border-teal-200/40 focus:ring-2 focus:ring-teal-200/20"
             />
           </div>
           
