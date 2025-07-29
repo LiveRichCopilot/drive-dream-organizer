@@ -634,14 +634,15 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                     </div>
                   </div>
 
-                  {/* Objects - Icons only, no bubbles */}
+                  {/* Objects - Show actual object names */}
                   {photo.analysis.objects.length > 0 && (
                     <div className="space-y-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-xs text-white/60">Objects:</span>
                         {photo.analysis.objects.map((object, index) => (
-                          <div key={index} title={object}>
+                          <div key={index} className="flex items-center gap-1 bg-white/10 px-2 py-1 rounded-full border border-white/20">
                             <Eye className="w-3 h-3 text-white/70" />
+                            <span className="text-xs text-white/80">{object}</span>
                           </div>
                         ))}
                       </div>
