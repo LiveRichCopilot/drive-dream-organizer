@@ -315,110 +315,98 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gradient-to-b scrollbar-thumb-from-teal-200/30 scrollbar-thumb-to-blue-200/30 hover:scrollbar-thumb-from-teal-200/40 hover:scrollbar-thumb-to-blue-200/40 scrollbar-w-1">
-            {/* THE IMAGE - STAR OF THE SHOW */}
+            {/* THE IMAGE - STAR OF THE SHOW (NO CONTAINER) */}
             <div className="p-4">
-              <div className="relative w-full bg-gradient-to-b from-white/5 to-white/10 rounded-2xl overflow-hidden border border-white/20 mb-6 shadow-2xl min-h-[300px] backdrop-blur-md">
-                {isDownloading || isLoadingHdImage ? (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/30 backdrop-blur-sm min-h-[300px]">
-                    {/* Circular Progress Meter */}
-                    <div className="relative w-16 h-16 mb-3">
-                      {/* Background circle */}
-                      <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 64 64">
-                        <circle
-                          cx="32"
-                          cy="32"
-                          r="28"
-                          stroke="rgba(255,255,255,0.2)"
-                          strokeWidth="4"
-                          fill="none"
-                        />
-                        {/* Progress circle */}
-                        <circle
-                          cx="32"
-                          cy="32"
-                          r="28"
-                          stroke="rgba(59,130,246,0.8)"
-                          strokeWidth="4"
-                          fill="none"
-                          strokeDasharray={`${2 * Math.PI * 28}`}
-                          strokeDashoffset={`${2 * Math.PI * 28 * (1 - downloadProgress / 100)}`}
-                          className="transition-all duration-300 ease-out"
-                        />
-                      </svg>
-                      {/* Percentage text */}
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-sm font-bold text-white">
-                          {downloadProgress}%
-                        </span>
-                      </div>
-                    </div>
-                    <p className="text-xs text-white/80 text-center px-4">
-                      {isLoadingHdImage ? "Loading HD image..." : "Processing image..."}
-                    </p>
-                    <p className="text-xs text-white/60 text-center px-4 mt-1">
-                      {photo.size}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="relative w-full min-h-[300px] flex items-center justify-center bg-gradient-to-br from-white/5 to-white/10 p-4">
-                    {/* THE MAIN IMAGE - PROMINENTLY DISPLAYED AND CENTERED */}
-                    <div className="relative max-w-full flex items-center justify-center">
-                      <img
-                        src={photo.thumbnailLink || `https://drive.google.com/thumbnail?id=${photo.id}&sz=w800-h600`}
-                        alt={photo.name}
-                        className="max-w-full max-h-[450px] object-contain rounded-xl shadow-lg"
-                        style={{ 
-                          width: 'auto',
-                          height: 'auto',
-                          minHeight: '150px',
-                          display: 'block',
-                          visibility: 'visible',
-                          backgroundColor: 'rgba(255,255,255,0.05)'
-                        }}
-                        loading="eager"
-                        fetchPriority="high"
-                        onLoad={(e) => {
-                          setFullResLoaded(true);
-                          console.log('✅ Image loaded successfully:', photo.name);
-                        }}
-                        onError={(e) => {
-                          console.error('❌ Image failed to load for:', photo.name);
-                          
-                          // Try multiple fallback strategies
-                          if (e.currentTarget.src.includes('thumbnailLink')) {
-                            e.currentTarget.src = `https://drive.google.com/thumbnail?id=${photo.id}&sz=w800-h600`;
-                          } else if (e.currentTarget.src.includes('drive.google.com/thumbnail')) {
-                            e.currentTarget.src = `https://drive.google.com/file/d/${photo.id}/view`;
-                          } else if (!e.currentTarget.src.includes('placeholder')) {
-                            e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMzMzIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIE5vdCBBdmFpbGFibGU8L3RleHQ+PC9zdmc+';
-                          }
-                        }}
+              {isDownloading || isLoadingHdImage ? (
+                <div className="flex flex-col items-center justify-center bg-black/30 backdrop-blur-sm min-h-[300px] rounded-xl">
+                  {/* Circular Progress Meter */}
+                  <div className="relative w-16 h-16 mb-3">
+                    {/* Background circle */}
+                    <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 64 64">
+                      <circle
+                        cx="32"
+                        cy="32"
+                        r="28"
+                        stroke="rgba(255,255,255,0.2)"
+                        strokeWidth="4"
+                        fill="none"
                       />
-                      
-                      {/* HD Quality Badge and Actions Overlay */}
-                      <div className="absolute top-3 right-3 flex gap-2">
-                        <div className="bg-black/60 backdrop-blur-sm px-3 py-1 rounded-full border border-white/10">
-                          <span className="text-xs text-white/90 font-medium">
-                            {hdImageUrl ? "HD" : "Preview"}
-                          </span>
-                        </div>
-                        <Button
-                          onClick={handleQuickDownload}
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 bg-black/60 backdrop-blur-sm hover:bg-black/80 text-white/90 rounded-full border border-white/10"
-                          title="Download Image"
-                        >
-                          <Download className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      {/* Progress circle */}
+                      <circle
+                        cx="32"
+                        cy="32"
+                        r="28"
+                        stroke="rgba(59,130,246,0.8)"
+                        strokeWidth="4"
+                        fill="none"
+                        strokeDasharray={`${2 * Math.PI * 28}`}
+                        strokeDashoffset={`${2 * Math.PI * 28 * (1 - downloadProgress / 100)}`}
+                        className="transition-all duration-300 ease-out"
+                      />
+                    </svg>
+                    {/* Percentage text */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-sm font-bold text-white">
+                        {downloadProgress}%
+                      </span>
                     </div>
-                    
-                    {/* INVISIBLE PROTECTION LINE - Prevents image erasure */}
-                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-transparent pointer-events-none" />
                   </div>
-                )}
-              </div>
+                  <p className="text-xs text-white/80 text-center px-4">
+                    {isLoadingHdImage ? "Loading HD image..." : "Processing image..."}
+                  </p>
+                  <p className="text-xs text-white/60 text-center px-4 mt-1">
+                    {photo.size}
+                  </p>
+                </div>
+              ) : (
+                <div className="relative">
+                  <img
+                    src={photo.thumbnailLink || `https://drive.google.com/thumbnail?id=${photo.id}&sz=w800-h600`}
+                    alt={photo.name}
+                    className="w-full h-auto object-contain rounded-xl shadow-lg"
+                    style={{ 
+                      display: 'block',
+                      visibility: 'visible'
+                    }}
+                    loading="eager"
+                    fetchPriority="high"
+                    onLoad={(e) => {
+                      setFullResLoaded(true);
+                      console.log('✅ Image loaded successfully:', photo.name);
+                    }}
+                    onError={(e) => {
+                      console.error('❌ Image failed to load for:', photo.name);
+                      
+                      if (e.currentTarget.src.includes('thumbnailLink')) {
+                        e.currentTarget.src = `https://drive.google.com/thumbnail?id=${photo.id}&sz=w800-h600`;
+                      } else if (e.currentTarget.src.includes('drive.google.com/thumbnail')) {
+                        e.currentTarget.src = `https://drive.google.com/file/d/${photo.id}/view`;
+                      } else if (!e.currentTarget.src.includes('placeholder')) {
+                        e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMzMzIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIE5vdCBBdmFpbGFibGU8L3RleHQ+PC9zdmc+';
+                      }
+                    }}
+                  />
+                  
+                  {/* HD Quality Badge and Actions Overlay */}
+                  <div className="absolute top-3 right-3 flex gap-2">
+                    <div className="bg-black/60 backdrop-blur-sm px-3 py-1 rounded-full border border-white/10">
+                      <span className="text-xs text-white/90 font-medium">
+                        {hdImageUrl ? "HD" : "Preview"}
+                      </span>
+                    </div>
+                    <Button
+                      onClick={handleQuickDownload}
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 bg-black/60 backdrop-blur-sm hover:bg-black/80 text-white/90 rounded-full border border-white/10"
+                      title="Download Image"
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
 
               {/* Caption Chatbot - Liquid Glass Expandable Interface */}
               <div className="relative overflow-hidden">
@@ -561,7 +549,6 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                   )}
                 </div>
               </div>
-            </div>
 
             {/* General Info */}
             <div className="px-4 pb-2">
