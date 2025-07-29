@@ -626,9 +626,9 @@ const ODriveApp = () => {
                      </Button>
                    </div>
                  </div>
-                <Badge className="absolute top-2 right-2 bg-background/80">
-                  {video.format}
-                </Badge>
+                 <span className="absolute top-2 right-2 text-white/80 text-sm font-medium">
+                   {video.format}
+                 </span>
               </div>
               <div className="space-y-2 bg-white/15 backdrop-blur-[15px] backdrop-saturate-[180%] border border-white/10 rounded-xl p-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
                 <h3 className="font-semibold text-sm leading-tight break-words">{video.name}</h3>
