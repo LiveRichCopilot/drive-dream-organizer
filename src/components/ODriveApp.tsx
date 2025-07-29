@@ -441,11 +441,7 @@ const ODriveApp = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* All Files Option */}
               <div 
-                className={`glass-card shadow-none hover:shadow-none p-4 cursor-pointer border-2 transition-all ${
-                  !selectedFolderId 
-                    ? 'border-blue-400' 
-                    : 'border-white/10 hover:border-blue-400'
-                }`}
+                className="glass-card shadow-none hover:shadow-none p-4 cursor-pointer border-2 border-white/10 hover:border-white/30 hover:bg-white/5 transition-all"
                 onClick={() => {
                   setSelectedFolderId(undefined);
                   loadVideos();
@@ -464,23 +460,12 @@ const ODriveApp = () => {
               
               {/* Specific Folder Option */}
               <div 
-                className={`glass-card shadow-none hover:shadow-none p-4 cursor-pointer border-2 transition-all ${
-                  selectedFolderId 
-                    ? 'border-blue-400' 
-                    : 'border-white/10 hover:border-blue-400'
-                }`}
+                className="glass-card shadow-none hover:shadow-none p-4 cursor-pointer border-2 border-white/10 hover:border-white/30 hover:bg-white/5 transition-all"
                 onClick={() => setShowFolderInput(!showFolderInput)}
               >
                 <div className="flex items-center gap-3">
                   <div className="flex items-center justify-center">
-                    <div className="h-8 w-8 bg-gradient-to-br from-orange-400 to-pink-500 mask-image-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDEyczEgMC41IDEgMXYxaDFhMSAxIDAgMCAxIDAgMmgtMXYxYTEgMSAwIDAgMS0yIDB2LTFoLTFhMSAxIDAgMCAxIDAtMmgxVjNzMS0xIDEtMXoiIGZpbGw9ImN1cnJlbnRDb2xvciIvPgo8L3N2Zz4K')] mask-size-cover" style={{
-                      maskImage: 'url("data:image/svg+xml,' + 
-                        encodeURIComponent('<svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>') + 
-                        '")',
-                      maskRepeat: 'no-repeat',
-                      maskPosition: 'center',
-                      maskSize: 'contain'
-                    }}></div>
+                    <Settings className="h-8 w-8 text-secondary" />
                   </div>
                   <div>
                     <h3 className="font-semibold">Specific Folder</h3>
