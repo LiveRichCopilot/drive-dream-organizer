@@ -406,7 +406,7 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                       disabled={isGeneratingCaption}
                       variant="ghost"
                       size="sm"
-                      className="h-10 w-10 p-0 bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 hover:text-teal-200 rounded-full border border-teal-400/30"
+                      className="h-12 w-12 p-0 bg-transparent hover:bg-transparent"
                       title="Generate Caption with AI"
                     >
                       {isGeneratingCaption ? (
@@ -415,7 +415,7 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                         <img 
                           src="/lovable-uploads/4bc1ca0f-d6b8-475a-8d1a-c0830a7101f5.png" 
                           alt="AI Magic" 
-                          className="w-6 h-6 filter drop-shadow-sm"
+                          className="w-10 h-10 filter drop-shadow-sm"
                           onError={(e) => {
                             console.error('AI icon failed to load');
                             // Fallback to sparkles if your icon fails to load
