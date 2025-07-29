@@ -61,13 +61,13 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
       </DialogTrigger>
       <DialogContent className="max-w-md w-[90vw] max-h-[85vh] p-0 bg-white/10 backdrop-blur-[20px] backdrop-saturate-[180%] border border-white/30 shadow-lg rounded-2xl z-[100] overflow-hidden resize">
         <div className="relative h-full flex flex-col">
-          {/* Resize Handles */}
-          <div className="absolute inset-0 pointer-events-none z-10">
+          {/* Resize Handles - Hidden until hover */}
+          <div className="absolute inset-0 pointer-events-none z-10 opacity-0 hover:opacity-100 transition-opacity">
             {/* Corner resize handles */}
-            <div className="absolute top-0 left-0 w-3 h-3 cursor-nw-resize pointer-events-auto bg-white/20 rounded-tl-2xl"></div>
-            <div className="absolute top-0 right-0 w-3 h-3 cursor-ne-resize pointer-events-auto bg-white/20 rounded-tr-2xl"></div>
-            <div className="absolute bottom-0 left-0 w-3 h-3 cursor-sw-resize pointer-events-auto bg-white/20 rounded-bl-2xl"></div>
-            <div className="absolute bottom-0 right-0 w-3 h-3 cursor-se-resize pointer-events-auto bg-white/20 rounded-br-2xl"></div>
+            <div className="absolute top-0 left-0 w-3 h-3 cursor-nw-resize pointer-events-auto bg-white/30 rounded-tl-2xl"></div>
+            <div className="absolute top-0 right-0 w-3 h-3 cursor-ne-resize pointer-events-auto bg-white/30 rounded-tr-2xl"></div>
+            <div className="absolute bottom-0 left-0 w-3 h-3 cursor-sw-resize pointer-events-auto bg-white/30 rounded-bl-2xl"></div>
+            <div className="absolute bottom-0 right-0 w-3 h-3 cursor-se-resize pointer-events-auto bg-white/30 rounded-br-2xl"></div>
             
             {/* Edge resize handles */}
             <div className="absolute top-0 left-3 right-3 h-2 cursor-n-resize pointer-events-auto"></div>
@@ -77,7 +77,7 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
           </div>
 
           {/* Draggable Header */}
-          <div className="flex items-center justify-between p-4 border-b border-white/10 cursor-move select-none relative z-20">
+          <div className="flex items-center justify-between p-4 border-b border-white/10 cursor-move select-none relative z-20 flex-shrink-0">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-lg bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
                 <FileImage className="w-3 h-3 text-white/90" />
@@ -163,7 +163,7 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
               </div>
 
               {photo.analysis ? (
-                <div className="space-y-4 ml-6">
+                <div className="space-y-2 ml-5">
                   {/* Scene */}
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-white/60">Scene:</span>
