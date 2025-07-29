@@ -443,13 +443,17 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                       disabled={isGeneratingCaption}
                       variant="ghost"
                       size="sm"
-                      className="h-8 w-8 p-0 bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 hover:text-teal-200 rounded-full border border-teal-400/30"
-                      title="Generate Caption"
+                      className="h-10 w-10 p-0 bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 hover:text-teal-200 rounded-full border border-teal-400/30"
+                      title="Generate Caption with AI"
                     >
                       {isGeneratingCaption ? (
-                        <div className="w-4 h-4 border-2 border-teal-300/30 border-t-teal-300 rounded-full animate-spin" />
+                        <div className="w-5 h-5 border-2 border-teal-300/30 border-t-teal-300 rounded-full animate-spin" />
                       ) : (
-                        <Sparkles className="w-4 h-4" />
+                        <img 
+                          src="/lovable-uploads/86e12b2b-20b7-4e0c-86c4-e6006280bc1c.png" 
+                          alt="AI Magic" 
+                          className="w-6 h-6"
+                        />
                       )}
                     </Button>
                   </div>
