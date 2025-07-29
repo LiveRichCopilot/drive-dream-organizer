@@ -690,7 +690,11 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
             variant="glass"
             size="sm"
             onClick={() => setViewMode('photos')}
-            className={viewMode === 'photos' ? 'bg-white/20' : ''}
+            className={`bg-gradient-to-br backdrop-blur-xl border ${
+              viewMode === 'photos' 
+                ? 'from-white/30 to-white/15 border-white/40 text-white shadow-md' 
+                : 'from-white/15 to-white/5 border-white/20 text-white/80 hover:from-white/25 hover:to-white/10'
+            }`}
           >
             <Image className="h-4 w-4 mr-2" />
             Photos ({photos.length})
@@ -700,7 +704,11 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
             variant="glass"
             size="sm"
             onClick={() => setViewMode('categories')}
-            className={viewMode === 'categories' ? 'bg-white/20' : ''}
+            className={`bg-gradient-to-br backdrop-blur-xl border ${
+              viewMode === 'categories' 
+                ? 'from-white/30 to-white/15 border-white/40 text-white shadow-md' 
+                : 'from-white/15 to-white/5 border-white/20 text-white/80 hover:from-white/25 hover:to-white/10'
+            }`}
           >
             <Tags className="h-4 w-4 mr-2" />
             Categories ({categories.length})
@@ -756,6 +764,7 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
                 <Button 
                   onClick={createCustomCategory}
                   variant="glass"
+                  className="bg-gradient-to-br from-white/20 to-white/5 backdrop-blur-xl border border-white/30"
                 >
                   <FolderPlus className="h-4 w-4 mr-2" />
                   Create
@@ -763,6 +772,7 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
                 <Button 
                   variant="glass" 
                   onClick={() => setShowCreateCategory(false)}
+                  className="bg-gradient-to-br from-white/15 to-white/5 backdrop-blur-xl border border-white/20"
                 >
                   Cancel
                 </Button>
