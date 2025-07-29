@@ -99,90 +99,35 @@ export class FixedGoogleOAuth {
       }
     }
 
-    // Use popup instead of redirect for better UX
-    return new Promise((resolve, reject) => {
-      const redirectUri = window.location.origin;
-      
-      // Generate state parameter for security
-      const state = Math.random().toString(36).substring(2, 15);
-      sessionStorage.setItem('oauth_state', state);
-      
-      // Comprehensive scopes for Drive, Calendar, and Gmail
-      const scopes = [
-        'https://www.googleapis.com/auth/drive',
-        'https://www.googleapis.com/auth/drive.file', 
-        'https://www.googleapis.com/auth/drive.metadata',
-        'https://www.googleapis.com/auth/calendar',
-        'https://www.googleapis.com/auth/calendar.readonly',
-        'https://www.googleapis.com/auth/gmail.readonly',
-        'https://www.googleapis.com/auth/gmail.modify'
-      ].join(' ');
-      
-      const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' +
-        `client_id=${this.clientId}&` +
-        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-        `response_type=token&` +
-        `scope=${encodeURIComponent(scopes)}&` +
-        `state=${state}&` +
-        `include_granted_scopes=true`;
-      
-      console.log('🔗 Opening OAuth popup...');
-      
-      const popup = window.open(
-        authUrl,
-        'google-oauth',
-        'width=500,height=600,scrollbars=yes,resizable=yes'
-      );
+    // Use current window redirect for better compatibility
+    const redirectUri = window.location.origin;
+    
+    // Generate state parameter for security
+    const state = Math.random().toString(36).substring(2, 15);
+    sessionStorage.setItem('oauth_state', state);
+    
+    // Focused scopes for Google Drive only
+    const scopes = [
+      'https://www.googleapis.com/auth/drive',
+      'https://www.googleapis.com/auth/drive.file', 
+      'https://www.googleapis.com/auth/drive.metadata'
+    ].join(' ');
+    
+    const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' +
+      `client_id=${this.clientId}&` +
+      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+      `response_type=token&` +
+      `scope=${encodeURIComponent(scopes)}&` +
+      `state=${state}&` +
+      `include_granted_scopes=true`;
+    
+    console.log('🔗 Redirecting to OAuth...');
+    
+    // Use direct redirect instead of popup to avoid blocking issues
+    window.location.href = authUrl;
 
-      if (!popup) {
-        reject(new Error('Popup blocked. Please allow popups and try again.'));
-        return;
-      }
-
-      // Listen for messages from the popup
-      const messageHandler = (event: MessageEvent) => {
-        if (event.origin !== window.location.origin) return;
-        
-        if (event.data.type === 'OAUTH_SUCCESS') {
-          clearTimeout(timeout);
-          window.removeEventListener('message', messageHandler);
-          try {
-            popup.close();
-          } catch (e) {
-            // Ignore Cross-Origin-Opener-Policy errors
-          }
-          
-          // Store the authorization code and exchange it for tokens
-          this.exchangeCodeForTokens(event.data.code)
-            .then(() => resolve())
-            .catch(reject);
-        } else if (event.data.type === 'OAUTH_ERROR') {
-          clearTimeout(timeout);
-          window.removeEventListener('message', messageHandler);
-          try {
-            popup.close();
-          } catch (e) {
-            // Ignore Cross-Origin-Opener-Policy errors
-          }
-          reject(new Error(event.data.error || 'OAuth failed'));
-        }
-      };
-
-      window.addEventListener('message', messageHandler);
-
-      // Set up timeout for popup closure detection instead of polling
-      const timeout = setTimeout(() => {
-        window.removeEventListener('message', messageHandler);
-        try {
-          if (!popup.closed) {
-            popup.close();
-          }
-        } catch (e) {
-          // Ignore Cross-Origin-Opener-Policy errors
-        }
-        reject(new Error('Authentication was cancelled'));
-      }, 300000); // 5 minute timeout
-    });
+    // No need for promise since we're using direct redirect
+    return Promise.resolve();
   }
 
   private async exchangeCodeForTokens(code: string): Promise<void> {
