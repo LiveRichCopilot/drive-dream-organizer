@@ -130,7 +130,7 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                     disabled={isAnalyzing}
                     variant="glass"
                     size="sm"
-                    className="bg-white/10 backdrop-blur-md border border-white/20 text-white/90 hover:bg-white/20 text-xs px-2 py-1"
+                    className="bg-white/3 backdrop-blur-md border border-white/10 text-white/70 hover:bg-white/5 hover:text-white/90 text-xs px-2 py-1"
                   >
                     {isAnalyzing ? (
                       <>
