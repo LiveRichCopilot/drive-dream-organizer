@@ -626,9 +626,6 @@ const ODriveApp = () => {
                      </Button>
                    </div>
                  </div>
-                 <span className="absolute top-2 right-2 text-white/80 text-sm font-medium">
-                   {video.format}
-                 </span>
               </div>
               <div className="space-y-2 bg-white/15 backdrop-blur-[15px] backdrop-saturate-[180%] border border-white/10 rounded-xl p-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
                 <h3 className="font-semibold text-sm leading-tight break-words">{video.name}</h3>
@@ -642,9 +639,10 @@ const ODriveApp = () => {
                     {video.dateCreated}
                   </div>
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  {video.size}
-                </div>
+                 <div className="flex items-center justify-between text-sm text-muted-foreground">
+                   <span>{video.size}</span>
+                   <span className="text-white/80 font-medium">{video.format}</span>
+                 </div>
               </div>
             </Card>
           ))}
