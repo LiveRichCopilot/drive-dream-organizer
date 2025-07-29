@@ -102,11 +102,29 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'gradient-move': {
+					'0%, 100%': {
+						'background-position': '0% 50%'
+					},
+					'50%': {
+						'background-position': '100% 50%'
+					}
+				},
+				'gradient-move-reverse': {
+					'0%, 100%': {
+						'background-position': '100% 50%'
+					},
+					'50%': {
+						'background-position': '0% 50%'
+					}
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'gradient-move': 'gradient-move 15s ease-in-out infinite',
+				'gradient-move-reverse': 'gradient-move-reverse 20s ease-in-out infinite'
 			}
 		}
 	},

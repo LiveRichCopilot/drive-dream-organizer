@@ -378,7 +378,12 @@ const ODriveApp = () => {
   }
 
   return (
-    <div className="min-h-screen p-6">
+      <div className="min-h-screen p-6 relative overflow-hidden">
+        {/* Moving Gradient Background */}
+        <div className="absolute inset-0 -z-10">
+          <div className="absolute inset-0 animate-[gradient-move_15s_ease-in-out_infinite] bg-gradient-to-br from-primary/20 via-secondary/15 to-accent/20 blur-3xl transform scale-150"></div>
+          <div className="absolute inset-0 animate-[gradient-move-reverse_20s_ease-in-out_infinite] bg-gradient-to-tl from-destructive/10 via-primary/10 to-secondary/15 blur-3xl transform scale-150"></div>
+        </div>
       {/* Header */}
       <div className="bg-white/5 border border-white/20 rounded-2xl p-6 mb-8">
         <div className="flex items-center justify-between mb-6">
