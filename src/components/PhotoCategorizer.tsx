@@ -942,35 +942,36 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
             Scan & Analyze Folder
           </div>
 
-          {/* Organization Buttons */}
-          <div className="flex gap-3">
-            <Button
-              onClick={organizePhotosByDate}
-              disabled={isOrganizing || photos.length === 0}
-              variant="outline"
-              size="sm"
-            >
-              {isOrganizing ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <FolderPlus className="h-4 w-4 mr-2" />
-              )}
-              Organize by Date
-            </Button>
+          <div
+            onClick={organizePhotosByDate}
+            className={`flex items-center cursor-pointer ${
+              isOrganizing || photos.length === 0
+                ? 'text-white/40 cursor-not-allowed' 
+                : 'text-white/80 hover:text-white'
+            }`}
+          >
+            {isOrganizing ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <FolderPlus className="h-4 w-4 mr-2" />
+            )}
+            Organize by Date
+          </div>
 
-            <Button
-              onClick={organizePhotosByCategory}
-              disabled={isOrganizing || categories.length === 0}
-              variant="outline"
-              size="sm"
-            >
-              {isOrganizing ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <FolderPlus className="h-4 w-4 mr-2" />
-              )}
-              Organize by Category
-            </Button>
+          <div
+            onClick={organizePhotosByCategory}
+            className={`flex items-center cursor-pointer ${
+              isOrganizing || categories.length === 0
+                ? 'text-white/40 cursor-not-allowed' 
+                : 'text-white/80 hover:text-white'
+            }`}
+          >
+            {isOrganizing ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <FolderPlus className="h-4 w-4 mr-2" />
+            )}
+            Organize by Category
           </div>
         </div>
 
