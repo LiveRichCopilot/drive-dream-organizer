@@ -689,7 +689,7 @@ const ODriveApp = () => {
       )}
 
       {filteredVideos.length === 0 && (
-        <div className="bg-white/2.5 backdrop-blur-[20px] backdrop-saturate-[180%] border border-white/10 rounded-2xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] text-center py-12 px-6">
+        <div className="bg-white/5 backdrop-blur-[20px] backdrop-saturate-[180%] border border-white/10 rounded-2xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] text-center py-12 px-6">
           <Video className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
           <h3 className="text-xl font-semibold mb-2">No videos found</h3>
           <p className="text-muted-foreground mb-6">
