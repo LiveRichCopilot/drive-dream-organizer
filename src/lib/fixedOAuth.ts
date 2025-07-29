@@ -99,35 +99,96 @@ export class FixedGoogleOAuth {
       }
     }
 
-    // Use current window redirect for better compatibility
-    const redirectUri = window.location.origin;
-    
-    // Generate state parameter for security
-    const state = Math.random().toString(36).substring(2, 15);
-    sessionStorage.setItem('oauth_state', state);
-    
-    // Focused scopes for Google Drive only
-    const scopes = [
-      'https://www.googleapis.com/auth/drive',
-      'https://www.googleapis.com/auth/drive.file', 
-      'https://www.googleapis.com/auth/drive.metadata'
-    ].join(' ');
-    
-    const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' +
-      `client_id=${this.clientId}&` +
-      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-      `response_type=token&` +
-      `scope=${encodeURIComponent(scopes)}&` +
-      `state=${state}&` +
-      `include_granted_scopes=true`;
-    
-    console.log('🔗 Redirecting to OAuth...');
-    
-    // Use direct redirect instead of popup to avoid blocking issues
-    window.location.href = authUrl;
+    // Use popup for OAuth authentication
+    return new Promise((resolve, reject) => {
+      const redirectUri = window.location.origin;
+      
+      // Generate state parameter for security
+      const state = Math.random().toString(36).substring(2, 15);
+      sessionStorage.setItem('oauth_state', state);
+      
+      // Google Drive scopes only
+      const scopes = [
+        'https://www.googleapis.com/auth/drive',
+        'https://www.googleapis.com/auth/drive.file', 
+        'https://www.googleapis.com/auth/drive.metadata'
+      ].join(' ');
+      
+      const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' +
+        `client_id=${this.clientId}&` +
+        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+        `response_type=token&` +
+        `scope=${encodeURIComponent(scopes)}&` +
+        `state=${state}&` +
+        `include_granted_scopes=true`;
+      
+      console.log('🔗 Opening OAuth popup...');
+      
+      // Try popup first, fall back to same window if blocked
+      const popup = window.open(
+        authUrl,
+        'google-oauth',
+        'width=500,height=600,scrollbars=yes,resizable=yes,left=' + 
+        (window.screen.width / 2 - 250) + ',top=' + (window.screen.height / 2 - 300)
+      );
 
-    // No need for promise since we're using direct redirect
-    return Promise.resolve();
+      if (!popup || popup.closed) {
+        // Popup was blocked, fall back to same window redirect
+        console.log('Popup blocked, using same window redirect...');
+        window.location.href = authUrl;
+        return;
+      }
+
+      // Monitor popup for completion
+      const checkClosed = setInterval(() => {
+        try {
+          if (popup.closed) {
+            clearInterval(checkClosed);
+            clearTimeout(timeout);
+            
+            // Check if authentication was successful by looking for tokens
+            if (this.isAuthenticated()) {
+              resolve();
+            } else {
+              reject(new Error('Authentication was cancelled'));
+            }
+          }
+          
+          // Check if popup URL has tokens (cross-origin safe check)
+          try {
+            if (popup.location && popup.location.hash.includes('access_token=')) {
+              clearInterval(checkClosed);
+              clearTimeout(timeout);
+              
+              // Handle the callback in the popup context
+              this.handleOAuthCallback();
+              popup.close();
+              resolve();
+            }
+          } catch (e) {
+            // Cross-origin access blocked, that's expected
+          }
+        } catch (e) {
+          // Handle popup access errors
+          clearInterval(checkClosed);
+          clearTimeout(timeout);
+          reject(new Error('Authentication failed'));
+        }
+      }, 1000);
+
+      // Set up timeout
+      const timeout = setTimeout(() => {
+        clearInterval(checkClosed);
+        try {
+          if (!popup.closed) {
+            popup.close();
+          }
+        } catch (e) {
+          // Ignore errors
+        }
+        reject(new Error('Authentication timed out'));
+      }, 300000); // 5 minute timeout
+    });
   }
 
   private async exchangeCodeForTokens(code: string): Promise<void> {
