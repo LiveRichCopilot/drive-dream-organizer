@@ -118,21 +118,6 @@ const ODriveApp = () => {
             <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" />
           </div>
 
-          {/* Onboarding Cards for First Time Users */}
-          <div className="relative z-10 px-8 pt-16">
-            <div className="max-w-4xl mx-auto">
-              <div className="glass-card p-4 mb-6">
-                <div className="text-center">
-                  <h3 className="text-2xl font-semibold text-white mb-4">Step 1: Connect Drive</h3>
-                  <p className="text-white/80 mb-6">Select which Google Drive to organize and analyze with AI</p>
-                  <Button variant="glow" size="lg">
-                    <Zap className="mr-2 h-5 w-5" />
-                    Learn More
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
 
         {/* Hero Section */}
         <div className="relative z-10 flex items-end justify-center px-8 pt-96 pb-4">
