@@ -630,7 +630,7 @@ const ODriveApp = () => {
                   {video.format}
                 </Badge>
               </div>
-              <div className="space-y-2 opacity-70">
+              <div className="space-y-2 opacity-50">
                 <h3 className="font-semibold text-sm leading-tight break-words">{video.name}</h3>
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <div className="flex items-center gap-1">
