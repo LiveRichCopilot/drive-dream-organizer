@@ -486,7 +486,7 @@ const ODriveApp = () => {
 
         {/* Search and Controls */}
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-          <div className="relative max-w-xs">
+          <div className={`relative transition-all duration-300 ${searchQuery ? 'max-w-md' : 'max-w-xs'}`}>
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3 w-3 text-white/60" />
             <Input
               placeholder="Search videos..."
