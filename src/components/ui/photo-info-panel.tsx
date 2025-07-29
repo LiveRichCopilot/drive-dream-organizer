@@ -435,7 +435,7 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                       {[
                         { key: 'instagram', label: 'Instagram', desc: 'SEO hooks' },
                         { key: 'tiktok', label: 'TikTok', desc: 'viral/trending' },
-                        { key: 'youtube', label: 'YouTube', desc: 'engaging/long-form' },
+                        { key: 'youtube', label: 'YouTube', desc: '' },
                         { key: 'x', label: 'X', desc: 'concise/witty' },
                         { key: 'linkedin', label: 'LinkedIn', desc: 'professional' },
                         { key: 'subs', label: 'Subs.com', desc: 'educational' },
