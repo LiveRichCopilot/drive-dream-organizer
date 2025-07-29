@@ -443,8 +443,8 @@ const ODriveApp = () => {
               <div 
                 className={`glass-card p-4 cursor-pointer border-2 transition-all ${
                   !selectedFolderId 
-                    ? 'border-primary/50 bg-primary/10' 
-                    : 'border-white/10 hover:border-white/20'
+                    ? 'border-primary/50' 
+                    : 'border-white/10 hover:border-primary/40'
                 }`}
                 onClick={() => {
                   setSelectedFolderId(undefined);
@@ -466,8 +466,8 @@ const ODriveApp = () => {
               <div 
                 className={`glass-card p-4 cursor-pointer border-2 transition-all ${
                   selectedFolderId 
-                    ? 'border-primary/50 bg-primary/10' 
-                    : 'border-white/10 hover:border-white/20'
+                    ? 'border-primary/50' 
+                    : 'border-white/10 hover:border-primary/40'
                 }`}
                 onClick={() => setShowFolderInput(!showFolderInput)}
               >
