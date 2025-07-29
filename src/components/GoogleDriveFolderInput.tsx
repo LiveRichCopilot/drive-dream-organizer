@@ -103,9 +103,9 @@ const GoogleDriveFolderInput = ({ onFolderSelected }: GoogleDriveFolderInputProp
                 setFolderUrl(e.target.value);
                 setIsValid(null);
               }}
-              className={`pr-10 ${
-                isValid === true ? 'border-green-500' : 
-                isValid === false ? 'border-red-500' : ''
+              className={`pr-10 bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border border-white/30 text-white placeholder-white/50 ${
+                isValid === true ? 'border-green-400/50' : 
+                isValid === false ? 'border-red-400/50' : ''
               }`}
             />
             <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
