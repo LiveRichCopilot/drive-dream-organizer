@@ -379,7 +379,7 @@ const ODriveApp = () => {
             ODrive File Library
           </h1>
           <div className="flex items-center gap-4">
-            <Badge variant="outline" className="glass border-primary/30">
+            <Badge variant="outline" className="glass border-white/20">
               <FolderOpen className="h-4 w-4 mr-2" />
               Connected ({videos.length} videos)
             </Badge>
@@ -393,12 +393,12 @@ const ODriveApp = () => {
                 setSelectedFolderId(undefined);
                 loadVideos();
               }}
-              className="glass border-primary/30 text-primary hover:bg-primary/10"
+              className="glass border-white/20 text-white/80 hover:bg-white/10"
             >
               <Play className="h-4 w-4 mr-2" />
               New Session
             </Button>
-            <Button variant="outline" size="sm" onClick={() => { setSelectedFolderId(undefined); disconnect(); }} className="glass border-destructive/30 text-destructive hover:bg-destructive/10">
+            <Button variant="outline" size="sm" onClick={() => { setSelectedFolderId(undefined); disconnect(); }} className="glass border-white/20 text-white/80 hover:bg-white/10">
               <LogOut className="h-4 w-4 mr-2" />
               Disconnect
             </Button>
