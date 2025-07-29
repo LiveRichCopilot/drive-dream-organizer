@@ -101,7 +101,7 @@ export class FixedGoogleOAuth {
 
     // Use popup instead of redirect for better UX
     return new Promise((resolve, reject) => {
-      const redirectUri = window.location.origin;
+      const redirectUri = `${window.location.origin}/auth/callback`;
       
       // Generate state parameter for security
       const state = Math.random().toString(36).substring(2, 15);
@@ -121,7 +121,7 @@ export class FixedGoogleOAuth {
       const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' +
         `client_id=${this.clientId}&` +
         `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-        `response_type=token&` +
+        `response_type=code&` +
         `scope=${encodeURIComponent(scopes)}&` +
         `state=${state}&` +
         `include_granted_scopes=true`;
@@ -196,7 +196,7 @@ export class FixedGoogleOAuth {
         },
         body: JSON.stringify({
           code,
-          redirect_uri: window.location.origin
+          redirect_uri: `${window.location.origin}/auth/callback`
         })
       });
 
