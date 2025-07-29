@@ -163,7 +163,8 @@ serve(async (req) => {
         
         // Move file to folder
         if (folderId) {
-          await fetch(
+          console.log(`Moving file ${fileData.name} to folder ${folderName}...`)
+          const moveResponse = await fetch(
             `https://www.googleapis.com/drive/v3/files/${fileId}?addParents=${folderId}`,
             {
               method: 'PATCH',
@@ -172,6 +173,13 @@ serve(async (req) => {
               },
             }
           )
+          
+          if (moveResponse.ok) {
+            console.log(`✓ Successfully moved ${fileData.name} to ${folderName}`)
+          } else {
+            const errorText = await moveResponse.text()
+            console.error(`✗ Failed to move ${fileData.name}: ${errorText}`)
+          }
         }
         
         organizationResults.push({ 

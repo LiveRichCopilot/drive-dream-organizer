@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { useDirectGoogleDrive } from "@/hooks/useDirectGoogleDrive";
 import { sendGmailMessage, getUserEmail } from "@/lib/gmailApi";
+import { apiClient } from "@/lib/api";
 
 interface PhotoFile {
   id: string;
@@ -73,6 +74,7 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
   const [viewMode, setViewMode] = useState<'photos' | 'categories'>('photos');
   const [analyzingPhotoId, setAnalyzingPhotoId] = useState<string | null>(null);
   const [folderScanProgress, setFolderScanProgress] = useState<{current: number, total: number} | null>(null);
+  const [isOrganizing, setIsOrganizing] = useState(false);
   
   // Use refs to maintain analysis state across re-renders
   const analysisStateRef = useRef({
@@ -747,6 +749,134 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
     setSelectedPhotos(newSelection);
   };
 
+  // Organization functions
+  const organizePhotosByDate = async () => {
+    if (photos.length === 0) {
+      toast({
+        title: "No photos to organize",
+        description: "Load photos first before organizing",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsOrganizing(true);
+    try {
+      console.log('Starting photo organization by date...');
+      const photoIds = photos.map(photo => photo.id);
+      
+      const token = localStorage.getItem('google_access_token');
+      if (!token) {
+        throw new Error('No access token - please reconnect to Google Drive');
+      }
+
+      const response = await fetch('https://iffvjtfrqaesoehbwtgi.supabase.co/functions/v1/google-drive-photo-organize', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          fileIds: photoIds, 
+          sourceFolderId: folderId,
+          organizationType: 'date'
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Organization failed: ${response.status} - ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('Organization result:', result);
+      
+      if (result.results) {
+        const successCount = result.results.filter((r: any) => r.success).length;
+        const totalCount = result.results.length;
+        
+        toast({
+          title: "Organization Complete",
+          description: `Successfully organized ${successCount}/${totalCount} photos into date-based folders`,
+        });
+      }
+    } catch (error) {
+      console.error('Photo organization failed:', error);
+      toast({
+        title: "Organization Failed",
+        description: error instanceof Error ? error.message : "Failed to organize photos",
+        variant: "destructive",
+      });
+    } finally {
+      setIsOrganizing(false);
+    }
+  };
+
+  const organizePhotosByCategory = async () => {
+    if (categories.length === 0) {
+      toast({
+        title: "No categories found",
+        description: "Analyze photos first to create categories",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsOrganizing(true);
+    try {
+      console.log('Starting photo organization by category...');
+      
+      const token = localStorage.getItem('google_access_token');
+      if (!token) {
+        throw new Error('No access token - please reconnect to Google Drive');
+      }
+
+      // Get all photo IDs for category organization
+      const allPhotoIds = photos.map(photo => photo.id);
+
+      const response = await fetch('https://iffvjtfrqaesoehbwtgi.supabase.co/functions/v1/google-drive-photo-organize', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          fileIds: allPhotoIds, 
+          sourceFolderId: folderId,
+          organizationType: 'category',
+          categories: categories
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Organization failed: ${response.status} - ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('Category organization result:', result);
+      
+      if (result.results) {
+        const successCount = result.results.filter((r: any) => r.success).length;
+        const totalCount = result.results.length;
+        
+        toast({
+          title: "Organization Complete",
+          description: `Successfully organized ${successCount}/${totalCount} photos into ${categories.length} category-based folders`,
+        });
+      }
+    } catch (error) {
+      console.error('Category organization failed:', error);
+      toast({
+        title: "Organization Failed",
+        description: error instanceof Error ? error.message : "Failed to organize photos by category",
+        variant: "destructive",
+      });
+    } finally {
+      setIsOrganizing(false);
+    }
+  };
+
   const filteredPhotos = photos.filter(photo =>
     photo.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     photo.analysis?.categories.some(cat => 
@@ -783,14 +913,14 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
       
       <CardContent className="space-y-6">
         {/* Main Scan Button */}
-        <div className="mb-4">
-        <Button
-          onClick={scanAndAnalyzeFolder}
-          disabled={isAnalyzing || photos.length === 0}
-          variant="glass"
-          size="sm"
-          className="bg-white/5 backdrop-blur-2xl border border-white/20 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1)] hover:bg-white/10 transition-all duration-300"
-        >
+        <div className="mb-4 space-y-3">
+          <Button
+            onClick={scanAndAnalyzeFolder}
+            disabled={isAnalyzing || photos.length === 0}
+            variant="glass"
+            size="sm"
+            className="bg-white/5 backdrop-blur-2xl border border-white/20 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1)] hover:bg-white/10 transition-all duration-300"
+          >
             {isAnalyzing ? (
               <Loader2 className="h-5 w-5 mr-2 animate-spin" />
             ) : (
@@ -798,6 +928,39 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
             )}
             Scan & Analyze Folder
           </Button>
+
+          {/* Organization Buttons */}
+          <div className="flex gap-3">
+            <Button
+              onClick={organizePhotosByDate}
+              disabled={isOrganizing || photos.length === 0}
+              variant="glass"
+              size="sm"
+              className="bg-white/5 backdrop-blur-2xl border border-white/20 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1)] hover:bg-white/10 transition-all duration-300"
+            >
+              {isOrganizing ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <FolderPlus className="h-4 w-4 mr-2" />
+              )}
+              Organize by Date
+            </Button>
+
+            <Button
+              onClick={organizePhotosByCategory}
+              disabled={isOrganizing || categories.length === 0}
+              variant="glass"
+              size="sm"
+              className="bg-white/5 backdrop-blur-2xl border border-white/20 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1)] hover:bg-white/10 transition-all duration-300"
+            >
+              {isOrganizing ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <FolderPlus className="h-4 w-4 mr-2" />
+              )}
+              Organize by Category
+            </Button>
+          </div>
         </div>
 
         {/* Controls */}
