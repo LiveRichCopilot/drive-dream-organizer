@@ -375,12 +375,14 @@ const ODriveApp = () => {
       {/* Header */}
       <div className="bg-white/5 border border-white/20 rounded-2xl p-6 mb-8">
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            {/* Logo placeholder - replace with your actual logo */}
-            <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">O</span>
-            </div>
-            <span className="text-sm font-sf font-medium text-white/70 tracking-wide">
+          <div className="flex items-center gap-4">
+            {/* ODrive Logo */}
+            <img 
+              src="/lovable-uploads/742a5faa-ce9b-4474-a2a9-24e42ae9b81b.png" 
+              alt="ODrive Logo" 
+              className="w-12 h-12 object-contain"
+            />
+            <span className="text-lg font-sf font-medium text-white/70 tracking-wide">
               File Library
             </span>
           </div>
