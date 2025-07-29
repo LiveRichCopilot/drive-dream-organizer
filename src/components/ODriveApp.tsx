@@ -444,7 +444,7 @@ const ODriveApp = () => {
               )}
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 shadow-lg">
               {/* All Files Option */}
               <div 
                 className="bg-gray-300/20 backdrop-blur-sm border-2 border-white/5 hover:border-white/15 hover:bg-gray-300/30 p-4 cursor-pointer rounded-xl transition-all opacity-70"
