@@ -218,7 +218,8 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
           <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gradient-to-b scrollbar-thumb-from-teal-200/30 scrollbar-thumb-to-blue-200/30 hover:scrollbar-thumb-from-teal-200/40 hover:scrollbar-thumb-to-blue-200/40 scrollbar-w-1">
             {/* HD Preview - The Star of the Show */}
             <div className="p-4">
-              <div className="liquid-glass-modal relative aspect-[4/5] w-full max-w-[280px] mx-auto bg-black/20 rounded-xl overflow-hidden border border-white/10 mb-4">
+              <div className="liquid-glass-modal relative w-full max-w-[400px] mx-auto bg-black/20 rounded-xl overflow-hidden border border-white/10 mb-4 shadow-lg"
+                   style={{ maxHeight: '60vh' }}>
                 {isDownloading || isLoadingHdImage ? (
                   <div className="loading w-full h-full flex flex-col items-center justify-center bg-black/30">
                     {/* Circular Progress Meter */}
@@ -265,13 +266,18 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                     <img
                       src={hdImageUrl || photo.thumbnailLink || `https://www.googleapis.com/drive/v3/files/${photo.id}?alt=media&access_token=${localStorage.getItem('google_access_token')}`} 
                       alt={photo.name}
-                      className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                      className="w-full h-auto object-contain transition-transform duration-300 hover:scale-105 cursor-zoom-in"
                       loading="eager" // Load immediately for quality
                       fetchPriority="high" // Prioritize this image
                       onLoad={() => setFullResLoaded(true)}
                       onError={(e) => {
                         // Fallback to basic download URL if thumbnail fails
                         e.currentTarget.src = `https://www.googleapis.com/drive/v3/files/${photo.id}?alt=media&access_token=${localStorage.getItem('google_access_token')}`;
+                      }}
+                      onClick={(e) => {
+                        // Optional: Add click to expand functionality
+                        e.stopPropagation();
+                        // Could add lightbox or full-screen view here
                       }}
                     />
                     {/* HD Quality Indicator */}
