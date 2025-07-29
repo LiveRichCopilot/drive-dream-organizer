@@ -900,7 +900,7 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
   );
 
   return (
-    <Card className="bg-white/5 border border-white/20 rounded-2xl p-6">
+    <Card className="bg-white/5 border border-white/20 rounded-2xl p-6 mx-[5%]">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
