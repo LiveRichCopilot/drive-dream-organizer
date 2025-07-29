@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,6 +73,14 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
   const [viewMode, setViewMode] = useState<'photos' | 'categories'>('photos');
   const [analyzingPhotoId, setAnalyzingPhotoId] = useState<string | null>(null);
   const [folderScanProgress, setFolderScanProgress] = useState<{current: number, total: number} | null>(null);
+  
+  // Use refs to maintain analysis state across re-renders
+  const analysisStateRef = useRef({
+    isRunning: false,
+    currentBatch: 0,
+    processedCount: 0,
+    shouldStop: false
+  });
   
   const { toast } = useToast();
   const { isConnected } = useDirectGoogleDrive();
@@ -276,6 +284,23 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
       return;
     }
 
+    // Check if analysis is already running
+    if (analysisStateRef.current.isRunning) {
+      toast({
+        title: "Analysis already running",
+        description: "Please wait for the current analysis to complete",
+      });
+      return;
+    }
+
+    // Set persistent analysis state
+    analysisStateRef.current = {
+      isRunning: true,
+      currentBatch: 0,
+      processedCount: 0,
+      shouldStop: false
+    };
+
     setIsAnalyzing(true);
     setFolderScanProgress({ current: 0, total: unanalyzedPhotos.length });
 
@@ -390,6 +415,8 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
         variant: "destructive",
       });
     } finally {
+      // Reset persistent analysis state
+      analysisStateRef.current.isRunning = false;
       setIsAnalyzing(false);
       setFolderScanProgress(null);
     }
