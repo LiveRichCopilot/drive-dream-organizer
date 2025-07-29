@@ -5,6 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { TooltipInfo } from "@/components/ui/tooltip-info";
+import AssistantChat from "@/components/AssistantChat";
+import AnalyticsDashboard from "@/components/AnalyticsDashboard";
+import { useAnalytics } from "@/hooks/useAnalytics";
 import { 
   Play, 
   Upload, 
@@ -33,7 +36,8 @@ import {
   Home,
   Zap,
   Wand2,
-  FileText
+  FileText,
+  BarChart3
 } from "lucide-react";
 import heroImage from "@/assets/hero-video-bg.jpg";
 import { useDirectGoogleDrive } from "@/hooks/useDirectGoogleDrive";
@@ -50,9 +54,12 @@ const ODriveApp = () => {
   const [selectedFolderId, setSelectedFolderId] = useState<string | undefined>();
   const [showProcessor, setShowProcessor] = useState(false);
   const [showPhotoOrganizer, setShowPhotoOrganizer] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showAssistant, setShowAssistant] = useState(false);
   const [processingResults, setProcessingResults] = useState<any>(null);
   
   const backgroundTasks = useBackgroundTasks();
+  const analytics = useAnalytics();
   
   const {
     isConnected,
@@ -72,6 +79,20 @@ const ODriveApp = () => {
   const filteredVideos = videos.filter(video =>
     video.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Track search events
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    if (query.length > 2) {
+      analytics.trackSearch({
+        search_query: query,
+        results_count: videos.filter(v => 
+          v.name.toLowerCase().includes(query.toLowerCase())
+        ).length,
+        search_type: 'video_name'
+      });
+    }
+  };
   
   // Debug logging
   console.log('ODriveApp - videos array:', videos);
@@ -472,7 +493,7 @@ const ODriveApp = () => {
             <Input
               placeholder="Search videos..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => handleSearch(e.target.value)}
               className="pl-10 glass border-primary/30"
             />
           </div>
@@ -516,6 +537,13 @@ const ODriveApp = () => {
           </div>
         </div>
       </div>
+
+      {/* Analytics Dashboard */}
+      {showAnalytics && (
+        <div className="mb-8">
+          <AnalyticsDashboard onEvent={analytics.trackEvent} />
+        </div>
+      )}
 
       {/* Photo Categorizer */}
       {showPhotoOrganizer && (
@@ -646,6 +674,13 @@ const ODriveApp = () => {
         onResumeTask={backgroundTasks.resumeTask}
         onCancelTask={backgroundTasks.cancelTask}
         onRetryTask={backgroundTasks.retryTask}
+      />
+      
+      {/* Assistant Chat */}
+      <AssistantChat
+        isOpen={showAssistant}
+        onToggle={() => setShowAssistant(!showAssistant)}
+        onAnalyticsEvent={analytics.trackEvent}
       />
     </div>
   );

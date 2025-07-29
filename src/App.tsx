@@ -8,12 +8,25 @@ import NotFound from "./pages/NotFound";
 import AuthCallback from "./pages/AuthCallback";
 import VoiceAssistant from "./components/VoiceAssistant";
 import { useTokenRefresh } from "./hooks/useTokenRefresh";
+import { useAnalytics } from "./hooks/useAnalytics";
+import React from "react";
 
 const queryClient = new QueryClient();
 
 const App = () => {
   // Enable automatic background token refresh
   useTokenRefresh();
+  
+  const analytics = useAnalytics();
+  
+  // Track app initialization
+  React.useEffect(() => {
+    analytics.trackPageView('/', 'ODrive Home');
+    analytics.trackFeatureUsage({
+      feature_name: 'app_initialization',
+      user_type: 'new' // Could be detected based on localStorage
+    });
+  }, [analytics]);
   
   return (
     <QueryClientProvider client={queryClient}>
