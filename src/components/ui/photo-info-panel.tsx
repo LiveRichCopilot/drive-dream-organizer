@@ -58,6 +58,8 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
 }) => {
   const [isDownloading, setIsDownloading] = React.useState(false);
   const [fullResLoaded, setFullResLoaded] = React.useState(false);
+  const [hdImageUrl, setHdImageUrl] = React.useState<string | null>(null);
+  const [isLoadingHdImage, setIsLoadingHdImage] = React.useState(false);
   
   // Get file size in MB for display
   const getFileSizeDisplay = (sizeString: string) => {
@@ -92,6 +94,59 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
       setIsDownloading(false);
     }
   };
+
+  // Load HD image for analysis
+  const loadHdImage = async () => {
+    if (hdImageUrl || isLoadingHdImage) return; // Already loaded or loading
+    
+    setIsLoadingHdImage(true);
+    try {
+      const token = localStorage.getItem('google_access_token');
+      if (!token) throw new Error('No access token available');
+
+      // Use Google Drive download API for full resolution
+      const downloadUrl = `https://www.googleapis.com/drive/v3/files/${photo.id}?alt=media`;
+      
+      const response = await fetch(downloadUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to load HD image: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      setHdImageUrl(url);
+      
+    } catch (error) {
+      console.error('Failed to load HD image:', error);
+    } finally {
+      setIsLoadingHdImage(false);
+    }
+  };
+
+  // Enhanced analyze function that loads HD image first
+  const handleAnalyze = async () => {
+    if (!onAnalyze) return;
+    
+    // First load the HD image
+    await loadHdImage();
+    
+    // Then start the analysis
+    onAnalyze();
+  };
+
+  // Cleanup HD image URL when component unmounts
+  React.useEffect(() => {
+    return () => {
+      if (hdImageUrl) {
+        URL.revokeObjectURL(hdImageUrl);
+      }
+    };
+  }, [hdImageUrl]);
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -137,15 +192,17 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
             {/* HD Preview - The Star of the Show */}
             <div className="p-4">
               <div className="liquid-glass-modal relative aspect-[4/5] w-full max-w-[280px] mx-auto bg-black/20 rounded-xl overflow-hidden border border-white/10 mb-4">
-                {isDownloading ? (
+                {isDownloading || isLoadingHdImage ? (
                   <div className="loading w-full h-full flex flex-col items-center justify-center bg-black/30">
                     <Loader className="w-6 h-6 text-white animate-spin mb-2" />
-                    <p className="text-xs text-white/80">Downloading high-resolution image...</p>
+                    <p className="text-xs text-white/80">
+                      {isLoadingHdImage ? "Loading HD image for analysis..." : "Downloading high-resolution image..."}
+                    </p>
                   </div>
                 ) : (
                   <>
                     <img
-                      src={photo.thumbnailLink || `https://www.googleapis.com/drive/v3/files/${photo.id}?alt=media&access_token=${localStorage.getItem('google_access_token')}`} 
+                      src={hdImageUrl || photo.thumbnailLink || `https://www.googleapis.com/drive/v3/files/${photo.id}?alt=media&access_token=${localStorage.getItem('google_access_token')}`} 
                       alt={photo.name}
                       className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
                       loading="eager" // Load immediately for quality
@@ -158,7 +215,9 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                     />
                     {/* HD Quality Indicator */}
                     <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-sm px-2 py-1 rounded-full">
-                      <span className="text-xs text-white/90 font-medium">HD</span>
+                      <span className="text-xs text-white/90 font-medium">
+                        {hdImageUrl ? "HD" : "Preview"}
+                      </span>
                     </div>
                   </>
                 )}
@@ -202,8 +261,8 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                 </div>
                 {!photo.analysis && onAnalyze && (
                   <Button
-                    onClick={onAnalyze}
-                    disabled={isAnalyzing}
+                    onClick={handleAnalyze}
+                    disabled={isAnalyzing || isLoadingHdImage}
                     variant="glass"
                     size="sm"
                     className="bg-white/3 backdrop-blur-md border border-white/10 text-white/70 hover:bg-white/5 hover:text-white/90 text-xs px-2 py-1"
