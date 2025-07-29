@@ -109,7 +109,6 @@ All colors MUST be HSL.
   .glass-card {
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid var(--glass-border);
     @apply rounded-2xl p-6;
     transition: var(--transition-smooth);
     /* Stable positioning - no transforms that cause bouncing */
