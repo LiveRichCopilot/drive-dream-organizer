@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { PhotoInfoPanel } from "@/components/ui/photo-info-panel";
 import { useToast } from "@/hooks/use-toast";
 
 import { 
@@ -842,76 +843,85 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
         {viewMode === 'photos' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredPhotos.map((photo) => (
-              <Card 
-                key={photo.id}
-                className={`cursor-pointer transition-all hover:shadow-lg glass ${
-                  selectedPhotos.has(photo.id) ? 'ring-2 ring-primary' : ''
-                }`}
-                onClick={() => togglePhotoSelection(photo.id)}
-              >
-                <div className="aspect-square relative overflow-hidden rounded-t-lg">
-                  <img
-                    src={photo.thumbnailLink || photo.webViewLink}
-                    alt={photo.name}
-                    className="w-full h-full object-cover"
-                  />
-                  {selectedPhotos.has(photo.id) && (
-                    <div className="absolute top-2 right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
-                      <span className="text-white text-xs">✓</span>
-                    </div>
-                  )}
-                </div>
-                
-                <CardContent className="p-4">
-                  <h4 className="font-medium text-sm truncate mb-2">{photo.name}</h4>
-                  
-                  {photo.analysis ? (
-                    <div className="space-y-2">
-                      <Badge variant="secondary" className="text-xs">
-                        {photo.analysis.scene}
-                      </Badge>
+              <div key={photo.id} className="relative">
+                <PhotoInfoPanel 
+                  photo={photo}
+                  onAnalyze={() => analyzeIndividualPhoto(photo.id)}
+                  isAnalyzing={analyzingPhotoId === photo.id}
+                >
+                  <Card 
+                    className={`cursor-pointer transition-all hover:shadow-xl hover:scale-105 glass-card border-white/20 bg-black/20 backdrop-blur-2xl ${
+                      selectedPhotos.has(photo.id) ? 'ring-2 ring-white/50 shadow-[0_0_30px_rgba(255,255,255,0.3)]' : ''
+                    }`}
+                  >
+                    <div className="aspect-square relative overflow-hidden rounded-t-xl">
+                      <img
+                        src={photo.thumbnailLink || photo.webViewLink}
+                        alt={photo.name}
+                        className="w-full h-full object-cover transition-transform duration-300 hover:scale-110"
+                      />
                       
-                      <div className="flex flex-wrap gap-1">
-                        {photo.analysis.categories.slice(0, 2).map((category) => (
-                          <Badge key={category} variant="outline" className="text-xs">
-                            {category}
+                      {/* Status indicators overlay */}
+                      <div className="absolute top-3 left-3 flex flex-col gap-2">
+                        {photo.analysis ? (
+                          <Badge 
+                            variant="secondary" 
+                            className="bg-emerald-500/20 border-emerald-400/30 text-emerald-100 backdrop-blur-md text-xs font-medium"
+                          >
+                            <Sparkles className="w-3 h-3 mr-1" />
+                            analyzed
                           </Badge>
-                        ))}
+                        ) : (
+                          <Badge 
+                            variant="outline" 
+                            className="bg-amber-500/20 border-amber-400/30 text-amber-100 backdrop-blur-md text-xs"
+                          >
+                            unanalyzed
+                          </Badge>
+                        )}
                       </div>
 
-                      {photo.analysis.faces > 0 && (
-                        <div className="flex items-center gap-1 text-xs">
-                          <Users className="w-3 h-3" />
-                          <span>{photo.analysis.faces} people</span>
+                      {/* Selection indicator */}
+                      {selectedPhotos.has(photo.id) && (
+                        <div className="absolute top-3 right-3 w-8 h-8 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/30 shadow-[0_0_20px_rgba(255,255,255,0.5)]">
+                          <span className="text-white text-sm font-medium">✓</span>
                         </div>
                       )}
+
+                      {/* Quick info overlay on hover */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300">
+                        <div className="absolute bottom-3 left-3 right-3">
+                          <p className="text-white text-sm font-medium truncate mb-1">{photo.name}</p>
+                          {photo.analysis && (
+                            <div className="flex flex-wrap gap-1">
+                              {photo.analysis.categories.slice(0, 2).map((category) => (
+                                <Badge 
+                                  key={category} 
+                                  variant="outline" 
+                                  className="bg-white/10 border-white/20 text-white text-xs backdrop-blur-sm"
+                                >
+                                  {category}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <p className="text-xs text-muted-foreground">
-                        Not yet analyzed
-                      </p>
-                      <Button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          analyzeIndividualPhoto(photo.id);
-                        }}
-                        disabled={analyzingPhotoId === photo.id}
-                        variant="glass"
-                        size="sm"
-                        className="w-full text-xs"
-                      >
-                        {analyzingPhotoId === photo.id ? (
-                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                        ) : (
-                          <Sparkles className="h-3 w-3 mr-1" />
-                        )}
-                        AI Analyze
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                  </Card>
+                </PhotoInfoPanel>
+
+                {/* Selection toggle (separate from info panel) */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    togglePhotoSelection(photo.id);
+                  }}
+                  className="absolute bottom-3 right-3 w-8 h-8 bg-white/10 backdrop-blur-md rounded-full border border-white/20 hover:bg-white/20 transition-all duration-200 flex items-center justify-center"
+                >
+                  <Plus className="w-4 h-4 text-white/80" />
+                </button>
+              </div>
             ))}
           </div>
         )}
