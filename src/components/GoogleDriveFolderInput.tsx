@@ -80,7 +80,7 @@ const GoogleDriveFolderInput = ({ onFolderSelected }: GoogleDriveFolderInputProp
   };
 
   return (
-    <Card className="p-6 space-y-4">
+    <div className="bg-white/10 backdrop-blur-[20px] backdrop-saturate-[180%] p-6 border border-white/30 rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.1),inset_0_1px_1px_rgba(255,255,255,0.4)] space-y-4">
       <div className="flex items-center gap-2">
         <FolderOpen className="h-5 w-5 text-primary" />
         <h3 className="font-semibold">Specify Google Drive Folder</h3>
@@ -140,7 +140,7 @@ const GoogleDriveFolderInput = ({ onFolderSelected }: GoogleDriveFolderInputProp
           <li>Folder ID only: 1ABC2DEF3GHI...</li>
         </ul>
       </div>
-    </Card>
+    </div>
   );
 };
 
