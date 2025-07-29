@@ -599,7 +599,7 @@ const ODriveApp = () => {
       {viewMode === "grid" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredVideos.map((video) => (
-            <Card key={video.id} className="glass-card group cursor-pointer">
+            <Card key={video.id} className="bg-black/40 backdrop-blur-[25px] backdrop-saturate-[200%] border border-white/15 rounded-2xl shadow-lg shadow-[inset_0_2px_8px_rgba(0,0,0,0.26)] group cursor-pointer hover:bg-black/50 transition-all duration-300">
               <div className="aspect-video bg-muted rounded-xl mb-4 relative overflow-hidden">
                 {video.thumbnail && video.thumbnail !== '/api/placeholder/300/200' ? (
                   <img 
