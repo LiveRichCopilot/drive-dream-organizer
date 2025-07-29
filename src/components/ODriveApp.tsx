@@ -391,7 +391,7 @@ const ODriveApp = () => {
       >
         <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
       </div>
-      <div className="relative z-10 p-6 before:absolute before:inset-x-0 before:bottom-0 before:h-32 before:bg-gradient-to-t before:from-black before:to-transparent before:pointer-events-none before:z-10">
+      <div className="relative z-10 p-6">
       {/* Heavy grain overlay */}
       <div className="absolute inset-0 opacity-40 mix-blend-overlay pointer-events-none" 
            style={{
