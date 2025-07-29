@@ -659,7 +659,7 @@ const ODriveApp = () => {
             }
           </p>
           {!selectedFolderId && (
-            <Button variant="glow">
+            <Button variant="ghost" className="text-white/70 hover:text-white transition-colors">
               <Upload className="h-4 w-4 mr-2" />
               Upload Videos
             </Button>
