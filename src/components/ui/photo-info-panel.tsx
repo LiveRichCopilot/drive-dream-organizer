@@ -440,7 +440,7 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                         { key: 'linkedin', label: 'LinkedIn', desc: 'professional' },
                         { key: 'subs', label: 'Subs.com', desc: 'educational' },
                         { key: 'onlyfans', label: 'OnlyFans', desc: 'exclusive/teasing' },
-                        { key: 'fansly', label: 'Fansly', desc: 'AI transparency' }
+                        { key: 'fansly', label: 'Fansly', desc: 'AI' }
                       ].map((platform) => (
                         <button
                           key={platform.key}
