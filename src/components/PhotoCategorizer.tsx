@@ -529,18 +529,18 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
           content: [
             { 
               type: "text", 
-              text: "Analyze this high-resolution image and return a detailed JSON object with the following structure: {\"categories\": [\"category1\", \"category2\"], \"colors\": [\"color1\", \"color2\"], \"faces\": 0, \"landmarks\": [], \"objects\": [\"object1\", \"object2\"], \"scene\": \"indoor/outdoor/people/food/event/travel/general\", \"confidence\": 0.85, \"prompt\": \"detailed Hicksville-style prompt\"}. For the prompt field, structure it using these exact categories: SHOT COMPOSITION, CAMERA SETTINGS (for realism), LENS EFFECTS, SUBJECT DETAILS (Body Type, Ethnicity/Look, Expression), WARDROBE DETAILS, SCENE/ENVIRONMENT (Location Types, Time of Day), VISUAL STYLE, ACTION/POSE, CINEMATOGRAPHY, SPECIFIC DETAILS THAT MATTER, REALISM INDICATORS, EXAMPLE CATEGORIZATIONS, WHY THIS WORKS. Each category should be clearly labeled and contain specific details about what you see in the image." 
+              text: "Analyze this image for organizational purposes and return a JSON object with: {\"categories\": [\"category1\", \"category2\"], \"colors\": [\"color1\", \"color2\"], \"faces\": 0, \"landmarks\": [], \"objects\": [\"object1\", \"object2\"], \"scene\": \"indoor/outdoor/people/food/event/travel/general\", \"confidence\": 0.85, \"prompt\": \"descriptive text about image content\"}. Focus on basic categorization for photo organization - clothing, locations, objects, activities, time of day, etc. Keep analysis factual and descriptive." 
             },
             { 
               type: "image_url", 
               image_url: { 
                 url: `data:${imageBlob.type};base64,${base64Image}`,
-                detail: "high" // Request high detail analysis
+                detail: "low" // Use low detail to avoid policy issues
               } 
             }
           ]
         }],
-        max_tokens: 800 // Increased for detailed analysis
+        max_tokens: 400 // Reduced for simpler responses
       };
     
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -574,18 +574,36 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
       
       analysis = JSON.parse(cleanText);
     } catch (parseError) {
-      console.error('Failed to parse analysis:', analysisText);
-      // Fallback analysis
-      analysis = {
-        categories: ['unanalyzed'],
-        colors: ['unknown'],
-        faces: 0,
-        landmarks: [],
-        objects: ['unknown'],
-        scene: 'general',
-        confidence: 0.5,
-        prompt: 'Failed to analyze image'
-      };
+      console.log('OpenAI response was not JSON:', analysisText);
+      
+      // Check if it's a content policy rejection
+      if (analysisText.toLowerCase().includes("i'm sorry") || 
+          analysisText.toLowerCase().includes("i can't assist") ||
+          analysisText.toLowerCase().includes("unable to analyze")) {
+        console.log('Content policy rejection detected, creating basic analysis');
+        analysis = {
+          categories: ['content-filtered'],
+          colors: ['unknown'],
+          faces: 0,
+          landmarks: [],
+          objects: ['image'],
+          scene: 'general',
+          confidence: 0.3,
+          prompt: 'Image analysis restricted due to content policy'
+        };
+      } else {
+        // Other parsing errors
+        analysis = {
+          categories: ['unanalyzed'],
+          colors: ['unknown'],
+          faces: 0,
+          landmarks: [],
+          objects: ['unknown'],
+          scene: 'general',
+          confidence: 0.5,
+          prompt: 'Failed to analyze image'
+        };
+      }
     }
 
     return {
