@@ -127,12 +127,16 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                 ) : (
                   <>
                     <img
-                      src={photo.webContentLink || photo.webViewLink} // Full resolution for analysis
+                      src={photo.thumbnailLink || `https://www.googleapis.com/drive/v3/files/${photo.id}?alt=media&access_token=${localStorage.getItem('google_access_token')}`} 
                       alt={photo.name}
                       className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
                       loading="eager" // Load immediately for quality
                       fetchPriority="high" // Prioritize this image
                       onLoad={() => setFullResLoaded(true)}
+                      onError={(e) => {
+                        // Fallback to basic download URL if thumbnail fails
+                        e.currentTarget.src = `https://www.googleapis.com/drive/v3/files/${photo.id}?alt=media&access_token=${localStorage.getItem('google_access_token')}`;
+                      }}
                     />
                     {/* HD Quality Indicator */}
                     <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-sm px-2 py-1 rounded-full">

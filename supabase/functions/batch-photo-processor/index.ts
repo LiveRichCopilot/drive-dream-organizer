@@ -73,7 +73,18 @@ async function analyzePhoto(photo: any, apiKey: string): Promise<PhotoAnalysis> 
         content: [
           { 
             type: "text", 
-            text: "Analyze this high-resolution image and return a detailed JSON object with the following structure: {\"categories\": [\"category1\", \"category2\"], \"colors\": [\"color1\", \"color2\"], \"faces\": 0, \"landmarks\": [], \"objects\": [\"object1\", \"object2\"], \"scene\": \"indoor/outdoor/people/food/event/travel/general\", \"confidence\": 0.85, \"prompt\": \"detailed description for AI art generation\"}. For clothing photos, focus on style details like 'Black Outfits', 'Swimwear/Bikini', 'Casual/Street'. Provide 2-5 specific categories, 1-3 dominant colors, count of faces, any landmarks, 2-5 main objects, scene type, confidence score, and a detailed prompt suitable for AI image generation that captures the essence, style, and details of this image." 
+            text: `Analyze this image using the 'Professional Photo Organization' system for comprehensive categorization. Return a JSON object with: {"categories": ["primary_category", "subcategory"], "colors": ["dominant_color1", "color2"], "faces": 0, "landmarks": [], "objects": ["key_object1", "object2"], "scene": "indoor/outdoor/people/food/event/travel/general", "confidence": 0.85, "prompt": "detailed_descriptive_prompt"}.
+
+CATEGORIES should be VERY SPECIFIC:
+- Beach: "Pink Bikini Beach", "Sunset Water Shot", "Beach Volleyball Action"
+- Fashion: "Black Evening Dress", "Casual Denim Look", "Red Lipstick Glam"
+- Travel: "Paris Eiffel Tower", "Miami Beach Scene", "Mountain Hiking Adventure"
+- Food: "Italian Pasta Dinner", "Fresh Fruit Smoothie", "BBQ Grill Party"
+- Events: "Birthday Cake Celebration", "Wedding Dance Floor", "Graduation Cap Toss"
+
+OBJECTS should include brand names, specific items, clothing details, expressions, poses, lighting type.
+
+PROMPT field: Create a comprehensive description including: setting (indoor/outdoor specifics), people (count, age groups, activities, clothing styles), objects (furniture, vehicles, technology, nature elements), time indicators (lighting, shadows, clothing seasonality), mood/atmosphere, composition style, and any notable behavioral patterns or social dynamics. Focus on visual storytelling elements that would help recreate or categorize this scene type.`
           },
           { 
             type: "image_url", 

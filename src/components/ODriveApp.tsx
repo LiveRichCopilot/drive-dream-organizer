@@ -69,6 +69,7 @@ const ODriveApp = () => {
     connect,
     loadVideos,
     downloadVideo,
+    downloadHighRes,
     disconnect,
   } = useDirectGoogleDrive(selectedFolderId);
   
@@ -576,7 +577,16 @@ const ODriveApp = () => {
               }}
             >
               <Camera className="h-4 w-4 mr-2" />
-              Organize More Photos
+              AI Photo Organizer
+            </Button>
+            <Button 
+              variant="glass" 
+              size="sm" 
+              className="bg-white/2 backdrop-blur-[24px] backdrop-saturate-[200%] border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] rounded-xl hover:bg-white/4"
+              onClick={() => setShowAnalytics(!showAnalytics)}
+            >
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Analytics
             </Button>
           </div>
         </div>
@@ -616,16 +626,20 @@ const ODriveApp = () => {
                     <Video className="h-12 w-12 text-primary opacity-70" />
                   </div>
                 )}
-                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="secondary" onClick={() => window.open(video.webViewLink, '_blank')}>
-                      <Play className="h-4 w-4" />
-                    </Button>
-                    <Button size="sm" variant="secondary" onClick={() => downloadVideo(video.id, video.name)}>
-                      <Download className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
+                 <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                   <div className="flex gap-2">
+                     <Button size="sm" variant="secondary" onClick={() => window.open(video.webViewLink, '_blank')}>
+                       <Play className="h-4 w-4" />
+                     </Button>
+                     <Button size="sm" variant="secondary" onClick={() => downloadVideo(video.id, video.name)}>
+                       <Download className="h-4 w-4" />
+                     </Button>
+                     <Button size="sm" variant="glass" onClick={() => downloadHighRes(video.id, video.name)} title="High Resolution Download">
+                       <Download className="h-3 w-3" />
+                       <span className="text-xs ml-1">HD</span>
+                     </Button>
+                   </div>
+                 </div>
                 <Badge className="absolute top-2 right-2 bg-background/80">
                   {video.format}
                 </Badge>
@@ -676,14 +690,18 @@ const ODriveApp = () => {
                     </Badge>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button variant="glass" size="sm" onClick={() => window.open(video.webViewLink, '_blank')}>
-                    <Play className="h-4 w-4" />
-                  </Button>
-                  <Button variant="secondary" size="sm" onClick={() => downloadVideo(video.id, video.name)}>
-                    <Download className="h-4 w-4" />
-                  </Button>
-                </div>
+                 <div className="flex gap-2">
+                   <Button variant="glass" size="sm" onClick={() => window.open(video.webViewLink, '_blank')}>
+                     <Play className="h-4 w-4" />
+                   </Button>
+                   <Button variant="secondary" size="sm" onClick={() => downloadVideo(video.id, video.name)}>
+                     <Download className="h-4 w-4" />
+                   </Button>
+                   <Button variant="outline" size="sm" onClick={() => downloadHighRes(video.id, video.name)} title="High Resolution Download">
+                     <Download className="h-3 w-3 mr-1" />
+                     HD
+                   </Button>
+                 </div>
               </div>
             </Card>
           ))}

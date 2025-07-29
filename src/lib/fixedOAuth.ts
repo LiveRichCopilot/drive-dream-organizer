@@ -101,7 +101,7 @@ export class FixedGoogleOAuth {
 
     // Use popup instead of redirect for better UX
     return new Promise((resolve, reject) => {
-      const redirectUri = `${window.location.origin}/auth/callback`;
+      const redirectUri = window.location.origin;
       
       // Generate state parameter for security
       const state = Math.random().toString(36).substring(2, 15);
@@ -121,11 +121,10 @@ export class FixedGoogleOAuth {
       const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' +
         `client_id=${this.clientId}&` +
         `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-        `response_type=code&` +
+        `response_type=token&` +
         `scope=${encodeURIComponent(scopes)}&` +
         `state=${state}&` +
-        `access_type=offline&` +
-        `prompt=select_account consent`;
+        `include_granted_scopes=true`;
       
       console.log('🔗 Opening OAuth popup...');
       
@@ -197,7 +196,7 @@ export class FixedGoogleOAuth {
         },
         body: JSON.stringify({
           code,
-          redirect_uri: `${window.location.origin}/auth/callback`
+          redirect_uri: window.location.origin
         })
       });
 
@@ -355,7 +354,7 @@ export class FixedGoogleOAuth {
       sizeFormatted: this.formatFileSize(parseInt(file.size) || 0),
       createdTime: file.createdTime,
       modifiedTime: file.modifiedTime,
-      thumbnailLink: file.thumbnailLink,
+      thumbnailLink: file.thumbnailLink ? `${file.thumbnailLink}&access_token=${this.accessToken}` : null,
       webViewLink: file.webViewLink,
       mimeType: file.mimeType,
       fileType: file.mimeType.startsWith('video/') ? 'video' : 
@@ -389,18 +388,24 @@ export class FixedGoogleOAuth {
   }
 
   async downloadFile(fileId: string): Promise<string> {
-    // For Google Drive, we can use the direct download URL with authentication
-    const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
-    
-    // Verify we can access the file first
-    const response = await this.makeAuthenticatedRequest(url, { method: 'HEAD' });
-    
-    if (!response.ok) {
-      throw new Error(`Cannot access file for download: ${response.status} ${response.statusText}`);
-    }
+    // Return authenticated download URL with access token
+    return `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&access_token=${this.accessToken}`;
+  }
 
-    // Return the authenticated download URL
-    return url;
+  async getImageUrl(fileId: string): Promise<string> {
+    // For images, use webContentLink with proper authentication
+    try {
+      const metadata = await this.getFileMetadata(fileId);
+      if (metadata.thumbnailLink) {
+        // Add access token to thumbnail for authenticated access
+        return `${metadata.thumbnailLink}&access_token=${this.accessToken}`;
+      }
+      // Fallback to download URL
+      return `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&access_token=${this.accessToken}`;
+    } catch (error) {
+      console.error('Failed to get image URL:', error);
+      return `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&access_token=${this.accessToken}`;
+    }
   }
 
   async createFolder(name: string, parentId?: string): Promise<string> {

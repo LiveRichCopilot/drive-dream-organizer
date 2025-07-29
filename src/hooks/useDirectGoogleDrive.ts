@@ -131,18 +131,52 @@ export const useDirectGoogleDrive = (folderId?: string) => {
     try {
       const downloadUrl = await fixedGoogleOAuth.downloadFile(fileId);
       
-      // Open download in new tab
-      window.open(downloadUrl, '_blank');
+      // Create a temporary link to trigger download
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = fileName;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       
       toast({
         title: "Download Started",
-        description: `Downloading ${fileName}`,
+        description: `Downloading ${fileName} in high quality`,
       });
     } catch (error) {
       console.error('Download failed:', error);
       toast({
         title: "Download Failed",
-        description: "Failed to download file",
+        description: "Failed to download file. Please check your connection and try again.",
+        variant: "destructive",
+      });
+    }
+  }, []);
+
+  const downloadHighRes = useCallback(async (fileId: string, fileName: string) => {
+    try {
+      // Use the authenticated high-res download URL
+      const downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&access_token=${localStorage.getItem('google_access_token')}`;
+      
+      // Create a temporary link to trigger download
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = fileName;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({
+        title: "High-Res Download Started",
+        description: `Downloading ${fileName} in original quality`,
+      });
+    } catch (error) {
+      console.error('High-res download failed:', error);
+      toast({
+        title: "Download Failed",
+        description: "Failed to download high-resolution file",
         variant: "destructive",
       });
     }
@@ -167,6 +201,7 @@ export const useDirectGoogleDrive = (folderId?: string) => {
     connect,
     loadVideos,
     downloadVideo,
+    downloadHighRes,
     disconnect,
   };
 };
