@@ -274,6 +274,13 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
 
   // Folder scan with batch processing and Gmail notifications
   const scanAndAnalyzeFolder = async () => {
+    console.log('scanAndAnalyzeFolder clicked - Debug info:', {
+      photosLength: photos.length,
+      isAnalyzing,
+      analysisStateIsRunning: analysisStateRef.current?.isRunning,
+      unanalyzedPhotosCount: photos.filter(photo => !photo.analysis).length
+    });
+    
     const unanalyzedPhotos = photos.filter(photo => !photo.analysis);
     
     if (unanalyzedPhotos.length === 0) {
