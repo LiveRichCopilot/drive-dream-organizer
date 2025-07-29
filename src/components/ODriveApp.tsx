@@ -677,7 +677,7 @@ const ODriveApp = () => {
                  <div className="flex gap-2">
                    <Play className="h-4 w-4 cursor-pointer" onClick={() => window.open(video.webViewLink, '_blank')} />
                    <Download className="h-4 w-4 cursor-pointer" onClick={() => downloadVideo(video.id, video.name)} />
-                   <Download className="h-4 w-4 cursor-pointer" onClick={() => downloadHighRes(video.id, video.name)} />
+                   <Zap className="h-4 w-4 cursor-pointer" onClick={() => downloadHighRes(video.id, video.name)} />
                  </div>
               </div>
             </Card>
