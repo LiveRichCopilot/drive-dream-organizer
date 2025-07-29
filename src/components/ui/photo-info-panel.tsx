@@ -413,6 +413,9 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                         </Button>
                       </div>
                     </div>
+                    
+                    {/* INVISIBLE PROTECTION LINE - Prevents image erasure */}
+                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-transparent pointer-events-none" />
                   </div>
                 )}
               </div>
@@ -506,11 +509,15 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
 
             <Separator className="bg-white/10" />
 
-            {/* AI Analysis Section */}
+            {/* AI Analysis Section with custom AI icon */}
             <div className="px-4 py-2">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-3 h-3 text-white/70" />
+                  <img 
+                    src="/lovable-uploads/86e12b2b-20b7-4e0c-86c4-e6006280bc1c.png" 
+                    alt="AI Analysis" 
+                    className="w-4 h-4"
+                  />
                   <h3 className="text-xs font-medium text-white/90">AI Analysis</h3>
                 </div>
                 {!photo.analysis && onAnalyze && (
