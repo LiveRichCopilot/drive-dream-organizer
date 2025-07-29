@@ -59,25 +59,10 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
-      <DialogContent className="max-w-md w-[90vw] max-h-[85vh] p-0 bg-white/10 backdrop-blur-[20px] backdrop-saturate-[180%] border border-white/30 shadow-lg rounded-2xl z-[100] overflow-hidden resize">
-        <div className="relative h-full flex flex-col">
-          {/* Resize Handles - Hidden until hover */}
-          <div className="absolute inset-0 pointer-events-none z-10 opacity-0 hover:opacity-100 transition-opacity">
-            {/* Corner resize handles */}
-            <div className="absolute top-0 left-0 w-3 h-3 cursor-nw-resize pointer-events-auto bg-white/30 rounded-tl-2xl"></div>
-            <div className="absolute top-0 right-0 w-3 h-3 cursor-ne-resize pointer-events-auto bg-white/30 rounded-tr-2xl"></div>
-            <div className="absolute bottom-0 left-0 w-3 h-3 cursor-sw-resize pointer-events-auto bg-white/30 rounded-bl-2xl"></div>
-            <div className="absolute bottom-0 right-0 w-3 h-3 cursor-se-resize pointer-events-auto bg-white/30 rounded-br-2xl"></div>
-            
-            {/* Edge resize handles */}
-            <div className="absolute top-0 left-3 right-3 h-2 cursor-n-resize pointer-events-auto"></div>
-            <div className="absolute bottom-0 left-3 right-3 h-2 cursor-s-resize pointer-events-auto"></div>
-            <div className="absolute left-0 top-3 bottom-3 w-2 cursor-w-resize pointer-events-auto"></div>
-            <div className="absolute right-0 top-3 bottom-3 w-2 cursor-e-resize pointer-events-auto"></div>
-          </div>
-
+      <DialogContent className="max-w-md w-[95vw] max-h-[90vh] p-0 bg-white/10 backdrop-blur-[20px] backdrop-saturate-[180%] border border-white/30 shadow-lg rounded-2xl z-[100] overflow-hidden">
+        <div className="relative h-full flex flex-col max-h-[90vh]">
           {/* Draggable Header */}
-          <div className="flex items-center justify-between p-4 border-b border-white/10 cursor-move select-none relative z-20 flex-shrink-0">
+          <div className="flex items-center justify-between p-3 border-b border-white/10 cursor-move select-none relative z-20 flex-shrink-0">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-lg bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
                 <FileImage className="w-3 h-3 text-white/90" />
@@ -95,11 +80,12 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
           <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-white/5 scrollbar-thumb-white/20 hover:scrollbar-thumb-white/30">
             {/* Preview */}
             <div className="p-3">
-              <div className="aspect-[9/16] max-w-[200px] mx-auto bg-black/20 rounded-xl overflow-hidden border border-white/10 mb-3">
+              <div className="aspect-[3/4] max-w-[180px] mx-auto bg-black/20 rounded-xl overflow-hidden border border-white/10 mb-3">
                 <img
                   src={photo.thumbnailLink || photo.webViewLink}
                   alt={photo.name}
                   className="w-full h-full object-cover"
+                  loading="lazy"
                 />
               </div>
             </div>
@@ -173,16 +159,15 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                   </div>
 
                   {/* Categories */}
-                  <div className="space-y-2">
-                    <span className="text-sm text-white/60">Categories:</span>
-                    <div className="flex flex-wrap gap-2">
+                  <div className="space-y-1">
+                    <span className="text-xs text-white/60">Categories:</span>
+                    <div className="flex flex-wrap gap-1">
                       {photo.analysis.categories.map((category, index) => (
                         <Badge 
                           key={index} 
                           variant="outline" 
-                          className="bg-white/5 border-white/20 text-white/80 text-xs"
+                          className="bg-white/5 border-white/20 text-white/80 text-[10px] px-1.5 py-0.5 h-5"
                         >
-                          <Tag className="w-3 h-3 mr-1" />
                           {category}
                         </Badge>
                       ))}
@@ -191,16 +176,15 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
 
                   {/* Objects */}
                   {photo.analysis.objects.length > 0 && (
-                    <div className="space-y-2">
-                      <span className="text-sm text-white/60">Objects detected:</span>
-                      <div className="flex flex-wrap gap-2">
+                    <div className="space-y-1">
+                      <span className="text-xs text-white/60">Objects:</span>
+                      <div className="flex flex-wrap gap-1">
                         {photo.analysis.objects.map((object, index) => (
                           <Badge 
                             key={index} 
                             variant="outline" 
-                            className="bg-white/5 border-white/20 text-white/80 text-xs"
+                            className="bg-white/5 border-white/20 text-white/80 text-[10px] px-1.5 py-0.5 h-5"
                           >
-                            <Eye className="w-3 h-3 mr-1" />
                             {object}
                           </Badge>
                         ))}
@@ -210,16 +194,15 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
 
                   {/* Colors */}
                   {photo.analysis.colors.length > 0 && (
-                    <div className="space-y-2">
-                      <span className="text-sm text-white/60">Dominant colors:</span>
-                      <div className="flex flex-wrap gap-2">
+                    <div className="space-y-1">
+                      <span className="text-xs text-white/60">Colors:</span>
+                      <div className="flex flex-wrap gap-1">
                         {photo.analysis.colors.map((color, index) => (
                           <Badge 
                             key={index} 
                             variant="outline" 
-                            className="bg-white/5 border-white/20 text-white/80 text-xs"
+                            className="bg-white/5 border-white/20 text-white/80 text-[10px] px-1.5 py-0.5 h-5"
                           >
-                            <Palette className="w-3 h-3 mr-1" />
                             {color}
                           </Badge>
                         ))}
