@@ -957,22 +957,6 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
             )}
             Organize by Date
           </div>
-
-          <div
-            onClick={organizePhotosByCategory}
-            className={`flex items-center cursor-pointer ${
-              isOrganizing || categories.length === 0
-                ? 'text-white/40 cursor-not-allowed' 
-                : 'text-white/80 hover:text-white'
-            }`}
-          >
-            {isOrganizing ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <FolderPlus className="h-4 w-4 mr-2" />
-            )}
-            Organize by Category
-          </div>
         </div>
 
         {/* Controls */}
@@ -1028,9 +1012,23 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
             )}
             Refresh
           </div>
-        </div>
 
-        {/* Search */}
+          <div
+            onClick={organizePhotosByCategory}
+            className={`flex items-center cursor-pointer ${
+              isOrganizing || categories.length === 0
+                ? 'text-white/40 cursor-not-allowed' 
+                : 'text-white/80 hover:text-white'
+            }`}
+          >
+            {isOrganizing ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <FolderPlus className="h-4 w-4 mr-2" />
+            )}
+            Organize by Category
+          </div>
+        </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground opacity-60" />
           <Input
