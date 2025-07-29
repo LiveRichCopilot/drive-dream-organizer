@@ -715,68 +715,6 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
 
             <Separator className="bg-white/10" />
 
-            {/* Caption Maker Section */}
-            <div className="px-4 py-2">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <Tag className="w-3 h-3 text-white/70" />
-                  <h3 className="text-xs font-medium text-white/90">Caption Maker</h3>
-                </div>
-                <Button
-                  onClick={generateCaption}
-                  disabled={isGeneratingCaption}
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0 bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 hover:text-teal-200"
-                  title="Generate Caption"
-                >
-                  {isGeneratingCaption ? (
-                    <div className="w-3 h-3 border-2 border-teal-300/30 border-t-teal-300 rounded-full animate-spin" />
-                  ) : (
-                    <Sparkles className="w-3 h-3" />
-                  )}
-                </Button>
-              </div>
-
-              {/* Caption Categories - Tell me your categories! */}
-              <div className="ml-5 mb-3">
-                <div className="flex flex-wrap gap-2">
-                  <div className="cursor-pointer hover:text-teal-300" title="Add your categories here">
-                    <Plus className="w-4 h-4 text-white/50" />
-                  </div>
-                  <span className="text-xs text-white/60">Tell me your specific categories</span>
-                </div>
-              </div>
-
-              {/* Generated Caption Display */}
-              {generatedCaption && (
-                <div className="ml-5 space-y-2">
-                  <div className="p-3 bg-white/5 rounded-lg border border-white/10">
-                    <p className="text-xs text-white/90 leading-relaxed">
-                      {generatedCaption}
-                    </p>
-                  </div>
-                  <Button
-                    onClick={copyCaption}
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 w-6 p-0 bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 hover:text-pink-200"
-                    title="Copy Caption"
-                  >
-                    📋
-                  </Button>
-                </div>
-              )}
-
-              {!generatedCaption && !isGeneratingCaption && (
-                <div className="ml-5 text-xs text-white/60">
-                  Select a category and click the sparkle icon to generate
-                </div>
-              )}
-            </div>
-
-            <Separator className="bg-white/10" />
-
             {/* Actions */}
             <div className="px-6 py-4">
               <div className="flex items-center gap-2 mb-4">
