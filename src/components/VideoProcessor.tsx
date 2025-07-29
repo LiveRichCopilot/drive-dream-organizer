@@ -888,7 +888,7 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
         <CardTitle className="flex items-center gap-2">
           <Download className="h-5 w-5" />
           Video Processing Pipeline
-          <span className="text-green-500 font-medium">
+          <span className="text-pink-400 font-medium text-sm">
             {videos.length} videos
           </span>
         </CardTitle>
