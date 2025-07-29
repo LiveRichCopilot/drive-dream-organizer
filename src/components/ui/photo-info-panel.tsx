@@ -78,15 +78,24 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gradient-to-b scrollbar-thumb-from-teal-200/30 scrollbar-thumb-to-blue-200/30 hover:scrollbar-thumb-from-teal-200/40 hover:scrollbar-thumb-to-blue-200/40 scrollbar-w-1">
-            {/* Preview */}
-            <div className="p-3">
-              <div className="aspect-[3/4] max-w-[180px] mx-auto bg-black/20 rounded-xl overflow-hidden border border-white/10 mb-3">
+            {/* HD Preview - The Star of the Show */}
+            <div className="p-4">
+              <div className="relative aspect-[4/5] w-full max-w-[280px] mx-auto bg-black/20 rounded-xl overflow-hidden border border-white/10 mb-4 group cursor-pointer">
                 <img
-                  src={photo.thumbnailLink || photo.webViewLink}
+                  src={photo.webViewLink} // Full quality, not thumbnail
                   alt={photo.name}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  loading="eager" // Load immediately for quality
+                  fetchPriority="high" // Prioritize this image
                 />
+                {/* HD Quality Indicator */}
+                <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-sm px-2 py-1 rounded-full">
+                  <span className="text-xs text-white/90 font-medium">HD</span>
+                </div>
+                {/* Download overlay on hover */}
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                  <Download className="w-6 h-6 text-white" />
+                </div>
               </div>
             </div>
 
