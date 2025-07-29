@@ -631,7 +631,7 @@ const ODriveApp = () => {
                 </Badge>
               </div>
               <div className="space-y-2">
-                <h3 className="font-semibold truncate">{video.name}</h3>
+                <h3 className="font-semibold text-sm leading-tight break-words">{video.name}</h3>
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
