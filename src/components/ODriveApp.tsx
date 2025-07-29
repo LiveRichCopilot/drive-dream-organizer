@@ -612,7 +612,7 @@ const ODriveApp = () => {
                     <Video className="h-12 w-12 text-primary opacity-70" />
                   </div>
                 )}
-                 <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                 <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-xl">
                    <div className="flex gap-2">
                      <Button size="sm" variant="secondary" onClick={() => window.open(video.webViewLink, '_blank')}>
                        <Play className="h-4 w-4" />
