@@ -67,22 +67,13 @@ serve(async (req) => {
           }),
         });
 
-        // Run the assistant
+        // Run the assistant (using pre-configured instructions and functions)
         const runResponse = await fetch(`https://api.openai.com/v1/threads/${currentThreadId}/runs`, {
           method: 'POST',
           headers,
           body: JSON.stringify({
             assistant_id: ASSISTANT_ID,
-            instructions: `You are a helpful assistant for ODrive, a photo and video organization app. 
-            Help users with:
-            - Photo organization by categories (styles, colors, objects)
-            - AI prompt extraction for Midjourney/Stable Diffusion
-            - Batch processing workflows
-            - Date-based organization
-            - Technical support
-            - Best practices for media management
-            
-            Be conversational, helpful, and specific to photo/video organization tasks.`,
+            // No custom instructions - use the assistant's pre-configured instructions and functions
             metadata: {
               user_session: new Date().toISOString()
             }
