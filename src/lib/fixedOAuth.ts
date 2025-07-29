@@ -145,16 +145,26 @@ export class FixedGoogleOAuth {
         if (event.origin !== window.location.origin) return;
         
         if (event.data.type === 'OAUTH_SUCCESS') {
+          clearTimeout(timeout);
           window.removeEventListener('message', messageHandler);
-          popup.close();
+          try {
+            popup.close();
+          } catch (e) {
+            // Ignore Cross-Origin-Opener-Policy errors
+          }
           
           // Store the authorization code and exchange it for tokens
           this.exchangeCodeForTokens(event.data.code)
             .then(() => resolve())
             .catch(reject);
         } else if (event.data.type === 'OAUTH_ERROR') {
+          clearTimeout(timeout);
           window.removeEventListener('message', messageHandler);
-          popup.close();
+          try {
+            popup.close();
+          } catch (e) {
+            // Ignore Cross-Origin-Opener-Policy errors
+          }
           reject(new Error(event.data.error || 'OAuth failed'));
         }
       };
@@ -173,16 +183,6 @@ export class FixedGoogleOAuth {
         }
         reject(new Error('Authentication was cancelled'));
       }, 300000); // 5 minute timeout
-
-      // Clean up timeout on successful message
-      const originalMessageHandler = messageHandler;
-      const wrappedMessageHandler = (event: MessageEvent) => {
-        clearTimeout(timeout);
-        originalMessageHandler(event);
-      };
-      
-      window.removeEventListener('message', messageHandler);
-      window.addEventListener('message', wrappedMessageHandler);
     });
   }
 

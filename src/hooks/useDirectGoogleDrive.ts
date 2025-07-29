@@ -39,15 +39,23 @@ export const useDirectGoogleDrive = (folderId?: string) => {
       
       clearInterval(progressInterval);
       setProgress(100);
-      setIsConnected(true);
       
-      toast({
-        title: "Connected!",
-        description: "Successfully connected to Google Drive",
-      });
+      // Force immediate auth status check after successful authentication
+      const authenticated = fixedGoogleOAuth.isAuthenticated();
+      console.log('Auth status after authentication:', authenticated);
+      setIsConnected(authenticated);
+      
+      if (authenticated) {
+        toast({
+          title: "Connected!",
+          description: "Successfully connected to Google Drive",
+        });
 
-      // Load videos after connection
-      await loadVideos();
+        // Load videos after connection
+        await loadVideos();
+      } else {
+        throw new Error('Authentication failed - no valid tokens');
+      }
     } catch (error) {
       console.error('Connection failed:', error);
       
