@@ -530,54 +530,44 @@ const ODriveApp = () => {
           </div>
           
           <div className="flex items-center gap-2">
-            <Button
-              variant={viewMode === "grid" ? "glass" : "ghost"}
-              size="sm"
+            <div 
+              className={`flex items-center gap-2 px-3 py-2 cursor-pointer rounded-lg transition-colors ${viewMode === "grid" ? "text-white/90" : "text-white/60 hover:text-white/80"}`}
               onClick={() => setViewMode("grid")}
-              title="Grid View"
-              className={viewMode === "grid" ? "bg-white/3 backdrop-blur-[24px] backdrop-saturate-[200%] border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)] rounded-full w-12 h-12 p-0" : "bg-white/2 backdrop-blur-[24px] backdrop-saturate-[200%] border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] rounded-full w-12 h-12 p-0 hover:bg-white/4"}
             >
               <Grid3X3 className="h-5 w-5" />
-            </Button>
-            <Button
-              variant={viewMode === "list" ? "glass" : "ghost"}
-              size="sm"
+              <span className="text-sm">Grid</span>
+            </div>
+            <div 
+              className={`flex items-center gap-2 px-3 py-2 cursor-pointer rounded-lg transition-colors ${viewMode === "list" ? "text-white/90" : "text-white/60 hover:text-white/80"}`}
               onClick={() => setViewMode("list")}
-              title="List View"
-              className={viewMode === "list" ? "bg-white/3 backdrop-blur-[24px] backdrop-saturate-[200%] border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)] rounded-full w-12 h-12 p-0" : "bg-white/2 backdrop-blur-[24px] backdrop-saturate-[200%] border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] rounded-full w-12 h-12 p-0 hover:bg-white/4"}
             >
               <List className="h-5 w-5" />
-            </Button>
-            <Button 
-              variant="glass" 
-              size="sm" 
-              className="bg-white/2 backdrop-blur-[24px] backdrop-saturate-[200%] border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] rounded-xl hover:bg-white/4 w-12 h-12 p-0"
+              <span className="text-sm">List</span>
+            </div>
+            <div 
+              className="flex items-center gap-2 px-3 py-2 cursor-pointer rounded-lg text-white/70 hover:text-white/90 transition-colors"
               onClick={() => setShowProcessor(!showProcessor)}
-              title="Organize Drive"
             >
-              <Cog className="h-6 w-6" />
-            </Button>
-            <Button 
-              variant="glass" 
-              size="sm" 
-              className="bg-white/2 backdrop-blur-[24px] backdrop-saturate-[200%] border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] rounded-xl hover:bg-white/4 w-12 h-12 p-0"
+              <Cog className="h-5 w-5" />
+              <span className="text-sm">Organize Drive</span>
+            </div>
+            <div 
+              className="flex items-center gap-2 px-3 py-2 cursor-pointer rounded-lg text-white/70 hover:text-white/90 transition-colors"
               onClick={() => {
                 console.log('Organize More Photos button clicked! Current state:', showPhotoOrganizer);
                 setShowPhotoOrganizer(!showPhotoOrganizer);
               }}
-              title="AI Photo Organizer"
             >
-              <Camera className="h-6 w-6" />
-            </Button>
-            <Button 
-              variant="glass" 
-              size="sm" 
-              className="bg-white/2 backdrop-blur-[24px] backdrop-saturate-[200%] border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] rounded-xl hover:bg-white/4 w-12 h-12 p-0"
+              <Camera className="h-5 w-5" />
+              <span className="text-sm">AI Photo Organizer</span>
+            </div>
+            <div 
+              className="flex items-center gap-2 px-3 py-2 cursor-pointer rounded-lg text-white/70 hover:text-white/90 transition-colors"
               onClick={() => setShowAnalytics(!showAnalytics)}
-              title="Analytics"
             >
-              <BarChart3 className="h-6 w-6" />
-            </Button>
+              <BarChart3 className="h-5 w-5" />
+              <span className="text-sm">Analytics</span>
+            </div>
           </div>
         </div>
       </div>
