@@ -13,36 +13,36 @@ All colors MUST be HSL.
     --foreground: 0 0% 100%;
 
     /* Glass Cards */
-    --card: 240 12% 8%;
+    --card: 0 0% 8%;
     --card-foreground: 0 0% 100%;
 
     /* Popover */
-    --popover: 240 15% 10%;
+    --popover: 0 0% 10%;
     --popover-foreground: 0 0% 100%;
 
     /* Turquoise Primary */
     --primary: 174 100% 50%;
-    --primary-foreground: 240 12% 6%;
+    --primary-foreground: 0 0% 6%;
 
     /* Green Secondary */
     --secondary: 150 100% 50%;
-    --secondary-foreground: 240 12% 6%;
+    --secondary-foreground: 0 0% 6%;
 
     /* Muted Glass */
-    --muted: 240 12% 12%;
+    --muted: 0 0% 12%;
     --muted-foreground: 180 50% 70%;
 
     /* Turquoise Blue Accent */
     --accent: 188 100% 50%;
-    --accent-foreground: 240 12% 6%;
+    --accent-foreground: 0 0% 6%;
 
     /* Pink Destructive */
     --destructive: 350 100% 70%;
-    --destructive-foreground: 240 12% 6%;
+    --destructive-foreground: 0 0% 6%;
 
     /* Glass Borders */
-    --border: 240 20% 20%;
-    --input: 240 20% 15%;
+    --border: 0 0% 20%;
+    --input: 0 0% 15%;
     --ring: 174 100% 50%;
 
     --radius: 1rem;
@@ -51,7 +51,7 @@ All colors MUST be HSL.
     --gradient-primary: linear-gradient(135deg, hsl(174 100% 50%), hsl(188 100% 50%));
     --gradient-secondary: linear-gradient(135deg, hsl(150 100% 50%), hsl(174 100% 50%));
     --gradient-pink: linear-gradient(135deg, hsl(320 100% 70%), hsl(350 100% 70%));
-    --gradient-glass: linear-gradient(135deg, hsl(240 20% 20% / 0.3), hsl(240 20% 30% / 0.1));
+    --gradient-glass: linear-gradient(135deg, hsl(0 0% 20% / 0.3), hsl(0 0% 30% / 0.1));
 
     /* Apple Glass Effects - Dark Gray/Black Glass */
     --glass-bg: hsl(0 0% 8% / 0.4);
@@ -63,17 +63,17 @@ All colors MUST be HSL.
     --transition-bounce: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
     /* Clean Glass Shadows */
-    --shadow-subtle: 0 4px 16px hsl(240 100% 5% / 0.2);
-    --shadow-medium: 0 8px 24px hsl(240 100% 5% / 0.3);
-    --shadow-large: 0 16px 32px hsl(240 100% 5% / 0.4);
+    --shadow-subtle: 0 4px 16px hsl(0 0% 0% / 0.2);
+    --shadow-medium: 0 8px 24px hsl(0 0% 0% / 0.3);
+    --shadow-large: 0 16px 32px hsl(0 0% 0% / 0.4);
     
-    --sidebar-background: 240 12% 8%;
+    --sidebar-background: 0 0% 8%;
     --sidebar-foreground: 180 100% 90%;
     --sidebar-primary: 174 100% 50%;
-    --sidebar-primary-foreground: 240 12% 6%;
-    --sidebar-accent: 240 15% 12%;
+    --sidebar-primary-foreground: 0 0% 6%;
+    --sidebar-accent: 0 0% 12%;
     --sidebar-accent-foreground: 180 100% 95%;
-    --sidebar-border: 240 20% 20%;
+    --sidebar-border: 0 0% 20%;
     --sidebar-ring: 174 100% 50%;
   }
 
@@ -89,7 +89,7 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground overflow-x-hidden;
-    background: radial-gradient(ellipse at top, hsl(240 20% 10%), hsl(240 12% 6%));
+    background: radial-gradient(ellipse at top, hsl(0 0% 10%), hsl(0 0% 6%));
     min-height: 100vh;
   }
 
@@ -154,7 +154,7 @@ All colors MUST be HSL.
   }
 
   ::-webkit-scrollbar-track {
-    background: hsl(240 12% 8%);
+    background: hsl(0 0% 8%);
   }
 
   ::-webkit-scrollbar-thumb {
