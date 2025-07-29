@@ -18,7 +18,8 @@ import {
   ExternalLink,
   Image as ImageIcon,
   Sparkles,
-  X
+  X,
+  Loader
 } from "lucide-react";
 
 interface PhotoAnalysis {
@@ -38,6 +39,7 @@ interface PhotoInfoPanelProps {
     name: string;
     thumbnailLink?: string;
     webViewLink: string;
+    webContentLink?: string; // Full resolution download URL
     size: string;
     createdTime: string;
     modifiedTime: string;
@@ -54,6 +56,42 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
   onAnalyze,
   isAnalyzing = false 
 }) => {
+  const [isDownloading, setIsDownloading] = React.useState(false);
+  const [fullResLoaded, setFullResLoaded] = React.useState(false);
+  
+  // Get file size in MB for display
+  const getFileSizeDisplay = (sizeString: string) => {
+    const match = sizeString.match(/[\d.]+/);
+    if (match) {
+      const size = parseFloat(match[0]);
+      if (size > 1000000) {
+        return `${(size / 1000000).toFixed(1)} MB`;
+      }
+    }
+    return sizeString;
+  };
+
+  const handleDownload = async () => {
+    if (!photo.webContentLink) return;
+    
+    setIsDownloading(true);
+    try {
+      const response = await fetch(photo.webContentLink);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = photo.name;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Download failed:', error);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -80,22 +118,28 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
           <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gradient-to-b scrollbar-thumb-from-teal-200/30 scrollbar-thumb-to-blue-200/30 hover:scrollbar-thumb-from-teal-200/40 hover:scrollbar-thumb-to-blue-200/40 scrollbar-w-1">
             {/* HD Preview - The Star of the Show */}
             <div className="p-4">
-              <div className="relative aspect-[4/5] w-full max-w-[280px] mx-auto bg-black/20 rounded-xl overflow-hidden border border-white/10 mb-4 group cursor-pointer">
-                <img
-                  src={photo.webViewLink} // Full quality, not thumbnail
-                  alt={photo.name}
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  loading="eager" // Load immediately for quality
-                  fetchPriority="high" // Prioritize this image
-                />
-                {/* HD Quality Indicator */}
-                <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-sm px-2 py-1 rounded-full">
-                  <span className="text-xs text-white/90 font-medium">HD</span>
-                </div>
-                {/* Download overlay on hover */}
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                  <Download className="w-6 h-6 text-white" />
-                </div>
+              <div className="liquid-glass-modal relative aspect-[4/5] w-full max-w-[280px] mx-auto bg-black/20 rounded-xl overflow-hidden border border-white/10 mb-4">
+                {isDownloading ? (
+                  <div className="loading w-full h-full flex flex-col items-center justify-center bg-black/30">
+                    <Loader className="w-6 h-6 text-white animate-spin mb-2" />
+                    <p className="text-xs text-white/80">Downloading high-resolution image...</p>
+                  </div>
+                ) : (
+                  <>
+                    <img
+                      src={photo.webContentLink || photo.webViewLink} // Full resolution for analysis
+                      alt={photo.name}
+                      className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                      loading="eager" // Load immediately for quality
+                      fetchPriority="high" // Prioritize this image
+                      onLoad={() => setFullResLoaded(true)}
+                    />
+                    {/* HD Quality Indicator */}
+                    <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-sm px-2 py-1 rounded-full">
+                      <span className="text-xs text-white/90 font-medium">HD</span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
@@ -284,11 +328,30 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                 <Download className="w-4 h-4 text-white/70" />
                 <h3 className="text-sm font-medium text-white/90">Actions</h3>
               </div>
-              <div className="flex gap-3 ml-6">
+              <div className="flex flex-col gap-3 ml-6">
+                <Button
+                  onClick={handleDownload}
+                  disabled={isDownloading || !photo.webContentLink}
+                  className="liquid-glass bg-white/10 backdrop-blur-md border border-white/20 text-white/90 hover:bg-white/20 transition-all duration-300"
+                  size="sm"
+                >
+                  {isDownloading ? (
+                    <>
+                      <Loader className="w-3 h-3 mr-2 animate-spin" />
+                      Downloading...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-3 h-3 mr-2" />
+                      Download Original ({getFileSizeDisplay(photo.size)})
+                    </>
+                  )}
+                </Button>
+                
                 <Button
                   variant="glass"
                   size="sm"
-                  className="bg-white/10 backdrop-blur-md border border-white/20 text-white/90 hover:bg-white/20"
+                  className="bg-white/5 backdrop-blur-md border border-white/10 text-white/70 hover:bg-white/10 hover:text-white/90"
                   asChild
                 >
                   <a href={photo.webViewLink} target="_blank" rel="noopener noreferrer">
