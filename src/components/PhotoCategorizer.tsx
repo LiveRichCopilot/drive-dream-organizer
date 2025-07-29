@@ -974,51 +974,49 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
 
         {/* Controls */}
         <div className="flex items-center gap-3 flex-wrap">
-          <Button
-            variant="glass"
-            size="sm"
+          <div
             onClick={() => setViewMode('photos')}
-            className={`bg-white/3 backdrop-blur-[24px] backdrop-saturate-[200%] border shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)] rounded-xl ${
+            className={`flex items-center cursor-pointer ${
               viewMode === 'photos' 
-                ? 'border-white/30 text-white bg-white/6' 
-                : 'border-white/15 text-white/80 hover:bg-white/5'
+                ? 'text-white' 
+                : 'text-white/80 hover:text-white'
             }`}
           >
             <Image className="h-3 w-3 mr-1.5 opacity-60" />
             Photos ({photos.length})
-          </Button>
+          </div>
           
-          <Button
-            variant="glass"
-            size="sm"
+          <div
             onClick={() => setViewMode('categories')}
-            className={`bg-white/3 backdrop-blur-[24px] backdrop-saturate-[200%] border shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)] rounded-xl ${
+            className={`flex items-center cursor-pointer ${
               viewMode === 'categories' 
-                ? 'border-white/30 text-white bg-white/6' 
-                : 'border-white/15 text-white/80 hover:bg-white/5'
+                ? 'text-white' 
+                : 'text-white/80 hover:text-white'
             }`}
           >
             <Tags className="h-3 w-3 mr-1.5 opacity-60" />
             Categories ({categories.length})
-          </Button>
+          </div>
 
-          <Button
+          <div
             onClick={() => setShowCreateCategory(!showCreateCategory)}
-            disabled={selectedPhotos.size === 0}
-            variant="glass"
-            size="sm"
-            className="bg-white/3 backdrop-blur-[24px] backdrop-saturate-[200%] border border-white/15 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)] rounded-xl hover:bg-white/5"
+            className={`flex items-center cursor-pointer ${
+              selectedPhotos.size === 0 
+                ? 'text-white/40 cursor-not-allowed' 
+                : 'text-white/80 hover:text-white'
+            }`}
           >
             <Plus className="h-3 w-3 mr-1.5 opacity-60" />
             Create Category
-          </Button>
+          </div>
 
-          <Button
+          <div
             onClick={loadPhotos}
-            disabled={isLoading}
-            variant="glass"
-            size="sm"
-            className="bg-white/3 backdrop-blur-[24px] backdrop-saturate-[200%] border border-white/15 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)] rounded-xl hover:bg-white/5"
+            className={`flex items-center cursor-pointer ${
+              isLoading 
+                ? 'text-white/40 cursor-not-allowed' 
+                : 'text-white/80 hover:text-white'
+            }`}
           >
             {isLoading ? (
               <Loader2 className="h-3 w-3 mr-1.5 animate-spin opacity-60" />
@@ -1026,7 +1024,7 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
               <Upload className="h-3 w-3 mr-1.5 opacity-60" />
             )}
             Refresh
-          </Button>
+          </div>
         </div>
 
         {/* Search */}
