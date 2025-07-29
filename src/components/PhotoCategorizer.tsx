@@ -521,6 +521,9 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
       });
 
       console.log('PhotoCategorizer - Photo downloaded, sending to OpenAI for analysis');
+      console.log('Image blob type:', imageBlob.type);
+      console.log('Base64 length:', base64Image.length);
+      console.log('First 100 chars of base64:', base64Image.substring(0, 100));
 
       const requestBody = {
         model: "gpt-4o-mini",
@@ -542,6 +545,8 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
         }],
         max_tokens: 400 // Reduced for simpler responses
       };
+      
+      console.log('Full OpenAI request body:', JSON.stringify(requestBody, null, 2));
     
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
