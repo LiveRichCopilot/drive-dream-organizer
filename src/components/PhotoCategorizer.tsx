@@ -945,7 +945,7 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
         </div>
 
         {/* Controls */}
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex flex-col gap-3">
           <div
             onClick={() => setViewMode('photos')}
             className={`flex items-center cursor-pointer ${
@@ -1013,10 +1013,7 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
             )}
             Organize by Category
           </div>
-        </div>
 
-        {/* Organization Buttons Row */}
-        <div className="flex items-center gap-3 flex-wrap">
           <div
             onClick={organizePhotosByDate}
             className={`flex items-center cursor-pointer ${
