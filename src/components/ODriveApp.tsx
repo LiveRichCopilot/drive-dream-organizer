@@ -534,47 +534,49 @@ const ODriveApp = () => {
               variant={viewMode === "grid" ? "glass" : "ghost"}
               size="sm"
               onClick={() => setViewMode("grid")}
-              className={viewMode === "grid" ? "bg-white/3 backdrop-blur-[24px] backdrop-saturate-[200%] border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)] rounded-full w-10 h-10 p-0" : "bg-white/2 backdrop-blur-[24px] backdrop-saturate-[200%] border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] rounded-full w-10 h-10 p-0 hover:bg-white/4"}
+              title="Grid View"
+              className={viewMode === "grid" ? "bg-white/3 backdrop-blur-[24px] backdrop-saturate-[200%] border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)] rounded-full w-12 h-12 p-0" : "bg-white/2 backdrop-blur-[24px] backdrop-saturate-[200%] border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] rounded-full w-12 h-12 p-0 hover:bg-white/4"}
             >
-              <Grid3X3 className="h-4 w-4" />
+              <Grid3X3 className="h-5 w-5" />
             </Button>
             <Button
               variant={viewMode === "list" ? "glass" : "ghost"}
               size="sm"
               onClick={() => setViewMode("list")}
-              className={viewMode === "list" ? "bg-white/3 backdrop-blur-[24px] backdrop-saturate-[200%] border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)] rounded-full w-10 h-10 p-0" : "bg-white/2 backdrop-blur-[24px] backdrop-saturate-[200%] border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] rounded-full w-10 h-10 p-0 hover:bg-white/4"}
+              title="List View"
+              className={viewMode === "list" ? "bg-white/3 backdrop-blur-[24px] backdrop-saturate-[200%] border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4)] rounded-full w-12 h-12 p-0" : "bg-white/2 backdrop-blur-[24px] backdrop-saturate-[200%] border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] rounded-full w-12 h-12 p-0 hover:bg-white/4"}
             >
-              <List className="h-4 w-4" />
+              <List className="h-5 w-5" />
             </Button>
             <Button 
               variant="glass" 
               size="sm" 
-              className="bg-white/2 backdrop-blur-[24px] backdrop-saturate-[200%] border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] rounded-xl hover:bg-white/4"
+              className="bg-white/2 backdrop-blur-[24px] backdrop-saturate-[200%] border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] rounded-xl hover:bg-white/4 w-12 h-12 p-0"
               onClick={() => setShowProcessor(!showProcessor)}
+              title="Organize Drive"
             >
-              <Cog className="h-4 w-4 mr-2" />
-              Organize Drive
+              <Cog className="h-6 w-6" />
             </Button>
             <Button 
               variant="glass" 
               size="sm" 
-              className="bg-white/2 backdrop-blur-[24px] backdrop-saturate-[200%] border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] rounded-xl hover:bg-white/4"
+              className="bg-white/2 backdrop-blur-[24px] backdrop-saturate-[200%] border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] rounded-xl hover:bg-white/4 w-12 h-12 p-0"
               onClick={() => {
                 console.log('Organize More Photos button clicked! Current state:', showPhotoOrganizer);
                 setShowPhotoOrganizer(!showPhotoOrganizer);
               }}
+              title="AI Photo Organizer"
             >
-              <Camera className="h-4 w-4 mr-2" />
-              AI Photo Organizer
+              <Camera className="h-6 w-6" />
             </Button>
             <Button 
               variant="glass" 
               size="sm" 
-              className="bg-white/2 backdrop-blur-[24px] backdrop-saturate-[200%] border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] rounded-xl hover:bg-white/4"
+              className="bg-white/2 backdrop-blur-[24px] backdrop-saturate-[200%] border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] rounded-xl hover:bg-white/4 w-12 h-12 p-0"
               onClick={() => setShowAnalytics(!showAnalytics)}
+              title="Analytics"
             >
-              <BarChart3 className="h-4 w-4 mr-2" />
-              Analytics
+              <BarChart3 className="h-6 w-6" />
             </Button>
           </div>
         </div>
