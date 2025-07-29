@@ -441,7 +441,7 @@ const ODriveApp = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* All Files Option */}
               <div 
-                className="glass-card shadow-none hover:shadow-none p-4 cursor-pointer border-2 border-white/10 hover:border-white/30 transition-all"
+                className="glass-card shadow-none hover:shadow-none p-4 cursor-pointer border-2 border-white/10 hover:border-white/30 hover:bg-white/5 transition-all"
                 onClick={() => {
                   setSelectedFolderId(undefined);
                   loadVideos();
@@ -460,7 +460,7 @@ const ODriveApp = () => {
               
               {/* Specific Folder Option */}
               <div 
-                className="glass-card shadow-none hover:shadow-none p-4 cursor-pointer border-2 border-white/10 hover:border-white/30 transition-all"
+                className="glass-card shadow-none hover:shadow-none p-4 cursor-pointer border-2 border-white/10 hover:border-white/30 hover:bg-white/5 transition-all"
                 onClick={() => setShowFolderInput(!showFolderInput)}
               >
                 <div className="flex items-center gap-3">
