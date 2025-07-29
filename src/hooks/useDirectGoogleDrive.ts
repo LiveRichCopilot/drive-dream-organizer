@@ -13,7 +13,11 @@ export const useDirectGoogleDrive = (folderId?: string) => {
   useEffect(() => {
     const checkAuthStatus = () => {
       const authenticated = fixedGoogleOAuth.isAuthenticated();
-      console.log('Checking auth status:', authenticated);
+      console.log('🔍 Auth status check:', { 
+        authenticated, 
+        hasAccessToken: !!localStorage.getItem('google_access_token'),
+        hasRefreshToken: !!localStorage.getItem('google_refresh_token')
+      });
       setIsConnected(authenticated);
     };
 
