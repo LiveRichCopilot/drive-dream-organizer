@@ -121,7 +121,7 @@ const ODriveApp = () => {
           {/* Onboarding Cards for First Time Users */}
           <div className="relative z-10 px-8 pt-16">
             <div className="max-w-4xl mx-auto">
-              <div className="liquid-glass-card p-8 mb-8 bg-gradient-to-br from-white/15 to-white/5 backdrop-blur-2xl border border-white/30 rounded-3xl shadow-[0_0_40px_rgba(255,255,255,0.1)]">
+              <div className="glass-card p-4 mb-6">
                 <div className="text-center">
                   <h3 className="text-2xl font-semibold text-white mb-4">Step 1: Connect Drive</h3>
                   <p className="text-white/80 mb-6">Select which Google Drive to organize and analyze with AI</p>
