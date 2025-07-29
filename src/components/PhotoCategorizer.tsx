@@ -172,6 +172,17 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
       
       // For more detailed EXIF data, call video-metadata service
       if (file.name.toLowerCase().match(/\.(jpg|jpeg|png|tiff|raw|heic)$/)) {
+        const token = localStorage.getItem('google_access_token');
+        if (!token) {
+          console.warn('No access token available for metadata extraction');
+          return { 
+            createdDate, 
+            exifData: null,
+            hasExif: false,
+            error: 'No access token available'
+          };
+        }
+
         const response = await fetch('https://video-metadata-service-1070421026009.us-central1.run.app/extract-metadata', {
           method: 'POST',
           headers: {
@@ -179,7 +190,8 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
           },
           body: JSON.stringify({ 
             fileId: file.id,
-            fileName: file.name
+            fileName: file.name,
+            accessToken: token
           })
         });
         
