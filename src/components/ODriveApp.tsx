@@ -375,7 +375,7 @@ const ODriveApp = () => {
       {/* Header */}
       <div className="bg-white/5 border border-white/20 rounded-2xl p-6 mb-8">
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col items-center gap-1">
             {/* ODrive Logo */}
             <img 
               src="/lovable-uploads/742a5faa-ce9b-4474-a2a9-24e42ae9b81b.png" 
