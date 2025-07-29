@@ -315,11 +315,11 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gradient-to-b scrollbar-thumb-from-teal-200/30 scrollbar-thumb-to-blue-200/30 hover:scrollbar-thumb-from-teal-200/40 hover:scrollbar-thumb-to-blue-200/40 scrollbar-w-1">
-            {/* HD Preview - The Star of the Show */}
+            {/* THE IMAGE - STAR OF THE SHOW */}
             <div className="p-4">
-              <div className="liquid-glass-modal relative w-full max-w-[450px] mx-auto bg-black/20 rounded-xl overflow-hidden border border-white/10 mb-4 shadow-2xl">
+              <div className="relative w-full bg-gradient-to-b from-white/5 to-white/10 rounded-2xl overflow-hidden border border-white/20 mb-6 shadow-2xl min-h-[300px] backdrop-blur-md">
                 {isDownloading || isLoadingHdImage ? (
-                  <div className="loading w-full h-full flex flex-col items-center justify-center bg-black/30">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/30 backdrop-blur-sm min-h-[300px]">
                     {/* Circular Progress Meter */}
                     <div className="relative w-16 h-16 mb-3">
                       {/* Background circle */}
@@ -353,45 +353,54 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                       </div>
                     </div>
                     <p className="text-xs text-white/80 text-center px-4">
-                      {isLoadingHdImage ? "Downloading HD image..." : "Downloading high-resolution image..."}
+                      {isLoadingHdImage ? "Loading HD image..." : "Processing image..."}
                     </p>
                     <p className="text-xs text-white/60 text-center px-4 mt-1">
                       {photo.size}
                     </p>
                   </div>
                 ) : (
-                  <>
+                  <div className="relative w-full">
+                    {/* THE MAIN IMAGE - PROMINENTLY DISPLAYED */}
                     <img
                       src={hdImageUrl || photo.thumbnailLink || `https://www.googleapis.com/drive/v3/files/${photo.id}?alt=media&access_token=${localStorage.getItem('google_access_token')}`} 
                       alt={photo.name}
-                      className="w-full h-auto object-contain transition-transform duration-300 hover:scale-105"
-                      loading="eager" // Load immediately for quality
-                      fetchPriority="high" // Prioritize this image
-                      onLoad={() => setFullResLoaded(true)}
+                      className="w-full h-auto max-h-[500px] object-contain bg-black/10 rounded-xl block"
+                      style={{ 
+                        minHeight: '200px',
+                        display: 'block',
+                        visibility: 'visible'
+                      }}
+                      loading="eager"
+                      fetchPriority="high"
+                      onLoad={() => {
+                        setFullResLoaded(true);
+                        console.log('Image loaded successfully:', photo.name);
+                      }}
                       onError={(e) => {
-                        // Fallback to basic download URL if thumbnail fails
+                        console.error('Image failed to load, trying fallback:', photo.name);
                         e.currentTarget.src = `https://www.googleapis.com/drive/v3/files/${photo.id}?alt=media&access_token=${localStorage.getItem('google_access_token')}`;
                       }}
                     />
-                    {/* HD Quality Indicator and Quick Actions */}
-                    <div className="absolute top-2 right-2 flex gap-2">
-                      <div className="bg-black/50 backdrop-blur-sm px-2 py-1 rounded-full">
+                    
+                    {/* HD Quality Badge and Actions Overlay */}
+                    <div className="absolute top-3 right-3 flex gap-2">
+                      <div className="bg-black/60 backdrop-blur-sm px-3 py-1 rounded-full border border-white/10">
                         <span className="text-xs text-white/90 font-medium">
                           {hdImageUrl ? "HD" : "Preview"}
                         </span>
                       </div>
-                      {/* Quick Download Button */}
                       <Button
                         onClick={handleQuickDownload}
                         variant="ghost"
                         size="sm"
-                        className="h-8 w-8 p-0 bg-black/50 backdrop-blur-sm hover:bg-black/70 text-white/90 rounded-full"
-                        title="Quick Download"
+                        className="h-8 w-8 p-0 bg-black/60 backdrop-blur-sm hover:bg-black/80 text-white/90 rounded-full border border-white/10"
+                        title="Download Image"
                       >
                         <Download className="h-4 w-4" />
                       </Button>
                     </div>
-                  </>
+                  </div>
                 )}
               </div>
 
