@@ -80,11 +80,11 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
           <div className="max-h-[70vh] overflow-y-auto">
             {/* Preview */}
             <div className="p-6">
-              <div className="aspect-video bg-black/20 rounded-xl overflow-hidden border border-white/10 mb-6">
+              <div className="aspect-[9/16] max-w-xs mx-auto bg-black/20 rounded-xl overflow-hidden border border-white/10 mb-6">
                 <img
                   src={photo.thumbnailLink || photo.webViewLink}
                   alt={photo.name}
-                  className="w-full h-full object-contain"
+                  className="w-full h-full object-cover"
                 />
               </div>
             </div>
