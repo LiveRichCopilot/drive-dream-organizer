@@ -401,31 +401,13 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                         <p className="text-xs text-white/70">Let me craft the perfect caption for you</p>
                       </div>
                     </div>
-                    <Button
+                    <img 
+                      src="/lovable-uploads/4bc1ca0f-d6b8-475a-8d1a-c0830a7101f5.png" 
+                      alt="AI Magic" 
+                      className="w-20 h-20 cursor-pointer hover:scale-105 transition-transform filter drop-shadow-sm"
                       onClick={generateCaption}
-                      disabled={isGeneratingCaption}
-                      variant="ghost"
-                      size="sm"
-                      className="h-12 w-12 p-0 bg-transparent hover:bg-transparent"
                       title="Generate Caption with AI"
-                    >
-                      {isGeneratingCaption ? (
-                        <div className="w-5 h-5 border-2 border-teal-300/30 border-t-teal-300 rounded-full animate-spin" />
-                      ) : (
-                        <img 
-                          src="/lovable-uploads/4bc1ca0f-d6b8-475a-8d1a-c0830a7101f5.png" 
-                          alt="AI Magic" 
-                          className="w-10 h-10 filter drop-shadow-sm"
-                          onError={(e) => {
-                            console.error('AI icon failed to load');
-                            // Fallback to sparkles if your icon fails to load
-                            e.currentTarget.style.display = 'none';
-                            e.currentTarget.parentElement.innerHTML += '<svg class="w-6 h-6 text-teal-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3l14 9-14 9V3z"></path></svg>';
-                          }}
-                          onLoad={() => console.log('✅ AI icon loaded successfully')}
-                        />
-                      )}
-                    </Button>
+                    />
                   </div>
 
                   {/* Platform-Specific Caption Categories */}
