@@ -378,7 +378,7 @@ const ODriveApp = () => {
   }
 
   return (
-    <div className="min-h-screen p-6 bg-gray-300/15 relative">
+    <div className="min-h-screen p-6 bg-gray-300/25 relative">
       {/* Heavy grain overlay */}
       <div className="absolute inset-0 opacity-40 mix-blend-overlay pointer-events-none" 
            style={{
