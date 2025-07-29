@@ -112,6 +112,24 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                 <p className="text-xs text-white/60">{photo.size}</p>
               </div>
             </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 hover:bg-white/10 text-white/60 hover:text-white/90"
+              onClick={() => {
+                // Close the dialog by finding and clicking the underlying close button
+                const closeButton = document.querySelector('[data-state="open"] button[aria-label="Close"]') as HTMLElement;
+                if (closeButton) {
+                  closeButton.click();
+                } else {
+                  // Fallback: trigger escape key
+                  const escapeEvent = new KeyboardEvent('keydown', { key: 'Escape' });
+                  document.dispatchEvent(escapeEvent);
+                }
+              }}
+            >
+              <X className="h-4 w-4" />
+            </Button>
           </div>
 
           {/* Content */}
