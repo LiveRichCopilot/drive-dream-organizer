@@ -133,7 +133,7 @@ const ODriveApp = () => {
               <div className="mb-8 flex flex-col h-full min-h-[400px]">
                 <div className="flex flex-col justify-end h-full">
             <img 
-              src="/lovable-uploads/513ecb56-61e2-4e31-9898-d010ccf954a0.png"
+              src="/lovable-uploads/25f163b6-90f6-49b8-a2a7-f3dd75dcd723.png"
               alt="ODrive Logo"
               className="mx-auto h-72 w-auto drop-shadow-2xl"
             />
@@ -398,7 +398,7 @@ const ODriveApp = () => {
           <div className="flex flex-col items-center gap-0">
             {/* ODrive Logo */}
             <img 
-              src="/lovable-uploads/742a5faa-ce9b-4474-a2a9-24e42ae9b81b.png" 
+              src="/lovable-uploads/25f163b6-90f6-49b8-a2a7-f3dd75dcd723.png" 
               alt="ODrive Logo" 
               className="w-48 h-48 object-contain"
             />
