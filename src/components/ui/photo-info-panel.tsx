@@ -445,7 +445,7 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                         <button
                           key={platform.key}
                           onClick={() => setCaptionStyle(platform.key as any)}
-                          className={`px-2 py-1.5 rounded-md text-xs border transition-all flex flex-col items-center ${
+                          className={`px-1.5 py-1 rounded-sm text-xs border transition-all flex flex-col items-center ${
                             captionStyle === platform.key
                               ? 'bg-teal-500/30 border-teal-400/50 text-teal-200'
                               : 'bg-white/5 border-white/20 text-white/70 hover:bg-white/10'
