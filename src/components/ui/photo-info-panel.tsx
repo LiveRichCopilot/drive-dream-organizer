@@ -351,7 +351,7 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                   <img
                     src={hdImageUrl || `https://drive.google.com/thumbnail?id=${photo.id}&sz=w1920-h1080`}
                     alt={photo.name}
-                    className="w-full h-auto max-h-[600px] object-contain rounded-xl"
+                    className="w-full h-auto max-h-[70vh] object-cover rounded-xl"
                     style={{ 
                       display: 'block',
                       visibility: 'visible',
