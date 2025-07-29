@@ -59,10 +59,25 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
-      <DialogContent className="max-w-md w-[90vw] max-h-[85vh] p-0 bg-white/10 backdrop-blur-[20px] backdrop-saturate-[180%] border border-white/30 shadow-lg rounded-2xl z-[100] overflow-hidden">
+      <DialogContent className="max-w-md w-[90vw] max-h-[85vh] p-0 bg-white/10 backdrop-blur-[20px] backdrop-saturate-[180%] border border-white/30 shadow-lg rounded-2xl z-[100] overflow-hidden resize">
         <div className="relative h-full flex flex-col">
+          {/* Resize Handles */}
+          <div className="absolute inset-0 pointer-events-none z-10">
+            {/* Corner resize handles */}
+            <div className="absolute top-0 left-0 w-3 h-3 cursor-nw-resize pointer-events-auto bg-white/20 rounded-tl-2xl"></div>
+            <div className="absolute top-0 right-0 w-3 h-3 cursor-ne-resize pointer-events-auto bg-white/20 rounded-tr-2xl"></div>
+            <div className="absolute bottom-0 left-0 w-3 h-3 cursor-sw-resize pointer-events-auto bg-white/20 rounded-bl-2xl"></div>
+            <div className="absolute bottom-0 right-0 w-3 h-3 cursor-se-resize pointer-events-auto bg-white/20 rounded-br-2xl"></div>
+            
+            {/* Edge resize handles */}
+            <div className="absolute top-0 left-3 right-3 h-2 cursor-n-resize pointer-events-auto"></div>
+            <div className="absolute bottom-0 left-3 right-3 h-2 cursor-s-resize pointer-events-auto"></div>
+            <div className="absolute left-0 top-3 bottom-3 w-2 cursor-w-resize pointer-events-auto"></div>
+            <div className="absolute right-0 top-3 bottom-3 w-2 cursor-e-resize pointer-events-auto"></div>
+          </div>
+
           {/* Draggable Header */}
-          <div className="flex items-center justify-between p-4 border-b border-white/10 cursor-move select-none">
+          <div className="flex items-center justify-between p-4 border-b border-white/10 cursor-move select-none relative z-20">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-lg bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
                 <FileImage className="w-3 h-3 text-white/90" />
