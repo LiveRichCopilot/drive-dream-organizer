@@ -375,13 +375,8 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                     }}
                   />
                   
-                  {/* HD Badge and Download - Top Right */}
-                  <div className="absolute top-4 right-4 flex gap-3">
-                    <div className="bg-black/70 backdrop-blur-sm px-4 py-2 rounded-full border border-white/20">
-                      <span className="text-sm text-white/95 font-bold">
-                        {hdImageUrl ? "🔥 HD" : "📷 Preview"}
-                      </span>
-                    </div>
+                  {/* Download Button Only - Top Right */}
+                  <div className="absolute top-4 right-4">
                     <Button
                       onClick={handleQuickDownload}
                       variant="ghost"
