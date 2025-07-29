@@ -532,7 +532,7 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
           content: [
             { 
               type: "text", 
-              text: "Analyze this image for organizational purposes and return a JSON object with: {\"categories\": [\"category1\", \"category2\"], \"colors\": [\"color1\", \"color2\"], \"faces\": 0, \"landmarks\": [], \"objects\": [\"object1\", \"object2\"], \"scene\": \"indoor/outdoor/people/food/event/travel/general\", \"confidence\": 0.85, \"prompt\": \"descriptive text about image content\"}. Focus on basic categorization for photo organization - clothing, locations, objects, activities, time of day, etc. Keep analysis factual and descriptive." 
+              text: "Analyze this image using the 'Hicksville' categorization system for comprehensive photo organization. Return a JSON object with: {\"categories\": [\"primary_category\", \"subcategory\"], \"colors\": [\"dominant_color1\", \"color2\"], \"faces\": 0, \"landmarks\": [], \"objects\": [\"key_object1\", \"object2\"], \"scene\": \"indoor/outdoor/people/food/event/travel/general\", \"confidence\": 0.85, \"prompt\": \"detailed_descriptive_prompt\"}. For the prompt field, create a comprehensive description including: setting (indoor/outdoor specifics), people (count, age groups, activities, clothing styles), objects (furniture, vehicles, technology, nature elements), time indicators (lighting, shadows, clothing seasonality), mood/atmosphere, composition style, and any notable behavioral patterns or social dynamics. Focus on visual storytelling elements that would help recreate or categorize this scene type. Keep the description factual, detailed, and organized by visual hierarchy." 
             },
             { 
               type: "image_url", 
