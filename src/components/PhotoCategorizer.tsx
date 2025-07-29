@@ -85,6 +85,12 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
   }, [isConnected, folderId]);
 
   const loadPhotos = async () => {
+    // Only proceed if properly connected through the authentication flow
+    if (!isConnected) {
+      console.log('PhotoCategorizer - Not connected, skipping photo load');
+      return;
+    }
+    
     setIsLoading(true);
     try {
       const token = localStorage.getItem('google_access_token');
