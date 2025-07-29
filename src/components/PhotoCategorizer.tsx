@@ -673,7 +673,7 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
           disabled={isAnalyzing || photos.length === 0}
           variant="glass"
           size="sm"
-          className="bg-gradient-to-br from-white/20 to-white/5 backdrop-blur-xl border border-white/30"
+          className="bg-white/5 backdrop-blur-2xl border border-white/20 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1)] hover:bg-white/10 transition-all duration-300"
         >
             {isAnalyzing ? (
               <Loader2 className="h-5 w-5 mr-2 animate-spin" />
