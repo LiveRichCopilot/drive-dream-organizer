@@ -28,13 +28,21 @@ const AuthCallback = () => {
     
     if (state && storedState && state !== storedState) {
       console.error('State mismatch - possible CSRF attack');
+    try {
       if (window.opener) {
         window.opener.postMessage({
           type: 'OAUTH_ERROR',
           error: 'Security validation failed'
         }, window.location.origin);
       }
+    } catch (e) {
+      console.error('Could not communicate with parent window:', e);
+    }
+    try {
       window.close();
+    } catch (e) {
+      console.error('Could not close window:', e);
+    }
       return;
     }
     
@@ -44,10 +52,14 @@ const AuthCallback = () => {
     if (code) {
       console.log('Sending success message to parent');
       // Send authorization code to parent window
-      window.opener?.postMessage({
-        type: 'OAUTH_SUCCESS',
-        code: code
-      }, window.location.origin);
+      try {
+        window.opener?.postMessage({
+          type: 'OAUTH_SUCCESS',
+          code: code
+        }, window.location.origin);
+      } catch (e) {
+        console.error('Could not communicate with parent window:', e);
+      }
       
       // Show success message
       document.body.innerHTML = `
@@ -68,10 +80,14 @@ const AuthCallback = () => {
       const errorDescription = urlParams.get('error_description') || error;
       
       // Send error message to parent window
-      window.opener?.postMessage({
-        type: 'OAUTH_ERROR',
-        error: errorDescription
-      }, window.location.origin);
+      try {
+        window.opener?.postMessage({
+          type: 'OAUTH_ERROR',
+          error: errorDescription
+        }, window.location.origin);
+      } catch (e) {
+        console.error('Could not communicate with parent window:', e);
+      }
       
       // Show error message
       document.body.innerHTML = `
@@ -90,11 +106,15 @@ const AuthCallback = () => {
 
     // No code or error - something went wrong
     console.error('No authorization code or error received');
-    if (window.opener) {
-      window.opener.postMessage({
-        type: 'OAUTH_ERROR',
-        error: 'No authorization code received'
-      }, window.location.origin);
+    try {
+      if (window.opener) {
+        window.opener.postMessage({
+          type: 'OAUTH_ERROR',
+          error: 'No authorization code received'
+        }, window.location.origin);
+      }
+    } catch (e) {
+      console.error('Could not communicate with parent window:', e);
     }
     
     document.body.innerHTML = `

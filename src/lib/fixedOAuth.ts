@@ -161,14 +161,28 @@ export class FixedGoogleOAuth {
 
       window.addEventListener('message', messageHandler);
 
-      // Check if popup is closed manually
-      const checkClosed = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(checkClosed);
-          window.removeEventListener('message', messageHandler);
-          reject(new Error('Authentication was cancelled'));
+      // Set up timeout for popup closure detection instead of polling
+      const timeout = setTimeout(() => {
+        window.removeEventListener('message', messageHandler);
+        try {
+          if (!popup.closed) {
+            popup.close();
+          }
+        } catch (e) {
+          // Ignore Cross-Origin-Opener-Policy errors
         }
-      }, 1000);
+        reject(new Error('Authentication was cancelled'));
+      }, 300000); // 5 minute timeout
+
+      // Clean up timeout on successful message
+      const originalMessageHandler = messageHandler;
+      const wrappedMessageHandler = (event: MessageEvent) => {
+        clearTimeout(timeout);
+        originalMessageHandler(event);
+      };
+      
+      window.removeEventListener('message', messageHandler);
+      window.addEventListener('message', wrappedMessageHandler);
     });
   }
 
