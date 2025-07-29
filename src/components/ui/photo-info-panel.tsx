@@ -64,7 +64,7 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
   const [downloadProgress, setDownloadProgress] = React.useState(0);
   const [isGeneratingCaption, setIsGeneratingCaption] = React.useState(false);
   const [generatedCaption, setGeneratedCaption] = React.useState<string | null>(null);
-  const [captionStyle, setCaptionStyle] = React.useState<'instagram' | 'onlyfans' | 'fansly' | 'subs'>('instagram');
+  const [captionStyle, setCaptionStyle] = React.useState<'instagram' | 'tiktok' | 'youtube' | 'x' | 'linkedin' | 'subs' | 'onlyfans' | 'fansly'>('instagram');
   
   // Get file size in MB for display
   const getFileSizeDisplay = (sizeString: string) => {
@@ -248,9 +248,13 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
       // Platform-specific caption strategies
       const platformPrompts = {
         instagram: "Create an Instagram caption with strong SEO hooks, trending hashtags, and engagement-driving CTAs. Focus on discoverability and viral potential.",
+        tiktok: "Write a viral TikTok caption with trending sounds, hashtags, and hooks that grab attention in the first 3 words. Be energetic and youth-focused.",
+        youtube: "Create an engaging YouTube caption with value-driven hooks, SEO keywords, and calls-to-action for likes, comments, and subscriptions.",
+        x: "Write a concise, witty tweet that sparks conversation and engagement. Keep it under 280 characters with clever wordplay or hot takes.",
+        linkedin: "Craft a professional LinkedIn caption with industry insights, career value, and networking potential. Use a business-appropriate tone.",
+        subs: "Generate an educational caption that provides value and insights. Focus on teaching moments, behind-the-scenes knowledge, or skill-building content.",
         onlyfans: "Write an exclusive, teasing caption that creates intrigue and desire. Use sultry language that hints at premium content while staying within platform guidelines.",
-        fansly: "Craft a caption with AI transparency and authenticity. Mention this content was enhanced/analyzed by AI while maintaining personal connection and genuine appeal.",
-        subs: "Generate an educational caption that provides value and insights. Focus on teaching moments, behind-the-scenes knowledge, or skill-building content."
+        fansly: "Craft a caption with AI transparency and authenticity. Mention this content was enhanced/analyzed by AI while maintaining personal connection and genuine appeal."
       };
 
       const analysisContext = photo.analysis ? 
@@ -430,9 +434,13 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                     <div className="flex flex-wrap gap-2">
                       {[
                         { key: 'instagram', label: 'Instagram', desc: 'SEO hooks' },
+                        { key: 'tiktok', label: 'TikTok', desc: 'viral/trending' },
+                        { key: 'youtube', label: 'YouTube', desc: 'engaging/long-form' },
+                        { key: 'x', label: 'X', desc: 'concise/witty' },
+                        { key: 'linkedin', label: 'LinkedIn', desc: 'professional' },
+                        { key: 'subs', label: 'Subs.com', desc: 'educational' },
                         { key: 'onlyfans', label: 'OnlyFans', desc: 'exclusive/teasing' },
-                        { key: 'fansly', label: 'Fansly', desc: 'AI transparency' },
-                        { key: 'subs', label: 'Subs.com', desc: 'educational' }
+                        { key: 'fansly', label: 'Fansly', desc: 'AI transparency' }
                       ].map((platform) => (
                         <button
                           key={platform.key}
