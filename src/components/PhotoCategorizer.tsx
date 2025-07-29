@@ -534,10 +534,18 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
     const data = await response.json();
     const analysisText = data.choices[0].message.content;
     
-    // Parse JSON response
+    // Parse JSON response - handle markdown code blocks
     let analysis;
     try {
-      analysis = JSON.parse(analysisText);
+      // Remove markdown code block formatting if present
+      let cleanText = analysisText.trim();
+      if (cleanText.startsWith('```json')) {
+        cleanText = cleanText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (cleanText.startsWith('```')) {
+        cleanText = cleanText.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+      
+      analysis = JSON.parse(cleanText);
     } catch (parseError) {
       console.error('Failed to parse analysis:', analysisText);
       // Fallback analysis
@@ -548,7 +556,8 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
         landmarks: [],
         objects: ['unknown'],
         scene: 'general',
-        confidence: 0.5
+        confidence: 0.5,
+        prompt: 'Failed to analyze image'
       };
     }
 
