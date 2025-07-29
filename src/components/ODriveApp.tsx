@@ -393,7 +393,7 @@ const ODriveApp = () => {
               File Library
             </span>
           </div>
-          <div className="flex items-center gap-2 md:gap-4">
+          <div className="flex items-center gap-4">
             <Badge variant="outline" className="glass border-white/10 shadow-none text-xs md:text-sm px-2 py-1 text-white/40">
               <FolderOpen className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2 text-white/40" />
               Connected ({videos.length})
