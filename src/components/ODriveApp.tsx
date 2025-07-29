@@ -373,7 +373,7 @@ const ODriveApp = () => {
   return (
     <div className="min-h-screen p-6">
       {/* Header */}
-      <div className="glass-card mb-8">
+      <div className="bg-white/5 border border-white/20 rounded-2xl p-6 mb-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
             ODrive File Library
