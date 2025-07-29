@@ -418,32 +418,78 @@ const ODriveApp = () => {
           </div>
         </div>
 
-        {/* Folder Selection */}
+        {/* Folder Selection - Always Show */}
         <div className="mb-6">
-          <div className="flex items-center gap-4 mb-4">
-            <h2 className="text-lg font-semibold">Select Folder (Optional)</h2>
-            <Button 
-              onClick={() => setShowFolderInput(!showFolderInput)}
-              variant="ghost"
-              size="sm"
-            >
-              <Settings className="mr-2 h-4 w-4" />
-              {showFolderInput ? "Hide" : "Show"} Folder Selection
-            </Button>
-          </div>
-          
-          {showFolderInput && (
-            <div className="mb-6">
-              <GoogleDriveFolderInput 
-                onFolderSelected={(folderId) => {
-                  console.log('Folder selected:', folderId);
-                  setSelectedFolderId(folderId);
-                  // Load videos immediately with the specific folder ID
-                  loadVideos(folderId);
-                }}
-              />
+          <div className="bg-white/5 backdrop-blur-[20px] backdrop-saturate-[180%] border border-white/20 rounded-2xl shadow-[inset_0_1px_1px_rgba(255,255,255,0.3)] p-6">
+            <div className="flex items-center gap-4 mb-4">
+              <FolderOpen className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-semibold">Folder Access</h2>
+              {selectedFolderId && (
+                <Badge variant="outline" className="glass border-green-400/20 text-green-400">
+                  Folder Selected
+                </Badge>
+              )}
             </div>
-          )}
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* All Files Option */}
+              <div 
+                className={`glass-card p-4 cursor-pointer border-2 transition-all ${
+                  !selectedFolderId 
+                    ? 'border-primary/50 bg-primary/10' 
+                    : 'border-white/10 hover:border-white/20'
+                }`}
+                onClick={() => {
+                  setSelectedFolderId(undefined);
+                  loadVideos();
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                    <FolderOpen className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">All Files</h3>
+                    <p className="text-sm text-white/60">Browse your entire Google Drive</p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Specific Folder Option */}
+              <div 
+                className={`glass-card p-4 cursor-pointer border-2 transition-all ${
+                  selectedFolderId 
+                    ? 'border-primary/50 bg-primary/10' 
+                    : 'border-white/10 hover:border-white/20'
+                }`}
+                onClick={() => setShowFolderInput(!showFolderInput)}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-secondary/20 flex items-center justify-center">
+                    <Settings className="h-5 w-5 text-secondary" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Specific Folder</h3>
+                    <p className="text-sm text-white/60">Target a specific folder (like "HD")</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {showFolderInput && (
+              <div className="mt-6">
+                <GoogleDriveFolderInput 
+                  onFolderSelected={(folderId) => {
+                    console.log('Folder selected:', folderId);
+                    setSelectedFolderId(folderId);
+                    setShowFolderInput(false);
+                    // Load videos immediately with the specific folder ID
+                    loadVideos(folderId);
+                  }}
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Processing Pipeline */}
