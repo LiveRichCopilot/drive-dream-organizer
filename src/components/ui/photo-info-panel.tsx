@@ -317,7 +317,7 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
           <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gradient-to-b scrollbar-thumb-from-teal-200/30 scrollbar-thumb-to-blue-200/30 hover:scrollbar-thumb-from-teal-200/40 hover:scrollbar-thumb-to-blue-200/40 scrollbar-w-1">
             {/* HD Preview - The Star of the Show */}
             <div className="p-4">
-              <div className="liquid-glass-modal relative aspect-[4/5] w-full max-w-[280px] mx-auto bg-black/20 rounded-xl overflow-hidden border border-white/10 mb-4">
+              <div className="liquid-glass-modal relative aspect-[4/5] w-full max-w-[450px] mx-auto bg-black/20 rounded-xl overflow-hidden border border-white/10 mb-4 shadow-2xl">
                 {isDownloading || isLoadingHdImage ? (
                   <div className="loading w-full h-full flex flex-col items-center justify-center bg-black/30">
                     {/* Circular Progress Meter */}
