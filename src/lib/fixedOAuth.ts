@@ -99,7 +99,7 @@ export class FixedGoogleOAuth {
       }
     }
 
-    // Use popup for OAuth authentication
+    // Use popup instead of redirect for better UX
     return new Promise((resolve, reject) => {
       const redirectUri = window.location.origin;
       
@@ -107,11 +107,15 @@ export class FixedGoogleOAuth {
       const state = Math.random().toString(36).substring(2, 15);
       sessionStorage.setItem('oauth_state', state);
       
-      // Google Drive scopes only
+      // Comprehensive scopes for Drive, Calendar, and Gmail
       const scopes = [
         'https://www.googleapis.com/auth/drive',
         'https://www.googleapis.com/auth/drive.file', 
-        'https://www.googleapis.com/auth/drive.metadata'
+        'https://www.googleapis.com/auth/drive.metadata',
+        'https://www.googleapis.com/auth/calendar',
+        'https://www.googleapis.com/auth/calendar.readonly',
+        'https://www.googleapis.com/auth/gmail.readonly',
+        'https://www.googleapis.com/auth/gmail.modify'
       ].join(' ');
       
       const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' +
@@ -124,69 +128,59 @@ export class FixedGoogleOAuth {
       
       console.log('🔗 Opening OAuth popup...');
       
-      // Try popup first, fall back to same window if blocked
       const popup = window.open(
         authUrl,
         'google-oauth',
-        'width=500,height=600,scrollbars=yes,resizable=yes,left=' + 
-        (window.screen.width / 2 - 250) + ',top=' + (window.screen.height / 2 - 300)
+        'width=500,height=600,scrollbars=yes,resizable=yes'
       );
 
-      if (!popup || popup.closed) {
-        // Popup was blocked, fall back to same window redirect
-        console.log('Popup blocked, using same window redirect...');
-        window.location.href = authUrl;
+      if (!popup) {
+        reject(new Error('Popup blocked. Please allow popups and try again.'));
         return;
       }
 
-      // Monitor popup for completion
-      const checkClosed = setInterval(() => {
-        try {
-          if (popup.closed) {
-            clearInterval(checkClosed);
-            clearTimeout(timeout);
-            
-            // Check if authentication was successful by looking for tokens
-            if (this.isAuthenticated()) {
-              resolve();
-            } else {
-              reject(new Error('Authentication was cancelled'));
-            }
+      // Listen for messages from the popup
+      const messageHandler = (event: MessageEvent) => {
+        if (event.origin !== window.location.origin) return;
+        
+        if (event.data.type === 'OAUTH_SUCCESS') {
+          clearTimeout(timeout);
+          window.removeEventListener('message', messageHandler);
+          try {
+            popup.close();
+          } catch (e) {
+            // Ignore Cross-Origin-Opener-Policy errors
           }
           
-          // Check if popup URL has tokens (cross-origin safe check)
-          try {
-            if (popup.location && popup.location.hash.includes('access_token=')) {
-              clearInterval(checkClosed);
-              clearTimeout(timeout);
-              
-              // Handle the callback in the popup context
-              this.handleOAuthCallback();
-              popup.close();
-              resolve();
-            }
-          } catch (e) {
-            // Cross-origin access blocked, that's expected
-          }
-        } catch (e) {
-          // Handle popup access errors
-          clearInterval(checkClosed);
+          // Store the authorization code and exchange it for tokens
+          this.exchangeCodeForTokens(event.data.code)
+            .then(() => resolve())
+            .catch(reject);
+        } else if (event.data.type === 'OAUTH_ERROR') {
           clearTimeout(timeout);
-          reject(new Error('Authentication failed'));
+          window.removeEventListener('message', messageHandler);
+          try {
+            popup.close();
+          } catch (e) {
+            // Ignore Cross-Origin-Opener-Policy errors
+          }
+          reject(new Error(event.data.error || 'OAuth failed'));
         }
-      }, 1000);
+      };
 
-      // Set up timeout
+      window.addEventListener('message', messageHandler);
+
+      // Set up timeout for popup closure detection instead of polling
       const timeout = setTimeout(() => {
-        clearInterval(checkClosed);
+        window.removeEventListener('message', messageHandler);
         try {
           if (!popup.closed) {
             popup.close();
           }
         } catch (e) {
-          // Ignore errors
+          // Ignore Cross-Origin-Opener-Policy errors
         }
-        reject(new Error('Authentication timed out'));
+        reject(new Error('Authentication was cancelled'));
       }, 300000); // 5 minute timeout
     });
   }
