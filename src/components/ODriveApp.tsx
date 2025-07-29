@@ -675,16 +675,9 @@ const ODriveApp = () => {
                   </div>
                 </div>
                  <div className="flex gap-2">
-                   <Button variant="glass" size="sm" onClick={() => window.open(video.webViewLink, '_blank')}>
-                     <Play className="h-4 w-4" />
-                   </Button>
-                   <Button variant="secondary" size="sm" onClick={() => downloadVideo(video.id, video.name)}>
-                     <Download className="h-4 w-4" />
-                   </Button>
-                   <Button variant="outline" size="sm" onClick={() => downloadHighRes(video.id, video.name)} title="High Resolution Download">
-                     <Download className="h-3 w-3 mr-1" />
-                     HD
-                   </Button>
+                   <Play className="h-4 w-4 cursor-pointer" onClick={() => window.open(video.webViewLink, '_blank')} />
+                   <Download className="h-4 w-4 cursor-pointer" onClick={() => downloadVideo(video.id, video.name)} />
+                   <Download className="h-4 w-4 cursor-pointer" onClick={() => downloadHighRes(video.id, video.name)} />
                  </div>
               </div>
             </Card>
