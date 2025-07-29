@@ -452,7 +452,14 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                         <img 
                           src="/lovable-uploads/86e12b2b-20b7-4e0c-86c4-e6006280bc1c.png" 
                           alt="AI Magic" 
-                          className="w-6 h-6"
+                          className="w-6 h-6 filter drop-shadow-sm"
+                          onError={(e) => {
+                            console.error('AI icon failed to load');
+                            // Fallback to sparkles if your icon fails to load
+                            e.currentTarget.style.display = 'none';
+                            e.currentTarget.parentElement.innerHTML += '<svg class="w-6 h-6 text-teal-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3l14 9-14 9V3z"></path></svg>';
+                          }}
+                          onLoad={() => console.log('✅ AI icon loaded successfully')}
                         />
                       )}
                     </Button>
