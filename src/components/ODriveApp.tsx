@@ -481,13 +481,13 @@ const ODriveApp = () => {
 
         {/* Search and Controls */}
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <div className="relative max-w-xs">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3 w-3 text-white/60" />
             <Input
               placeholder="Search videos..."
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
-              className="pl-10 bg-white/10 backdrop-blur-[20px] backdrop-saturate-[180%] border border-white/30 rounded-2xl text-white placeholder-white/50"
+              className="pl-8 py-2 text-sm bg-white/5 backdrop-blur-[40px] backdrop-saturate-[200%] border border-white/20 rounded-xl text-white placeholder-white/40 h-9"
             />
           </div>
           
