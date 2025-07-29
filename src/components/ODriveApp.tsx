@@ -465,7 +465,13 @@ const ODriveApp = () => {
               >
                 <div className="flex items-center gap-3">
                   <div className="flex items-center justify-center">
-                    <Settings className="h-8 w-8 text-secondary" />
+                    <Settings className="h-8 w-8" style={{ fill: 'url(#orange-pink-gradient)' }} />
+                    <defs>
+                      <linearGradient id="orange-pink-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#fb923c" />
+                        <stop offset="100%" stopColor="#ec4899" />
+                      </linearGradient>
+                    </defs>
                   </div>
                   <div>
                     <h3 className="font-semibold">Specific Folder</h3>
