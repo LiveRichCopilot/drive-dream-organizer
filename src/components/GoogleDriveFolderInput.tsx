@@ -126,7 +126,8 @@ const GoogleDriveFolderInput = ({ onFolderSelected }: GoogleDriveFolderInputProp
           type="submit" 
           disabled={!folderUrl.trim() || isValidating}
           variant="glass"
-          className="w-full"
+          size="sm"
+          className="ml-auto"
         >
           {isValidating ? "Validating..." : "Set Folder"}
         </Button>
