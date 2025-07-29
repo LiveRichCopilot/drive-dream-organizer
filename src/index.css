@@ -9,7 +9,7 @@ All colors MUST be HSL.
 @layer base {
   :root {
     /* Dark Velvet Base */
-    --background: 240 12% 6%;
+    --background: 0 0% 6%;
     --foreground: 0 0% 100%;
 
     /* Glass Cards */
