@@ -215,11 +215,7 @@ const ODriveApp = () => {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {/* Wedding Videographers */}
-              <div className="glass-card p-8 hover:scale-105 transition-all duration-300 group relative overflow-hidden">
-                {/* Moving pink gradient highlight */}
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
-                  <div className="absolute -inset-[1px] bg-gradient-to-r from-transparent via-pink-400/60 to-transparent rounded-[inherit] animate-[spin_3s_linear_infinite] before:content-[''] before:absolute before:inset-[1px] before:bg-black/10 before:backdrop-blur-[20px] before:rounded-[inherit]"></div>
-                </div>
+              <div className="glass-card p-8 hover:scale-105 transition-all duration-300">
                 <div className="flex flex-col items-center text-center">
                   <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
                     <Camera className="h-5 w-5 text-white" />
@@ -234,11 +230,7 @@ const ODriveApp = () => {
               </div>
               
               {/* Travel Vloggers */}
-              <div className="glass-card p-8 hover:scale-105 transition-all duration-300 group relative overflow-hidden">
-                {/* Moving pink gradient highlight */}
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
-                  <div className="absolute -inset-[1px] bg-gradient-to-r from-transparent via-pink-400/60 to-transparent rounded-[inherit] animate-[spin_3s_linear_infinite] before:content-[''] before:absolute before:inset-[1px] before:bg-black/10 before:backdrop-blur-[20px] before:rounded-[inherit]"></div>
-                </div>
+              <div className="glass-card p-8 hover:scale-105 transition-all duration-300">
                 <div className="flex flex-col items-center text-center">
                   <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
                     <MapPin className="h-5 w-5 text-white" />
@@ -253,11 +245,7 @@ const ODriveApp = () => {
               </div>
               
               {/* Corporate */}
-              <div className="glass-card p-8 hover:scale-105 transition-all duration-300 group relative overflow-hidden">
-                {/* Moving pink gradient highlight */}
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
-                  <div className="absolute -inset-[1px] bg-gradient-to-r from-transparent via-pink-400/60 to-transparent rounded-[inherit] animate-[spin_3s_linear_infinite] before:content-[''] before:absolute before:inset-[1px] before:bg-black/10 before:backdrop-blur-[20px] before:rounded-[inherit]"></div>
-                </div>
+              <div className="glass-card p-8 hover:scale-105 transition-all duration-300">
                 <div className="flex flex-col items-center text-center">
                   <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
                     <Building2 className="h-5 w-5 text-white" />
@@ -272,11 +260,7 @@ const ODriveApp = () => {
               </div>
               
               {/* Documentary */}
-              <div className="glass-card p-8 hover:scale-105 transition-all duration-300 group relative overflow-hidden">
-                {/* Moving pink gradient highlight */}
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
-                  <div className="absolute -inset-[1px] bg-gradient-to-r from-transparent via-pink-400/60 to-transparent rounded-[inherit] animate-[spin_3s_linear_infinite] before:content-[''] before:absolute before:inset-[1px] before:bg-black/10 before:backdrop-blur-[20px] before:rounded-[inherit]"></div>
-                </div>
+              <div className="glass-card p-8 hover:scale-105 transition-all duration-300">
                 <div className="flex flex-col items-center text-center">
                   <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
                     <Film className="h-5 w-5 text-white" />
@@ -291,11 +275,7 @@ const ODriveApp = () => {
               </div>
               
               {/* Social Media */}
-              <div className="glass-card p-8 hover:scale-105 transition-all duration-300 group relative overflow-hidden">
-                {/* Moving pink gradient highlight */}
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
-                  <div className="absolute -inset-[1px] bg-gradient-to-r from-transparent via-pink-400/60 to-transparent rounded-[inherit] animate-[spin_3s_linear_infinite] before:content-[''] before:absolute before:inset-[1px] before:bg-black/10 before:backdrop-blur-[20px] before:rounded-[inherit]"></div>
-                </div>
+              <div className="glass-card p-8 hover:scale-105 transition-all duration-300">
                 <div className="flex flex-col items-center text-center">
                   <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
                     <Smartphone className="h-5 w-5 text-white" />
@@ -310,11 +290,7 @@ const ODriveApp = () => {
               </div>
               
               {/* Subscription */}
-              <div className="glass-card p-8 hover:scale-105 transition-all duration-300 group relative overflow-hidden">
-                {/* Moving pink gradient highlight */}
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
-                  <div className="absolute -inset-[1px] bg-gradient-to-r from-transparent via-pink-400/60 to-transparent rounded-[inherit] animate-[spin_3s_linear_infinite] before:content-[''] before:absolute before:inset-[1px] before:bg-black/10 before:backdrop-blur-[20px] before:rounded-[inherit]"></div>
-                </div>
+              <div className="glass-card p-8 hover:scale-105 transition-all duration-300">
                 <div className="flex flex-col items-center text-center">
                   <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
                     <Lock className="h-5 w-5 text-white" />
@@ -329,11 +305,7 @@ const ODriveApp = () => {
               </div>
               
               {/* Podcasters */}
-              <div className="glass-card p-8 hover:scale-105 transition-all duration-300 group relative overflow-hidden">
-                {/* Moving pink gradient highlight */}
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
-                  <div className="absolute -inset-[1px] bg-gradient-to-r from-transparent via-pink-400/60 to-transparent rounded-[inherit] animate-[spin_3s_linear_infinite] before:content-[''] before:absolute before:inset-[1px] before:bg-black/10 before:backdrop-blur-[20px] before:rounded-[inherit]"></div>
-                </div>
+              <div className="glass-card p-8 hover:scale-105 transition-all duration-300">
                 <div className="flex flex-col items-center text-center">
                   <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
                     <Mic className="h-5 w-5 text-white" />
@@ -348,11 +320,7 @@ const ODriveApp = () => {
               </div>
               
               {/* Educators */}
-              <div className="glass-card p-8 hover:scale-105 transition-all duration-300 group relative overflow-hidden">
-                {/* Moving pink gradient highlight */}
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
-                  <div className="absolute -inset-[1px] bg-gradient-to-r from-transparent via-pink-400/60 to-transparent rounded-[inherit] animate-[spin_3s_linear_infinite] before:content-[''] before:absolute before:inset-[1px] before:bg-black/10 before:backdrop-blur-[20px] before:rounded-[inherit]"></div>
-                </div>
+              <div className="glass-card p-8 hover:scale-105 transition-all duration-300">
                 <div className="flex flex-col items-center text-center">
                   <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
                     <GraduationCap className="h-5 w-5 text-white" />
@@ -367,11 +335,7 @@ const ODriveApp = () => {
               </div>
               
               {/* Family */}
-              <div className="glass-card p-8 hover:scale-105 transition-all duration-300 group relative overflow-hidden">
-                {/* Moving pink gradient highlight */}
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
-                  <div className="absolute -inset-[1px] bg-gradient-to-r from-transparent via-pink-400/60 to-transparent rounded-[inherit] animate-[spin_3s_linear_infinite] before:content-[''] before:absolute before:inset-[1px] before:bg-black/10 before:backdrop-blur-[20px] before:rounded-[inherit]"></div>
-                </div>
+              <div className="glass-card p-8 hover:scale-105 transition-all duration-300">
                 <div className="flex flex-col items-center text-center">
                   <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
                     <Users className="h-5 w-5 text-white" />
@@ -386,11 +350,7 @@ const ODriveApp = () => {
               </div>
               
               {/* Real Estate */}
-              <div className="glass-card p-8 hover:scale-105 transition-all duration-300 group relative overflow-hidden">
-                {/* Moving pink gradient highlight */}
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
-                  <div className="absolute -inset-[1px] bg-gradient-to-r from-transparent via-pink-400/60 to-transparent rounded-[inherit] animate-[spin_3s_linear_infinite] before:content-[''] before:absolute before:inset-[1px] before:bg-black/10 before:backdrop-blur-[20px] before:rounded-[inherit]"></div>
-                </div>
+              <div className="glass-card p-8 hover:scale-105 transition-all duration-300">
                 <div className="flex flex-col items-center text-center">
                   <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-xl flex items-center justify-center mb-6 border border-white/20">
                     <Home className="h-5 w-5 text-white" />

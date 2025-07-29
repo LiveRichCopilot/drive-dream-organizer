@@ -109,10 +109,12 @@ All colors MUST be HSL.
   .glass-card {
     @apply glass rounded-2xl p-6;
     transition: var(--transition-smooth);
+    /* Stable positioning - no transforms that cause bouncing */
     position: relative;
   }
 
   .glass-card:hover {
+    /* Only shadow changes, no transforms to prevent bouncing */
     box-shadow: var(--shadow-medium);
   }
 
