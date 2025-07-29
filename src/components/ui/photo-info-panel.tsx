@@ -311,18 +311,6 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                 <p className="text-xs text-white/60">{photo.size}</p>
               </div>
             </div>
-            
-            {/* FUNCTIONING EXIT BUTTON */}
-            <DialogTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0 bg-white/10 hover:bg-white/20 text-white/70 hover:text-white/90 rounded-full border border-white/20"
-                title="Close"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </DialogTrigger>
           </div>
 
           {/* Content */}
