@@ -129,7 +129,7 @@ const ODriveApp = () => {
         {/* Hero Section */}
         <div className="relative z-10 flex items-end justify-center px-8 pt-96 pb-4">
           <div className="text-center max-w-4xl mx-auto">
-            <div className="glass-card max-w-2xl mx-auto shadow-2xl">
+            <div className="glass-card max-w-2xl mx-auto" style={{boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.65)'}}>
               <div className="mb-8 flex flex-col h-full min-h-[400px]">
                 <div className="flex flex-col justify-end h-full">
             <img 
