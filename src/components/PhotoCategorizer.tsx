@@ -929,9 +929,8 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
           <Button
             onClick={scanAndAnalyzeFolder}
             disabled={isAnalyzing || photos.length === 0}
-            variant="glass"
+            variant="outline"
             size="sm"
-            className="bg-white/5 backdrop-blur-2xl border border-white/20 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1)] hover:bg-white/10 transition-all duration-300"
           >
             {isAnalyzing ? (
               <Loader2 className="h-5 w-5 mr-2 animate-spin" />
@@ -946,9 +945,8 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
             <Button
               onClick={organizePhotosByDate}
               disabled={isOrganizing || photos.length === 0}
-              variant="glass"
+              variant="outline"
               size="sm"
-              className="bg-white/5 backdrop-blur-2xl border border-white/20 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1)] hover:bg-white/10 transition-all duration-300"
             >
               {isOrganizing ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -961,9 +959,8 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
             <Button
               onClick={organizePhotosByCategory}
               disabled={isOrganizing || categories.length === 0}
-              variant="glass"
+              variant="outline"
               size="sm"
-              className="bg-white/5 backdrop-blur-2xl border border-white/20 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1)] hover:bg-white/10 transition-all duration-300"
             >
               {isOrganizing ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
