@@ -391,7 +391,7 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-400/20 to-blue-400/20 backdrop-blur-sm border border-white/30 flex items-center justify-center">
                         <img 
-                          src="/lovable-uploads/4bc1ca0f-d6b8-475a-8d1a-c0830a7101f5.png" 
+                          src="/lovable-uploads/d8472a6a-3e0f-4043-97f0-15bf747448d7.png" 
                           alt="Caption AI" 
                           className="w-4 h-4"
                         />
@@ -402,7 +402,7 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                       </div>
                     </div>
                     <img 
-                      src="/lovable-uploads/4bc1ca0f-d6b8-475a-8d1a-c0830a7101f5.png" 
+                      src="/lovable-uploads/d8472a6a-3e0f-4043-97f0-15bf747448d7.png" 
                       alt="AI Magic" 
                       className="w-20 h-20 cursor-pointer hover:scale-105 transition-transform filter drop-shadow-sm"
                       onClick={generateCaption}
@@ -448,7 +448,7 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                       <div className="flex items-start gap-2">
                         <div className="w-6 h-6 rounded-full bg-gradient-to-br from-teal-400/30 to-blue-400/30 flex items-center justify-center flex-shrink-0">
                           <img 
-                            src="/lovable-uploads/4bc1ca0f-d6b8-475a-8d1a-c0830a7101f5.png" 
+                            src="/lovable-uploads/d8472a6a-3e0f-4043-97f0-15bf747448d7.png" 
                             alt="AI" 
                             className="w-3 h-3"
                           />
@@ -485,7 +485,7 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                     <div className="flex items-center gap-2 mt-3">
                       <div className="w-6 h-6 rounded-full bg-gradient-to-br from-teal-400/30 to-blue-400/30 flex items-center justify-center">
                         <img 
-                          src="/lovable-uploads/4bc1ca0f-d6b8-475a-8d1a-c0830a7101f5.png" 
+                          src="/lovable-uploads/d8472a6a-3e0f-4043-97f0-15bf747448d7.png" 
                           alt="AI" 
                           className="w-3 h-3"
                         />
@@ -544,7 +544,7 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <img 
-                    src="/lovable-uploads/4bc1ca0f-d6b8-475a-8d1a-c0830a7101f5.png" 
+                    src="/lovable-uploads/d8472a6a-3e0f-4043-97f0-15bf747448d7.png" 
                     alt="AI Analysis" 
                     className="w-4 h-4"
                   />
