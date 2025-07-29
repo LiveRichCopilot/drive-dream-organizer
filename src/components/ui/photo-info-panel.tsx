@@ -147,6 +147,11 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
       }
     };
   }, [hdImageUrl]);
+
+  // Auto-load HD image when panel opens
+  React.useEffect(() => {
+    loadHdImage();
+  }, [photo.id]); // Load whenever photo changes
   return (
     <Dialog>
       <DialogTrigger asChild>
