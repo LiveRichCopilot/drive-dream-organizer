@@ -1013,10 +1013,7 @@ const PhotoCategorizer = ({ folderId, onClose }: PhotoCategorizerProps) => {
             )}
             Organize by Category
           </div>
-        </div>
 
-        {/* Organization Buttons Row */}
-        <div className="flex items-center gap-3 flex-wrap">
           <div
             onClick={organizePhotosByDate}
             className={`flex items-center cursor-pointer ${
