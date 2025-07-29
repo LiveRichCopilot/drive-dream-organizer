@@ -61,6 +61,9 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
   const [hdImageUrl, setHdImageUrl] = React.useState<string | null>(null);
   const [isLoadingHdImage, setIsLoadingHdImage] = React.useState(false);
   const [downloadProgress, setDownloadProgress] = React.useState(0);
+  const [isGeneratingCaption, setIsGeneratingCaption] = React.useState(false);
+  const [generatedCaption, setGeneratedCaption] = React.useState<string | null>(null);
+  const [captionStyle, setCaptionStyle] = React.useState<'social' | 'professional' | 'creative' | 'funny'>('social');
   
   // Get file size in MB for display
   const getFileSizeDisplay = (sizeString: string) => {
@@ -192,6 +195,101 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
   React.useEffect(() => {
     loadHdImage();
   }, [photo.id]); // Load whenever photo changes
+
+  // Quick download function for the instant download button
+  const handleQuickDownload = async () => {
+    try {
+      const token = localStorage.getItem('google_access_token');
+      if (!token) throw new Error('No access token available');
+
+      const downloadUrl = `https://www.googleapis.com/drive/v3/files/${photo.id}?alt=media`;
+      
+      const response = await fetch(downloadUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Download failed: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = photo.name;
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Quick download failed:', error);
+    }
+  };
+
+  // Caption generator function
+  const generateCaption = async () => {
+    setIsGeneratingCaption(true);
+    try {
+      // Get API key from Supabase edge function
+      const keyResponse = await fetch(`https://iffvjtfrqaesoehbwtgi.supabase.co/functions/v1/get-openai-key`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88`
+        }
+      });
+      
+      const keyData = await keyResponse.json();
+      const apiKey = keyData.apiKey;
+
+      // Create caption prompt based on style
+      const stylePrompts = {
+        social: "Create a fun, engaging social media caption with emojis and hashtags",
+        professional: "Write a professional, business-appropriate caption",
+        creative: "Generate a creative, artistic caption with storytelling elements",
+        funny: "Make a humorous, witty caption that will make people laugh"
+      };
+
+      const analysisContext = photo.analysis ? 
+        `Scene: ${photo.analysis.scene}, Objects: ${photo.analysis.objects.join(', ')}, Colors: ${photo.analysis.colors.join(', ')}` : 
+        'No analysis available yet';
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: "gpt-4.1-2025-04-14",
+          messages: [{
+            role: "user",
+            content: `${stylePrompts[captionStyle]} for this image. Context: ${analysisContext}. Image name: ${photo.name}. Keep it under 280 characters and make it engaging.`
+          }],
+          max_tokens: 100,
+          temperature: 0.8
+        })
+      });
+
+      const data = await response.json();
+      setGeneratedCaption(data.choices[0].message.content.trim());
+      
+    } catch (error) {
+      console.error('Caption generation failed:', error);
+      setGeneratedCaption("Couldn't generate caption. Please try again.");
+    } finally {
+      setIsGeneratingCaption(false);
+    }
+  };
+
+  // Copy caption to clipboard
+  const copyCaption = async () => {
+    if (generatedCaption) {
+      await navigator.clipboard.writeText(generatedCaption);
+    }
+  };
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -280,11 +378,23 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                         // Could add lightbox or full-screen view here
                       }}
                     />
-                    {/* HD Quality Indicator */}
-                    <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-sm px-2 py-1 rounded-full">
-                      <span className="text-xs text-white/90 font-medium">
-                        {hdImageUrl ? "HD" : "Preview"}
-                      </span>
+                    {/* HD Quality Indicator and Quick Actions */}
+                    <div className="absolute top-2 right-2 flex gap-2">
+                      <div className="bg-black/50 backdrop-blur-sm px-2 py-1 rounded-full">
+                        <span className="text-xs text-white/90 font-medium">
+                          {hdImageUrl ? "HD" : "Preview"}
+                        </span>
+                      </div>
+                      {/* Quick Download Button */}
+                      <Button
+                        onClick={handleQuickDownload}
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 bg-black/50 backdrop-blur-sm hover:bg-black/70 text-white/90 rounded-full"
+                        title="Quick Download"
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
                     </div>
                   </>
                 )}
@@ -464,6 +574,83 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
               ) : (
                 <div className="ml-6 text-sm text-white/60">
                   Click "Analyze Photo" to extract detailed information using AI vision
+                </div>
+              )}
+            </div>
+
+            <Separator className="bg-white/10" />
+
+            {/* Caption Maker Section */}
+            <div className="px-4 py-2">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Tag className="w-3 h-3 text-white/70" />
+                  <h3 className="text-xs font-medium text-white/90">Caption Maker</h3>
+                </div>
+                <Button
+                  onClick={generateCaption}
+                  disabled={isGeneratingCaption}
+                  variant="glass"
+                  size="sm"
+                  className="bg-white/3 backdrop-blur-md border border-white/10 text-white/70 hover:bg-white/5 hover:text-white/90 text-xs px-2 py-1"
+                >
+                  {isGeneratingCaption ? (
+                    <>
+                      <div className="w-2 h-2 mr-1.5 border-2 border-white/30 border-t-white/90 rounded-full animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-2 h-2 mr-1.5" />
+                      Generate
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {/* Caption Style Selector */}
+              <div className="ml-5 mb-3">
+                <div className="flex flex-wrap gap-1">
+                  {(['social', 'professional', 'creative', 'funny'] as const).map((style) => (
+                    <Button
+                      key={style}
+                      onClick={() => setCaptionStyle(style)}
+                      variant={captionStyle === style ? "secondary" : "outline"}
+                      size="sm"
+                      className={`text-[10px] px-2 py-1 h-6 ${
+                        captionStyle === style 
+                          ? "bg-white/20 border-white/30 text-white/90" 
+                          : "bg-white/5 border-white/20 text-white/70 hover:bg-white/10"
+                      }`}
+                    >
+                      {style.charAt(0).toUpperCase() + style.slice(1)}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Generated Caption Display */}
+              {generatedCaption && (
+                <div className="ml-5 space-y-2">
+                  <div className="p-3 bg-white/5 rounded-lg border border-white/10">
+                    <p className="text-xs text-white/90 leading-relaxed">
+                      {generatedCaption}
+                    </p>
+                  </div>
+                  <Button
+                    onClick={copyCaption}
+                    variant="ghost"
+                    size="sm"
+                    className="bg-white/5 hover:bg-white/10 text-white/70 hover:text-white/90 text-xs px-2 py-1"
+                  >
+                    📋 Copy Caption
+                  </Button>
+                </div>
+              )}
+
+              {!generatedCaption && !isGeneratingCaption && (
+                <div className="ml-5 text-xs text-white/60">
+                  Select a style and click "Generate" to create a caption
                 </div>
               )}
             </div>
