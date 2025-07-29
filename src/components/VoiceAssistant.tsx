@@ -198,7 +198,7 @@ const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ className }) => {
       {/* Voice Assistant Panel */}
       {isOpen && (
         <div className="fixed bottom-6 right-6 z-50 w-80 max-h-96">
-          <div className="glass-card p-6">
+          <div className="bg-white/10 backdrop-blur-[20px] backdrop-saturate-[180%] p-6 border border-white/30 rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.1),inset_0_1px_1px_rgba(255,255,255,0.4)]">
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-white">Voice Assistant</h3>
