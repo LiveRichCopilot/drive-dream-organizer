@@ -315,93 +315,69 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gradient-to-b scrollbar-thumb-from-teal-200/30 scrollbar-thumb-to-blue-200/30 hover:scrollbar-thumb-from-teal-200/40 hover:scrollbar-thumb-to-blue-200/40 scrollbar-w-1">
-            {/* THE IMAGE - STAR OF THE SHOW (NO CONTAINER) */}
-            <div className="p-4">
+            {/* THE BIG HD IMAGE AT THE TOP */}
+            <div className="p-0 mb-6">
               {isDownloading || isLoadingHdImage ? (
-                <div className="flex flex-col items-center justify-center bg-black/30 backdrop-blur-sm min-h-[300px] rounded-xl">
-                  {/* Circular Progress Meter */}
+                <div className="flex flex-col items-center justify-center bg-black/30 backdrop-blur-sm h-[400px] rounded-xl">
                   <div className="relative w-16 h-16 mb-3">
-                    {/* Background circle */}
                     <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 64 64">
-                      <circle
-                        cx="32"
-                        cy="32"
-                        r="28"
-                        stroke="rgba(255,255,255,0.2)"
-                        strokeWidth="4"
-                        fill="none"
-                      />
-                      {/* Progress circle */}
-                      <circle
-                        cx="32"
-                        cy="32"
-                        r="28"
-                        stroke="rgba(59,130,246,0.8)"
-                        strokeWidth="4"
-                        fill="none"
+                      <circle cx="32" cy="32" r="28" stroke="rgba(255,255,255,0.2)" strokeWidth="4" fill="none" />
+                      <circle cx="32" cy="32" r="28" stroke="rgba(59,130,246,0.8)" strokeWidth="4" fill="none"
                         strokeDasharray={`${2 * Math.PI * 28}`}
                         strokeDashoffset={`${2 * Math.PI * 28 * (1 - downloadProgress / 100)}`}
-                        className="transition-all duration-300 ease-out"
-                      />
+                        className="transition-all duration-300 ease-out" />
                     </svg>
-                    {/* Percentage text */}
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-sm font-bold text-white">
-                        {downloadProgress}%
-                      </span>
+                      <span className="text-sm font-bold text-white">{downloadProgress}%</span>
                     </div>
                   </div>
-                  <p className="text-xs text-white/80 text-center px-4">
-                    {isLoadingHdImage ? "Loading HD image..." : "Processing image..."}
-                  </p>
-                  <p className="text-xs text-white/60 text-center px-4 mt-1">
-                    {photo.size}
-                  </p>
+                  <p className="text-xs text-white/80 text-center px-4">Loading HD image...</p>
                 </div>
               ) : (
                 <div className="relative">
+                  {/* BIG HD IMAGE - STAR OF THE SHOW */}
                   <img
-                    src={photo.thumbnailLink || `https://drive.google.com/thumbnail?id=${photo.id}&sz=w800-h600`}
+                    src={hdImageUrl || `https://drive.google.com/thumbnail?id=${photo.id}&sz=w1920-h1080`}
                     alt={photo.name}
-                    className="w-full h-auto object-contain rounded-xl shadow-lg"
+                    className="w-full h-auto max-h-[600px] object-contain rounded-xl"
                     style={{ 
                       display: 'block',
-                      visibility: 'visible'
+                      visibility: 'visible',
+                      minHeight: '300px'
                     }}
                     loading="eager"
                     fetchPriority="high"
                     onLoad={(e) => {
                       setFullResLoaded(true);
-                      console.log('✅ Image loaded successfully:', photo.name);
+                      console.log('✅ HD Image loaded:', photo.name, e.currentTarget.naturalWidth + 'x' + e.currentTarget.naturalHeight);
                     }}
                     onError={(e) => {
-                      console.error('❌ Image failed to load for:', photo.name);
-                      
-                      if (e.currentTarget.src.includes('thumbnailLink')) {
+                      console.error('❌ HD Image failed, trying fallbacks...');
+                      if (!e.currentTarget.src.includes('w1920')) {
+                        e.currentTarget.src = `https://drive.google.com/thumbnail?id=${photo.id}&sz=w1920-h1080`;
+                      } else if (!e.currentTarget.src.includes('w800')) {
                         e.currentTarget.src = `https://drive.google.com/thumbnail?id=${photo.id}&sz=w800-h600`;
-                      } else if (e.currentTarget.src.includes('drive.google.com/thumbnail')) {
-                        e.currentTarget.src = `https://drive.google.com/file/d/${photo.id}/view`;
-                      } else if (!e.currentTarget.src.includes('placeholder')) {
-                        e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMzMzIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIE5vdCBBdmFpbGFibGU8L3RleHQ+PC9zdmc+';
+                      } else {
+                        e.currentTarget.src = photo.thumbnailLink || photo.webViewLink;
                       }
                     }}
                   />
                   
-                  {/* HD Quality Badge and Actions Overlay */}
-                  <div className="absolute top-3 right-3 flex gap-2">
-                    <div className="bg-black/60 backdrop-blur-sm px-3 py-1 rounded-full border border-white/10">
-                      <span className="text-xs text-white/90 font-medium">
-                        {hdImageUrl ? "HD" : "Preview"}
+                  {/* HD Badge and Download - Top Right */}
+                  <div className="absolute top-4 right-4 flex gap-3">
+                    <div className="bg-black/70 backdrop-blur-sm px-4 py-2 rounded-full border border-white/20">
+                      <span className="text-sm text-white/95 font-bold">
+                        {hdImageUrl ? "🔥 HD" : "📷 Preview"}
                       </span>
                     </div>
                     <Button
                       onClick={handleQuickDownload}
                       variant="ghost"
                       size="sm"
-                      className="h-8 w-8 p-0 bg-black/60 backdrop-blur-sm hover:bg-black/80 text-white/90 rounded-full border border-white/10"
-                      title="Download Image"
+                      className="h-10 w-10 p-0 bg-black/70 backdrop-blur-sm hover:bg-black/80 text-white/95 rounded-full border border-white/20"
+                      title="Download HD Image"
                     >
-                      <Download className="h-4 w-4" />
+                      <Download className="h-5 w-5" />
                     </Button>
                   </div>
                 </div>
