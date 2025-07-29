@@ -648,9 +648,9 @@ const ODriveApp = () => {
           ))}
         </div>
       ) : (
-        <div className="space-y-4 opacity-50">
+        <div className="space-y-4">
           {filteredVideos.map((video) => (
-            <Card key={video.id} className="bg-gray-500/60 backdrop-blur-sm border border-gray-400/20 drop-shadow-lg drop-shadow-black/20">
+            <Card key={video.id} className="glass-card">
               <div className="flex items-center gap-4 p-6">
                 <div className="w-24 h-16 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
                   {video.thumbnail && video.thumbnail !== '/api/placeholder/300/200' ? (
