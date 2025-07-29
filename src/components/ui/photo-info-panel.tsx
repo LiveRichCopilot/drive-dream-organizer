@@ -59,10 +59,10 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
-      <DialogContent className="max-w-md w-[90vw] max-h-[85vh] p-0 bg-white/10 backdrop-blur-[20px] backdrop-saturate-[180%] border border-white/30 shadow-[0_0_30px_rgba(255,255,255,0.1),inset_0_1px_1px_rgba(255,255,255,0.4)] rounded-2xl z-[100] overflow-hidden">
+      <DialogContent className="max-w-md w-[90vw] max-h-[85vh] p-0 bg-white/10 backdrop-blur-[20px] backdrop-saturate-[180%] border border-white/30 shadow-lg rounded-2xl z-[100] overflow-hidden">
         <div className="relative h-full flex flex-col">
-          {/* Compact Header */}
-          <div className="flex items-center justify-between p-4 border-b border-white/10">
+          {/* Draggable Header */}
+          <div className="flex items-center justify-between p-4 border-b border-white/10 cursor-move select-none">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-lg bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
                 <FileImage className="w-3 h-3 text-white/90" />
