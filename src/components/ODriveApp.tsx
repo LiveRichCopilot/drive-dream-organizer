@@ -383,7 +383,7 @@ const ODriveApp = () => {
       <div 
         className="absolute inset-0 z-0"
         style={{
-          backgroundImage: `url(/lovable-uploads/10941672-84f2-43b7-8bc5-0930ac3be916.png)`,
+          backgroundImage: `url(/lovable-uploads/7af5f168-f46f-47d9-ab3f-177d0fc3c56b.png)`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundAttachment: 'fixed'
