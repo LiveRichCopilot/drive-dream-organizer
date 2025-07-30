@@ -460,13 +460,11 @@ const ODriveApp = () => {
                 }}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                    <img 
-                      src="/lovable-uploads/c3969a51-d9b2-4fec-918d-abc0537b85b9.png" 
-                      alt="Google Drive" 
-                      className="h-6 w-6"
-                    />
-                  </div>
+                  <img 
+                    src="/lovable-uploads/c3969a51-d9b2-4fec-918d-abc0537b85b9.png" 
+                    alt="Google Drive" 
+                    className="h-10 w-10"
+                  />
                   <div>
                     <h3 className="font-semibold">All Files</h3>
                     <p className="text-sm text-white/60">Browse your entire Google Drive</p>
