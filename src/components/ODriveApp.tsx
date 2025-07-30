@@ -576,7 +576,11 @@ const ODriveApp = () => {
                 setShowPhotoOrganizer(!showPhotoOrganizer);
               }}
             >
-              <Camera className="h-5 w-5" />
+              <img 
+                src="/lovable-uploads/f6ac0eb3-234f-4802-b2fe-502661720459.png" 
+                alt="AI Photo Organizer" 
+                className="h-5 w-5 object-contain"
+              />
               <span className="text-sm">AI Photo Organizer</span>
             </div>
             <div 
