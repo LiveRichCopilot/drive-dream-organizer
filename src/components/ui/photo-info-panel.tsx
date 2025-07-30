@@ -686,8 +686,8 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                   {photo.analysis.prompt && (
                     <div className="space-y-2">
                       <span className="text-sm text-white/60">AI Generation Prompt:</span>
-                      <div 
-                        className="p-3 bg-card rounded-lg border border-border cursor-pointer hover:bg-accent transition-colors relative group"
+                       <div 
+                         className="p-3 bg-neutral-800 rounded-lg border border-border cursor-pointer hover:bg-accent transition-colors relative group"
                         onClick={() => navigator.clipboard.writeText(photo.analysis.prompt || "")}
                         title="Click to copy prompt"
                       >
