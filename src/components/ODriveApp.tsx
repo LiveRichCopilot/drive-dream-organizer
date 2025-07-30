@@ -477,7 +477,11 @@ const ODriveApp = () => {
               >
                 <div className="flex items-center gap-3">
                   <div className="flex items-center justify-center">
-                    <Settings className="h-8 w-8 text-orange-300" />
+                    <img 
+                      src="/lovable-uploads/bdae0475-a3c2-4a7b-aa3c-d47b48369f8b.png" 
+                      alt="Google Drive Gear" 
+                      className="h-8 w-8"
+                    />
                   </div>
                   <div>
                     <h3 className="font-semibold">Specific Folder</h3>
