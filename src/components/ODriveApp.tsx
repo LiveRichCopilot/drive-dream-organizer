@@ -463,7 +463,7 @@ const ODriveApp = () => {
                   <img 
                     src="/lovable-uploads/c3969a51-d9b2-4fec-918d-abc0537b85b9.png" 
                     alt="Google Drive" 
-                    className="h-10 w-10"
+                    className="h-10 w-10 object-contain relative z-10"
                   />
                   <div>
                     <h3 className="font-semibold">All Files</h3>
