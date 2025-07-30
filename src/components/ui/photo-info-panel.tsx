@@ -63,7 +63,7 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
   const [isLoadingHdImage, setIsLoadingHdImage] = React.useState(false);
   const [downloadProgress, setDownloadProgress] = React.useState(0);
   const [isGeneratingCaption, setIsGeneratingCaption] = React.useState(false);
-  const [generatedCaption, setGeneratedCaption] = React.useState<string | null>(null);
+  const [generatedCaptions, setGeneratedCaptions] = React.useState<string[]>([]);
   const [captionStyle, setCaptionStyle] = React.useState<'instagram' | 'tiktok' | 'youtube' | 'x' | 'linkedin' | 'subs' | 'onlyfans' | 'fansly'>('instagram');
   
   // Get file size in MB for display
@@ -229,6 +229,21 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
     }
   };
 
+  // Parse numbered list function
+  const parseNumberedList = (content: string): string[] => {
+    const lines = content.split('\n').filter(line => line.trim());
+    const captions: string[] = [];
+    
+    for (const line of lines) {
+      const match = line.match(/^\d+\.\s*(.+)$/);
+      if (match) {
+        captions.push(match[1].trim());
+      }
+    }
+    
+    return captions.length > 0 ? captions : [content];
+  };
+
   // Caption generator function
   const generateCaption = async () => {
     setIsGeneratingCaption(true);
@@ -269,31 +284,37 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
         },
         body: JSON.stringify({
           model: "gpt-4.1-2025-04-14",
-          messages: [{
-            role: "user",
-            content: `${platformPrompts[captionStyle]} Context: ${analysisContext}. Image name: ${photo.name}. Keep it engaging and platform-appropriate.`
-          }],
-          max_tokens: 150,
-          temperature: 0.8
+          messages: [
+            {
+              role: 'system',
+              content: 'Return EXACTLY 5 captions as a numbered list. Each caption MUST be different: 1. Flirty/playful 2. Empowering 3. Lifestyle 4. Question/poll 5. Authentic. Format: 1. [caption]\n2. [caption]\n3. [caption]\n4. [caption]\n5. [caption]'
+            },
+            {
+              role: "user", 
+              content: `${platformPrompts[captionStyle]} Context: ${analysisContext}. Image name: ${photo.name}. Keep it engaging and platform-appropriate.`
+            }
+          ],
+          max_tokens: 1500,
+          temperature: 0.9
         })
       });
 
       const data = await response.json();
-      setGeneratedCaption(data.choices[0].message.content.trim());
+      const rawResponse = data.choices[0].message.content.trim();
+      const parsedCaptions = parseNumberedList(rawResponse);
+      setGeneratedCaptions(parsedCaptions);
       
     } catch (error) {
       console.error('Caption generation failed:', error);
-      setGeneratedCaption("Couldn't generate caption. Please try again.");
+      setGeneratedCaptions(["Couldn't generate caption. Please try again."]);
     } finally {
       setIsGeneratingCaption(false);
     }
   };
 
   // Copy caption to clipboard
-  const copyCaption = async () => {
-    if (generatedCaption) {
-      await navigator.clipboard.writeText(generatedCaption);
-    }
+  const copyCaption = async (caption: string) => {
+    await navigator.clipboard.writeText(caption);
   };
   return (
     <Dialog>
@@ -441,8 +462,8 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                     </div>
                   </div>
 
-                  {/* Generated Caption Display - Chat Bubble Style */}
-                  {generatedCaption && (
+                   {/* Generated Captions Display - 5 Different Styles */}
+                  {generatedCaptions.length > 0 && (
                     <div className="space-y-3">
                       {/* AI Response Bubble */}
                       <div className="flex items-start gap-2">
@@ -453,26 +474,36 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                             className="w-3 h-3"
                           />
                         </div>
-                        <div className="flex-1 bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm rounded-xl p-3 border border-white/20">
-                          <p className="text-xs text-white/90 leading-relaxed">
-                            {generatedCaption}
-                          </p>
+                        <div className="flex-1 space-y-3">
+                          {generatedCaptions.map((caption, index) => {
+                            const personas = ['🔥 Flirty & Playful', '💪 Empowering', '✨ Lifestyle', '❓ Interactive', '💭 Authentic'];
+                            return (
+                              <div key={index} className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm rounded-xl p-3 border border-white/20">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-xs font-medium text-teal-300">{personas[index] || `Caption ${index + 1}`}</span>
+                                  <Button
+                                    onClick={() => copyCaption(caption)}
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-5 px-2 text-xs bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 rounded-lg border border-teal-400/30"
+                                  >
+                                    📋
+                                  </Button>
+                                </div>
+                                <p className="text-xs text-white/90 leading-relaxed">
+                                  {caption}
+                                </p>
+                              </div>
+                            );
+                          })}
                           <div className="flex gap-2 mt-3">
                             <Button
-                              onClick={copyCaption}
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 px-2 text-xs bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 rounded-lg border border-teal-400/30"
-                            >
-                              📋 Copy
-                            </Button>
-                            <Button
-                              onClick={() => setGeneratedCaption(null)}
+                              onClick={() => setGeneratedCaptions([])}
                               variant="ghost"
                               size="sm"
                               className="h-6 px-2 text-xs bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 rounded-lg border border-pink-400/30"
                             >
-                              🔄 New
+                              🔄 Generate New Set
                             </Button>
                           </div>
                         </div>
@@ -500,8 +531,8 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
                     </div>
                   )}
 
-                  {/* Welcome Message */}
-                  {!generatedCaption && !isGeneratingCaption && (
+                   {/* Welcome Message */}
+                  {generatedCaptions.length === 0 && !isGeneratingCaption && (
                     <div className="text-center py-2">
                       <p className="text-xs text-white/60">
                         ✨ Pick a style above and click the sparkle to generate your perfect caption
