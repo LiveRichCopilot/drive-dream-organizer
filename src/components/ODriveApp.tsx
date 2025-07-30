@@ -480,7 +480,7 @@ const ODriveApp = () => {
                     <img 
                       src="/lovable-uploads/bdae0475-a3c2-4a7b-aa3c-d47b48369f8b.png" 
                       alt="Google Drive Gear" 
-                      className="h-8 w-8"
+                      className="h-10 w-10"
                     />
                   </div>
                   <div>
