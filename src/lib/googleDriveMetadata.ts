@@ -18,6 +18,8 @@ export interface VideoMetadata {
   };
   editingSoftware?: string;
   isEdited?: boolean;
+  extractionMethod?: string;
+  extractionStatus?: 'success' | 'failed' | 'partial';
 }
 
 export class GoogleDriveMetadataExtractor {
@@ -27,14 +29,16 @@ export class GoogleDriveMetadataExtractor {
     this.accessToken = accessToken;
   }
 
-  async extractMetadata(fileId: string): Promise<VideoMetadata> {
+  async extractMetadata(fileId: string, fileName?: string): Promise<VideoMetadata> {
     const strategies = [
+      () => this.extractWithDeepParsing(fileId, fileName),
       () => this.extractFromGoogleDriveApi(fileId),
-      () => this.extractFromFileName(fileId),
+      () => this.extractFromFileName(fileId, fileName),
       () => this.inferFromSequence(fileId),
     ];
 
     let metadata: VideoMetadata = {};
+    let extractionMethod = 'none';
 
     for (const strategy of strategies) {
       try {
@@ -43,6 +47,7 @@ export class GoogleDriveMetadataExtractor {
         
         // If we have an original date, that's our main goal
         if (metadata.originalDate) {
+          extractionMethod = strategy.name || 'unknown';
           break;
         }
       } catch (error) {
@@ -51,7 +56,57 @@ export class GoogleDriveMetadataExtractor {
       }
     }
 
-    return metadata;
+    return {
+      ...metadata,
+      extractionMethod,
+      extractionStatus: metadata.originalDate ? 'success' : 'failed'
+    };
+  }
+
+  private async extractWithDeepParsing(fileId: string, fileName?: string): Promise<VideoMetadata> {
+    try {
+      const response = await fetch('https://iffvjtfrqaesoehbwtgi.supabase.co/functions/v1/video-metadata-deep-extract', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ fileId, fileName }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Deep parsing failed: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.success && result.metadata) {
+        const metadata: VideoMetadata = {};
+        
+        if (result.metadata.originalDate) {
+          metadata.originalDate = result.metadata.originalDate;
+        }
+        
+        if (result.metadata.location) {
+          metadata.location = result.metadata.location;
+        }
+        
+        if (result.metadata.device) {
+          metadata.device = result.metadata.device;
+        }
+        
+        if (result.metadata.isEdited) {
+          metadata.isEdited = result.metadata.isEdited;
+          metadata.editingSoftware = result.metadata.editingSoftware;
+        }
+
+        return metadata;
+      }
+    } catch (error) {
+      console.warn('Deep parsing extraction failed:', error);
+    }
+
+    return {};
   }
 
   private async extractFromGoogleDriveApi(fileId: string): Promise<VideoMetadata> {
@@ -109,13 +164,31 @@ export class GoogleDriveMetadataExtractor {
     return metadata;
   }
 
-  private async extractFromFileName(fileId: string): Promise<VideoMetadata> {
-    // This would involve getting the file name and parsing it for date patterns
-    // Common iPhone patterns: IMG_1234.MOV, IMG_E1234.MOV (edited), etc.
+  private async extractFromFileName(fileId: string, fileName?: string): Promise<VideoMetadata> {
     const metadata: VideoMetadata = {};
     
-    // Implementation would analyze filename patterns
-    // For now, return empty metadata
+    if (!fileName) return metadata;
+    
+    // iPhone patterns: IMG_1234.MOV, IMG_E1234.MOV (edited)
+    if (fileName.match(/IMG_E?\d+\.(MOV|mp4)/i)) {
+      metadata.device = 'iPhone';
+      if (fileName.includes('IMG_E')) {
+        metadata.isEdited = true;
+        metadata.editingSoftware = 'iPhone Photos Edit';
+      }
+    }
+    
+    // Date patterns in filename: YYYY_MM_DD or YYYY-MM-DD
+    const dateMatch = fileName.match(/(\d{4})[_-]?(\d{2})[_-]?(\d{2})/);
+    if (dateMatch) {
+      try {
+        const [_, year, month, day] = dateMatch;
+        metadata.originalDate = new Date(`${year}-${month}-${day}`).toISOString();
+      } catch (error) {
+        console.warn('Invalid date in filename:', error);
+      }
+    }
+    
     return metadata;
   }
 
