@@ -406,7 +406,7 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
 
               {/* Caption Chatbot - Liquid Glass Expandable Interface */}
               <div className="relative overflow-hidden">
-                <div className="px-4 py-3 bg-gradient-to-r from-teal-500 to-blue-500 backdrop-blur-md border border-white rounded-xl mx-2 mb-4 shadow-lg">
+                <div className="px-4 py-3 bg-gradient-to-r from-gray-800 to-gray-700 backdrop-blur-md border border-white rounded-xl mx-2 mb-4 shadow-lg">
                   {/* Chatbot Header */}
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3">
