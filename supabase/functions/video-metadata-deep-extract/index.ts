@@ -241,21 +241,11 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get('authorization')
-    const accessToken = authHeader?.replace('Bearer ', '')
+    const { fileId, fileName, accessToken } = await req.json()
     
-    if (!accessToken) {
+    if (!fileId || !accessToken) {
       return new Response(
-        JSON.stringify({ error: 'Access token required' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    const { fileId, fileName } = await req.json()
-    
-    if (!fileId) {
-      return new Response(
-        JSON.stringify({ error: 'File ID required' }),
+        JSON.stringify({ error: 'File ID and access token required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }

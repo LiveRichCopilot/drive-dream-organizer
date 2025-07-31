@@ -74,10 +74,14 @@ export class GoogleDriveMetadataExtractor {
       const response = await fetch('https://iffvjtfrqaesoehbwtgi.supabase.co/functions/v1/video-metadata-deep-extract', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.accessToken}`,
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ fileId, fileName }),
+        body: JSON.stringify({ 
+          fileId, 
+          fileName,
+          accessToken: this.accessToken 
+        }),
       });
 
       console.log(`📡 Deep parsing response status: ${response.status} for ${fileName || fileId}`);
