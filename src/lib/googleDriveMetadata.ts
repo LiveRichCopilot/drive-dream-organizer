@@ -3,6 +3,8 @@
 // This handles the complex task of extracting original metadata from video files
 // following the patterns shown in Google's documentation
 
+import { supabase } from "@/integrations/supabase/client";
+
 export interface VideoMetadata {
   originalDate?: string;
   location?: {
@@ -66,6 +68,34 @@ export class GoogleDriveMetadataExtractor {
   }
 
   async extractMetadata(fileId: string, fileName?: string): Promise<VideoMetadata> {
+    // First check if we already have cached analysis for this file
+    try {
+      const { data: cachedData } = await supabase
+        .from('video_analysis_cache')
+        .select('*')
+        .eq('google_drive_file_id', fileId)
+        .single();
+
+      if (cachedData) {
+        console.log(`📋 Found cached analysis for ${fileName || fileId}`);
+        return {
+          originalDate: cachedData.original_date || undefined,
+          description: cachedData.description || undefined,
+          detailedDescription: cachedData.detailed_description || undefined,
+          videoType: cachedData.video_type || undefined,
+          scenes: (cachedData.scenes as string[]) || [],
+          visualStyle: (cachedData.visual_style as any) || undefined,
+          subjects: (cachedData.subjects as string[]) || [],
+          cameraWork: cachedData.camera_work || undefined,
+          veo3Prompts: (cachedData.veo3_prompts as any) || undefined,
+          analysisConfidence: Number(cachedData.analysis_confidence) || undefined,
+          extractionMethod: 'cached',
+          extractionStatus: 'success'
+        };
+      }
+    } catch (error) {
+      console.log('No cached data found, proceeding with fresh analysis');
+    }
     const strategies = [
       () => this.extractWithDeepParsing(fileId, fileName),
       () => this.extractFromGoogleDriveApi(fileId),
@@ -115,6 +145,38 @@ export class GoogleDriveMetadataExtractor {
     } catch (error) {
       console.warn(`⚠️ Comprehensive video analysis failed for ${fileName || fileId}:`, error);
       // Don't fail the entire process if analysis fails
+    }
+
+    // Save the complete analysis to cache for future use
+    if (metadata.originalDate || metadata.description) {
+      try {
+        await supabase
+          .from('video_analysis_cache')
+          .upsert({
+            google_drive_file_id: fileId,
+            file_name: fileName,
+            original_date: metadata.originalDate || null,
+            description: metadata.description || null,
+            detailed_description: metadata.detailedDescription || null,
+            video_type: metadata.videoType || null,
+            scenes: metadata.scenes || null,
+            visual_style: metadata.visualStyle || null,
+            subjects: metadata.subjects || null,
+            camera_work: metadata.cameraWork || null,
+            veo3_prompts: metadata.veo3Prompts || null,
+            analysis_confidence: metadata.analysisConfidence || null,
+            metadata: {
+              duration: metadata.duration,
+              resolution: metadata.resolution,
+              device: metadata.device,
+              editingSoftware: metadata.editingSoftware,
+              isEdited: metadata.isEdited
+            }
+          });
+        console.log(`💾 Cached analysis for ${fileName || fileId}`);
+      } catch (error) {
+        console.warn('Failed to cache analysis:', error);
+      }
     }
 
     return {

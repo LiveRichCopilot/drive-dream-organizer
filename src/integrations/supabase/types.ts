@@ -50,6 +50,63 @@ export type Database = {
         }
         Relationships: []
       }
+      video_analysis_cache: {
+        Row: {
+          analysis_confidence: number | null
+          camera_work: string | null
+          created_at: string
+          description: string | null
+          detailed_description: string | null
+          file_name: string | null
+          google_drive_file_id: string
+          id: string
+          metadata: Json | null
+          original_date: string | null
+          scenes: Json | null
+          subjects: Json | null
+          updated_at: string
+          veo3_prompts: Json | null
+          video_type: string | null
+          visual_style: Json | null
+        }
+        Insert: {
+          analysis_confidence?: number | null
+          camera_work?: string | null
+          created_at?: string
+          description?: string | null
+          detailed_description?: string | null
+          file_name?: string | null
+          google_drive_file_id: string
+          id?: string
+          metadata?: Json | null
+          original_date?: string | null
+          scenes?: Json | null
+          subjects?: Json | null
+          updated_at?: string
+          veo3_prompts?: Json | null
+          video_type?: string | null
+          visual_style?: Json | null
+        }
+        Update: {
+          analysis_confidence?: number | null
+          camera_work?: string | null
+          created_at?: string
+          description?: string | null
+          detailed_description?: string | null
+          file_name?: string | null
+          google_drive_file_id?: string
+          id?: string
+          metadata?: Json | null
+          original_date?: string | null
+          scenes?: Json | null
+          subjects?: Json | null
+          updated_at?: string
+          veo3_prompts?: Json | null
+          video_type?: string | null
+          visual_style?: Json | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
