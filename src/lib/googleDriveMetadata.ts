@@ -22,7 +22,23 @@ export interface VideoMetadata {
   extractionStatus?: 'success' | 'failed' | 'partial';
   // Google Vision analysis fields
   description?: string;
+  detailedDescription?: string;
   videoType?: string;
+  scenes?: string[];
+  visualStyle?: {
+    lighting: string;
+    colorPalette: string[];
+    mood: string;
+  };
+  subjects?: string[];
+  cameraWork?: string;
+  veo3Prompts?: {
+    professional: string;
+    creative: string;
+    technical: string;
+    short: string;
+    detailed: string;
+  };
   labels?: Array<{
     description: string;
     score: number;
@@ -80,21 +96,24 @@ export class GoogleDriveMetadataExtractor {
       }
     }
 
-    // After metadata extraction, analyze video content with Google Vision
+    // After metadata extraction, analyze video content comprehensively
     try {
-      console.log(`🎬 Starting video content analysis for ${fileName || fileId}...`);
-      const analysisResult = await this.analyzeVideoContent(fileId, fileName);
+      console.log(`🎬 Starting comprehensive video analysis for ${fileName || fileId}...`);
+      const analysisResult = await this.analyzeVideoContentComprehensive(fileId, fileName);
       if (analysisResult.success) {
         metadata.description = analysisResult.analysis.description;
-        metadata.videoType = analysisResult.analysis.videoType;
-        metadata.labels = analysisResult.analysis.labels;
-        metadata.objects = analysisResult.analysis.objects;
-        metadata.colors = analysisResult.analysis.colors;
+        metadata.detailedDescription = analysisResult.analysis.detailedDescription;
+        metadata.videoType = analysisResult.analysis.setting;
+        metadata.scenes = analysisResult.analysis.scenes;
+        metadata.visualStyle = analysisResult.analysis.visualStyle;
+        metadata.subjects = analysisResult.analysis.subjects;
+        metadata.cameraWork = analysisResult.analysis.cameraWork;
+        metadata.veo3Prompts = analysisResult.veo3Prompts;
         metadata.analysisConfidence = analysisResult.analysis.confidence;
-        console.log(`✅ Video analysis complete: ${analysisResult.analysis.description}`);
+        console.log(`✅ Comprehensive video analysis complete: ${analysisResult.analysis.description}`);
       }
     } catch (error) {
-      console.warn(`⚠️ Video analysis failed for ${fileName || fileId}:`, error);
+      console.warn(`⚠️ Comprehensive video analysis failed for ${fileName || fileId}:`, error);
       // Don't fail the entire process if analysis fails
     }
 
@@ -298,6 +317,33 @@ export class GoogleDriveMetadataExtractor {
       return { success: false, error: error.message };
     }
 
+  }
+
+  private async analyzeVideoContentComprehensive(fileId: string, fileName?: string): Promise<any> {
+    try {
+      const response = await fetch('https://iffvjtfrqaesoehbwtgi.supabase.co/functions/v1/video-content-analyzer', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          fileId, 
+          fileName,
+          accessToken: this.accessToken,
+          analysisType: 'comprehensive'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Comprehensive video analysis failed: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.warn('Comprehensive video analysis failed:', error);
+      return { success: false, error: error.message };
+    }
   }
 
   // Static utility methods
