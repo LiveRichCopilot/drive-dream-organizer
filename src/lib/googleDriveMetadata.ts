@@ -42,16 +42,20 @@ export class GoogleDriveMetadataExtractor {
 
     for (const strategy of strategies) {
       try {
+        console.log(`🎯 Trying extraction strategy: ${strategy.name || 'unknown'} for ${fileName || fileId}`);
         const result = await strategy();
         metadata = { ...metadata, ...result };
+        
+        console.log(`📋 Strategy result:`, result);
         
         // If we have an original date, that's our main goal
         if (metadata.originalDate) {
           extractionMethod = strategy.name || 'unknown';
+          console.log(`✅ Found original date with ${extractionMethod}: ${metadata.originalDate}`);
           break;
         }
       } catch (error) {
-        console.warn(`Metadata extraction strategy failed: ${error}`);
+        console.warn(`❌ Metadata extraction strategy ${strategy.name || 'unknown'} failed:`, error);
         // Continue to next strategy
       }
     }
@@ -65,6 +69,8 @@ export class GoogleDriveMetadataExtractor {
 
   private async extractWithDeepParsing(fileId: string, fileName?: string): Promise<VideoMetadata> {
     try {
+      console.log(`🔍 Starting deep parsing for ${fileName || fileId}...`);
+      
       const response = await fetch('https://iffvjtfrqaesoehbwtgi.supabase.co/functions/v1/video-metadata-deep-extract', {
         method: 'POST',
         headers: {
@@ -73,6 +79,8 @@ export class GoogleDriveMetadataExtractor {
         },
         body: JSON.stringify({ fileId, fileName }),
       });
+
+      console.log(`📡 Deep parsing response status: ${response.status} for ${fileName || fileId}`);
 
       if (!response.ok) {
         throw new Error(`Deep parsing failed: ${response.status}`);
