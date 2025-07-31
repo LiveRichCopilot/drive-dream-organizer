@@ -105,8 +105,7 @@ export class FixedGoogleOAuth {
 
     // Use popup instead of redirect for better UX
     return new Promise((resolve, reject) => {
-      // Use the consistent Lovable domain for redirect URI to match Google Console config
-      const redirectUri = 'https://8eaca3d5-3299-4cce-9fff-4aa630fbc5d6.lovableproject.com/auth/callback';
+      const redirectUri = `${window.location.origin}/auth/callback`;
       
       // Generate state parameter for security
       const state = Math.random().toString(36).substring(2, 15);
@@ -201,7 +200,7 @@ export class FixedGoogleOAuth {
         },
         body: JSON.stringify({
           code,
-          redirect_uri: 'https://8eaca3d5-3299-4cce-9fff-4aa630fbc5d6.lovableproject.com/auth/callback'
+          redirect_uri: `${window.location.origin}/auth/callback`
         })
       });
 
