@@ -22,7 +22,7 @@ serve(async (req) => {
       });
     }
 
-    const googleVisionApiKey = Deno.env.get('GOOGLE_VISION_API_KEY');
+    const googleVisionApiKey = Deno.env.get('GEMINI_API_KEY');
     if (!googleVisionApiKey) {
       return new Response(JSON.stringify({ 
         error: 'Google Vision API key not configured' 
