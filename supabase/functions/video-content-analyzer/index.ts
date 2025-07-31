@@ -139,14 +139,20 @@ serve(async (req) => {
 
 async function extractVideoFrames(fileId: string, accessToken: string, frameCount: number): Promise<string[]> {
   try {
-    console.log(`🎬 Extracting actual frames from video: ${fileId}`);
+    console.log(`🎬 Calling Cloud Run service for frame extraction: ${fileId}`);
     
-    // Call our dedicated frame extraction function
-    const frameResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/video-frame-extractor`, {
+    // Get your Cloud Run service URL from environment
+    const cloudRunUrl = Deno.env.get('CLOUD_RUN_VIDEO_SERVICE_URL');
+    if (!cloudRunUrl) {
+      throw new Error('Cloud Run service URL not configured');
+    }
+    
+    // Call your Cloud Run service for proper video frame extraction
+    const frameResponse = await fetch(`${cloudRunUrl}/extract-frames`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`,
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}` // Pass through the Google Drive token
       },
       body: JSON.stringify({
         fileId,
@@ -157,48 +163,21 @@ async function extractVideoFrames(fileId: string, accessToken: string, frameCoun
 
     if (frameResponse.ok) {
       const frameData = await frameResponse.json();
-      if (frameData.success && frameData.frames.length > 0) {
-        console.log(`🖼️ Successfully extracted ${frameData.frames.length} actual video frames`);
+      if (frameData.success && frameData.frames && frameData.frames.length > 0) {
+        console.log(`🖼️ Cloud Run extracted ${frameData.frames.length} actual video frames`);
         return frameData.frames;
+      } else {
+        console.warn(`⚠️ Cloud Run returned no frames: ${JSON.stringify(frameData)}`);
       }
+    } else {
+      const errorText = await frameResponse.text();
+      console.error(`❌ Cloud Run service error: ${frameResponse.status} - ${errorText}`);
     }
     
-    console.log('⚠️ Frame extraction failed, falling back to enhanced thumbnail analysis');
+    throw new Error(`Cloud Run frame extraction failed: ${frameResponse.status}`);
     
-    // Enhanced fallback: Get multiple thumbnail variants at different qualities
-    const metadataResponse = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${fileId}?fields=thumbnailLink,videoMediaMetadata`,
-      {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        }
-      }
-    );
-
-    if (metadataResponse.ok) {
-      const data = await metadataResponse.json();
-      if (data.thumbnailLink) {
-        // Get multiple quality levels to maximize information
-        const frames = [];
-        const qualities = [
-          { size: 1600, param: '=s1600' },  // Highest quality
-          { size: 800, param: '=s800' },    // Medium quality  
-          { size: 400, param: '=s400' }     // Lower quality for different perspective
-        ];
-        
-        for (const quality of qualities) {
-          const frameUrl = data.thumbnailLink.replace(/=s\d+/, quality.param);
-          frames.push(frameUrl);
-        }
-        
-        console.log(`🖼️ Using ${frames.length} enhanced thumbnail variants for analysis`);
-        return frames;
-      }
-    }
-
-    throw new Error('Could not extract any frames from video');
   } catch (error) {
-    console.error('Frame extraction completely failed:', error);
+    console.error('Cloud Run frame extraction failed:', error);
     throw error;
   }
 }
