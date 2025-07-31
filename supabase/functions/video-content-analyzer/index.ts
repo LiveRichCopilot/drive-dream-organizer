@@ -139,20 +139,22 @@ serve(async (req) => {
 
 async function extractVideoFrames(fileId: string, accessToken: string, frameCount: number): Promise<string[]> {
   try {
-    console.log(`🎬 Calling Cloud Run service for frame extraction: ${fileId}`);
+    console.log(`🎬 Extracting ${frameCount} frames from video: ${fileId}`);
     
-    // Get your Cloud Run service URL from environment
-    const cloudRunUrl = Deno.env.get('CLOUD_RUN_VIDEO_SERVICE_URL');
-    if (!cloudRunUrl) {
-      throw new Error('Cloud Run service URL not configured');
+    // Use Supabase Edge Function for frame extraction
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY');
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Supabase configuration not found');
     }
     
-    // Call your Cloud Run service for proper video frame extraction
-    const frameResponse = await fetch(`${cloudRunUrl}/extract-frames`, {
+    // Call the video-frame-extractor edge function
+    const frameResponse = await fetch(`${supabaseUrl}/functions/v1/video-frame-extractor`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}` // Pass through the Google Drive token
+        'Authorization': `Bearer ${supabaseKey}`
       },
       body: JSON.stringify({
         fileId,
@@ -164,20 +166,20 @@ async function extractVideoFrames(fileId: string, accessToken: string, frameCoun
     if (frameResponse.ok) {
       const frameData = await frameResponse.json();
       if (frameData.success && frameData.frames && frameData.frames.length > 0) {
-        console.log(`🖼️ Cloud Run extracted ${frameData.frames.length} actual video frames`);
+        console.log(`🖼️ Successfully extracted ${frameData.frames.length} frames`);
         return frameData.frames;
       } else {
-        console.warn(`⚠️ Cloud Run returned no frames: ${JSON.stringify(frameData)}`);
+        console.warn(`⚠️ Frame extraction returned no frames: ${JSON.stringify(frameData)}`);
       }
     } else {
       const errorText = await frameResponse.text();
-      console.error(`❌ Cloud Run service error: ${frameResponse.status} - ${errorText}`);
+      console.error(`❌ Frame extraction service error: ${frameResponse.status} - ${errorText}`);
     }
     
-    throw new Error(`Cloud Run frame extraction failed: ${frameResponse.status}`);
+    throw new Error(`Frame extraction failed: ${frameResponse.status}`);
     
   } catch (error) {
-    console.error('Cloud Run frame extraction failed:', error);
+    console.error('Frame extraction failed:', error);
     throw error;
   }
 }
