@@ -1,0 +1,1 @@
+-- No database changes needed, just configuring environment variable
