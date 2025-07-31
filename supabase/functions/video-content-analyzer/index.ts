@@ -52,8 +52,8 @@ serve(async (req) => {
     const driveMetadata = await driveMetadataResponse.json();
     console.log(`📊 Video metadata:`, driveMetadata);
 
-    // Step 2: Get frames from the video for analysis
-    const frames = await extractVideoFrames(fileId, accessToken, 1); // Get best available frame
+     // Step 2: Get frames from the video for analysis
+    const frames = await extractVideoFrames(fileId, accessToken, 3); // Get 3 frames for better analysis
     console.log(`🎞️ Extracted ${frames.length} frames for analysis`);
     
     if (frames.length === 0) {
@@ -139,9 +139,35 @@ serve(async (req) => {
 
 async function extractVideoFrames(fileId: string, accessToken: string, frameCount: number): Promise<string[]> {
   try {
-    // First try to get a higher quality thumbnail
-    const thumbnailResponse = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${fileId}?fields=thumbnailLink`,
+    console.log(`🎬 Extracting actual frames from video: ${fileId}`);
+    
+    // Call our dedicated frame extraction function
+    const frameResponse = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/video-frame-extractor`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        fileId,
+        accessToken,
+        frameCount
+      })
+    });
+
+    if (frameResponse.ok) {
+      const frameData = await frameResponse.json();
+      if (frameData.success && frameData.frames.length > 0) {
+        console.log(`🖼️ Successfully extracted ${frameData.frames.length} actual video frames`);
+        return frameData.frames;
+      }
+    }
+    
+    console.log('⚠️ Frame extraction failed, falling back to enhanced thumbnail analysis');
+    
+    // Enhanced fallback: Get multiple thumbnail variants at different qualities
+    const metadataResponse = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${fileId}?fields=thumbnailLink,videoMediaMetadata`,
       {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -149,22 +175,32 @@ async function extractVideoFrames(fileId: string, accessToken: string, frameCoun
       }
     );
 
-    if (thumbnailResponse.ok) {
-      const data = await thumbnailResponse.json();
+    if (metadataResponse.ok) {
+      const data = await metadataResponse.json();
       if (data.thumbnailLink) {
-        // Get high-quality thumbnail (up to 1600px)
-        const highQualityThumbnail = data.thumbnailLink.replace(/=s\d+/, '=s1600');
-        console.log(`🖼️ Using high-quality thumbnail: ${highQualityThumbnail}`);
+        // Get multiple quality levels to maximize information
+        const frames = [];
+        const qualities = [
+          { size: 1600, param: '=s1600' },  // Highest quality
+          { size: 800, param: '=s800' },    // Medium quality  
+          { size: 400, param: '=s400' }     // Lower quality for different perspective
+        ];
         
-        // Return the high-quality thumbnail - better than multiple low-quality ones
-        return [highQualityThumbnail];
+        for (const quality of qualities) {
+          const frameUrl = data.thumbnailLink.replace(/=s\d+/, quality.param);
+          frames.push(frameUrl);
+        }
+        
+        console.log(`🖼️ Using ${frames.length} enhanced thumbnail variants for analysis`);
+        return frames;
       }
     }
-  } catch (error) {
-    console.warn('Failed to extract frames, using fallback:', error);
-  }
 
-  return [];
+    throw new Error('Could not extract any frames from video');
+  } catch (error) {
+    console.error('Frame extraction completely failed:', error);
+    throw error;
+  }
 }
 
 async function analyzeFrameWithOpenAI(imageUrl: string, apiKey: string): Promise<any> {
