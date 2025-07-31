@@ -150,7 +150,15 @@ export class GoogleDriveMetadataExtractor {
     // Save the complete analysis to cache for future use
     if (metadata.originalDate || metadata.description) {
       try {
-        await supabase
+        console.log(`💾 Attempting to cache analysis for ${fileName || fileId}`, {
+          fileId,
+          fileName,
+          hasDescription: !!metadata.description,
+          hasDetailedDescription: !!metadata.detailedDescription,
+          hasVeo3Prompts: !!metadata.veo3Prompts
+        });
+
+        const { data, error } = await supabase
           .from('video_analysis_cache')
           .upsert({
             google_drive_file_id: fileId,
@@ -172,10 +180,17 @@ export class GoogleDriveMetadataExtractor {
               editingSoftware: metadata.editingSoftware,
               isEdited: metadata.isEdited
             }
+          }, {
+            onConflict: 'google_drive_file_id'
           });
-        console.log(`💾 Cached analysis for ${fileName || fileId}`);
+
+        if (error) {
+          console.error('❌ Failed to cache analysis:', error);
+        } else {
+          console.log(`✅ Successfully cached analysis for ${fileName || fileId}`, data);
+        }
       } catch (error) {
-        console.warn('Failed to cache analysis:', error);
+        console.error('❌ Exception while caching analysis:', error);
       }
     }
 
