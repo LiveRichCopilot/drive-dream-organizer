@@ -73,6 +73,19 @@ const ODriveApp = () => {
     disconnect,
   } = useDirectGoogleDrive(selectedFolderId);
   
+  // Force clear authentication state on load to prevent stuck states
+  useEffect(() => {
+    // Clear any stuck authentication state on component mount
+    if (isLoading && progress === 0) {
+      localStorage.removeItem('google_access_token');
+      localStorage.removeItem('google_refresh_token');
+      localStorage.removeItem('google_expires_at');
+      sessionStorage.removeItem('google_access_token');
+      sessionStorage.removeItem('google_refresh_token');
+      sessionStorage.removeItem('google_expires_at');
+    }
+  }, []);
+  
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [searchQuery, setSearchQuery] = useState("");
   const [showFolderInput, setShowFolderInput] = useState(false);
