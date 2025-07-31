@@ -321,10 +321,24 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
         let actualMetadata = null;
         
         try {
-          // For now, skip metadata extraction since we're using only fixedGoogleOAuth
-          const metadata = { originalDate: null, extractionMethod: 'disabled' };
-          console.log(`Metadata for ${video.name}:`, metadata);
-          actualMetadata = metadata;
+          // Extract metadata using the Supabase edge function
+          console.log(`Calling video-metadata-deep-extract for ${video.name}...`);
+          const { supabase } = await import('@/integrations/supabase/client');
+          const { data: response, error } = await supabase.functions.invoke('video-metadata-deep-extract', {
+            body: {
+              fileId: video.id,
+              fileName: video.name,
+              accessToken: fixedGoogleOAuth.getCurrentAccessToken()
+            }
+          });
+          
+          if (error) {
+            throw new Error(`Metadata extraction failed: ${error.message}`);
+          }
+          
+          console.log(`Metadata response for ${video.name}:`, response);
+          actualMetadata = response;
+          const metadata = response;
           
           // ONLY use extracted original date if available - never use upload dates
           if (metadata.originalDate) {
