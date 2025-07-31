@@ -27,7 +27,7 @@ interface VerificationResult {
   error?: string;
 }
 
-// Video Analysis Component
+// Video Analysis Component - Define outside the main component
 interface VideoAnalysisProps {
   fileId: string;
   fileName: string;
@@ -134,7 +134,7 @@ const VideoAnalysisSection: React.FC<VideoAnalysisProps> = ({ fileId, fileName }
         )}
 
         {/* Video Type */}
-        {videoAnalysis.videoType && (
+        {videoAnalysis.videoType && videoAnalysis.videoType !== 'unknown' && (
           <div className="flex justify-between items-center">
             <span className="text-xs text-white/60">Setting/Type:</span>
             <Badge variant="secondary" className="bg-white/10 border-white/20 text-white/90 text-xs">
@@ -144,11 +144,11 @@ const VideoAnalysisSection: React.FC<VideoAnalysisProps> = ({ fileId, fileName }
         )}
 
         {/* Scenes */}
-        {videoAnalysis.scenes && videoAnalysis.scenes.length > 0 && (
+        {videoAnalysis.scenes && videoAnalysis.scenes.length > 0 && !videoAnalysis.scenes.includes('unknown') && (
           <div className="space-y-1">
             <span className="text-xs text-white/60">Scenes:</span>
             <div className="flex flex-wrap gap-1">
-              {videoAnalysis.scenes.map((scene: string, index: number) => (
+              {videoAnalysis.scenes.filter((scene: string) => scene !== 'unknown' && scene !== 'scene1' && scene !== 'scene2' && scene !== 'scene3').map((scene: string, index: number) => (
                 <div key={index} className="flex items-center gap-1 bg-white/10 px-2 py-1 rounded-full border border-white/20">
                   <Clapperboard className="w-3 h-3 text-white/70" />
                   <span className="text-xs text-white/80">{scene}</span>
@@ -159,11 +159,11 @@ const VideoAnalysisSection: React.FC<VideoAnalysisProps> = ({ fileId, fileName }
         )}
 
         {/* Subjects */}
-        {videoAnalysis.subjects && videoAnalysis.subjects.length > 0 && (
+        {videoAnalysis.subjects && videoAnalysis.subjects.length > 0 && !videoAnalysis.subjects.includes('unknown') && (
           <div className="space-y-1">
             <span className="text-xs text-white/60">Subjects:</span>
             <div className="flex flex-wrap gap-1">
-              {videoAnalysis.subjects.map((subject: string, index: number) => (
+              {videoAnalysis.subjects.filter((subject: string) => subject !== 'unknown').map((subject: string, index: number) => (
                 <div key={index} className="flex items-center gap-1 bg-white/10 px-2 py-1 rounded-full border border-white/20">
                   <Users className="w-3 h-3 text-white/70" />
                   <span className="text-xs text-white/80">{subject}</span>
@@ -174,7 +174,7 @@ const VideoAnalysisSection: React.FC<VideoAnalysisProps> = ({ fileId, fileName }
         )}
 
         {/* Camera Work */}
-        {videoAnalysis.cameraWork && (
+        {videoAnalysis.cameraWork && videoAnalysis.cameraWork !== 'unknown' && (
           <div className="flex justify-between items-center">
             <span className="text-xs text-white/60">Camera Work:</span>
             <Badge variant="secondary" className="bg-white/10 border-white/20 text-white/90 text-xs">
