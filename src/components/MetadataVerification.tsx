@@ -51,11 +51,13 @@ const MetadataVerification: React.FC<MetadataVerificationProps> = ({
   }, [videos, initialResults]);
 
   const startVerification = async (onlyFailed = false) => {
+    console.log('🚀 Starting verification process...', { onlyFailed });
     setIsVerifying(true);
     setProgress(0);
     
     // Get access token and create metadata extractor
     const accessToken = fixedGoogleOAuth.getCurrentAccessToken();
+    console.log('🔑 Access token available:', !!accessToken);
     if (!accessToken) {
       toast({
         title: "Authentication Required",
@@ -67,6 +69,7 @@ const MetadataVerification: React.FC<MetadataVerificationProps> = ({
     }
     
     const metadataExtractor = new GoogleDriveMetadataExtractor(accessToken);
+    console.log('📊 Metadata extractor created');
     
     // Get videos to verify
     const videosToVerify = onlyFailed 
@@ -75,6 +78,13 @@ const MetadataVerification: React.FC<MetadataVerificationProps> = ({
           return result && (result.status === 'failed' || result.status === 'error');
         })
       : videos;
+    
+    console.log('📋 Videos to verify:', {
+      onlyFailed,
+      totalVideos: videos.length,
+      videosToVerify: videosToVerify.length,
+      results: results.length
+    });
     
     if (onlyFailed && videosToVerify.length === 0) {
       toast({
