@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.video-metadata-deep-extract]
 verify_jwt = false
+
+[functions.video-content-analyzer]
+verify_jwt = false
