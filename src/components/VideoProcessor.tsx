@@ -321,19 +321,35 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
         let actualMetadata = null;
         
         try {
-          // Extract metadata using the Supabase edge function
+          // Extract metadata using the Supabase edge function with retry logic
           console.log(`Calling video-metadata-deep-extract for ${video.name}...`);
           const { supabase } = await import('@/integrations/supabase/client');
-          const { data: response, error } = await supabase.functions.invoke('video-metadata-deep-extract', {
-            body: {
-              fileId: video.id,
-              fileName: video.name,
-              accessToken: fixedGoogleOAuth.getCurrentAccessToken()
-            }
-          });
           
-          if (error) {
-            throw new Error(`Metadata extraction failed: ${error.message}`);
+          let response = null;
+          let retries = 3;
+          
+          while (retries > 0) {
+            const { data, error } = await supabase.functions.invoke('video-metadata-deep-extract', {
+              body: {
+                fileId: video.id,
+                fileName: video.name,
+                accessToken: fixedGoogleOAuth.getCurrentAccessToken()
+              }
+            });
+            
+            if (error) {
+              // Handle WORKER_LIMIT errors with exponential backoff
+              if (error.message?.includes('WORKER_LIMIT') && retries > 1) {
+                console.log(`⚠️ Worker limit hit for ${video.name}, retrying in ${4 - retries}s...`);
+                await new Promise(resolve => setTimeout(resolve, (4 - retries) * 1000));
+                retries--;
+                continue;
+              }
+              throw new Error(`Metadata extraction failed: ${error.message}`);
+            }
+            
+            response = data;
+            break;
           }
           
           console.log(`Metadata response for ${video.name}:`, response);
