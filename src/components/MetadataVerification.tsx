@@ -6,6 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { CheckCircle2, XCircle, Clock, AlertTriangle, RefreshCw, Info, MapPin, Camera, Monitor, FileVideo } from 'lucide-react';
 import { MediaFile } from '@/lib/api';
 import { fixedGoogleOAuth } from '@/lib/fixedOAuth';
+import { GoogleDriveMetadataExtractor } from '@/lib/googleDriveMetadata';
 import { toast } from '@/hooks/use-toast';
 import PremiereExporter from './PremiereExporter';
 import CapCutExporter from './CapCutExporter';
@@ -53,6 +54,20 @@ const MetadataVerification: React.FC<MetadataVerificationProps> = ({
     setIsVerifying(true);
     setProgress(0);
     
+    // Get access token and create metadata extractor
+    const accessToken = fixedGoogleOAuth.getCurrentAccessToken();
+    if (!accessToken) {
+      toast({
+        title: "Authentication Required",
+        description: "Please authenticate with Google Drive first.",
+        variant: "destructive"
+      });
+      setIsVerifying(false);
+      return;
+    }
+    
+    const metadataExtractor = new GoogleDriveMetadataExtractor(accessToken);
+    
     // Get videos to verify
     const videosToVerify = onlyFailed 
       ? videos.filter((video, index) => {
@@ -82,8 +97,7 @@ const MetadataVerification: React.FC<MetadataVerificationProps> = ({
       
       try {
         console.log(`Verifying metadata for ${video.name}...`);
-        // For now, skip metadata extraction since we're using only fixedGoogleOAuth
-        const metadata = { originalDate: null, extractionMethod: 'disabled' };
+        const metadata = await metadataExtractor.extractMetadata(video.id, video.name);
         
         // Check if we have a valid originalDate (not null, undefined, or empty string)
         if (metadata.originalDate && metadata.originalDate.trim() !== '') {

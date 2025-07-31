@@ -45,6 +45,10 @@ export class FixedGoogleOAuth {
     return !!this.accessToken && !this.isTokenExpired();
   }
 
+  getCurrentAccessToken(): string | null {
+    return this.accessToken;
+  }
+
   private isTokenExpired(): boolean {
     if (!this.expiresAt) return false;
     // Add 5 minute buffer to prevent edge cases
