@@ -122,6 +122,11 @@ export class FixedGoogleOAuth {
         'https://www.googleapis.com/auth/gmail.modify'
       ].join(' ');
       
+      console.log('OAuth Config:');
+      console.log('Client ID:', this.clientId);
+      console.log('Redirect URI:', redirectUri);
+      console.log('Scopes:', scopes);
+      
       const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' +
         `client_id=${this.clientId}&` +
         `redirect_uri=${encodeURIComponent(redirectUri)}&` +
