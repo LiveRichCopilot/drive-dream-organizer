@@ -187,15 +187,15 @@ class MOVParser {
 }
 
 async function extractMetadataFromFile(fileId: string, accessToken: string) {
-  console.log(`🔍 Starting atom parsing for file ${fileId}`);
+  console.log(`🔍 Starting complete file download for metadata extraction: ${fileId}`);
   
-  // Download file in chunks to parse atoms
+  // Download the ENTIRE file since MOV metadata is typically at the end
   const downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
   
   const response = await fetch(downloadUrl, {
     headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'Range': 'bytes=0-1048576' // First 1MB should contain metadata
+      'Authorization': `Bearer ${accessToken}`
+      // No Range header - download complete file
     }
   });
 
@@ -205,7 +205,7 @@ async function extractMetadataFromFile(fileId: string, accessToken: string) {
   }
 
   const buffer = await response.arrayBuffer();
-  console.log(`📊 Downloaded ${buffer.byteLength} bytes for parsing`);
+  console.log(`📊 Downloaded complete file: ${(buffer.byteLength / 1024 / 1024).toFixed(2)} MB`);
   
   const parser = new MOVParser(buffer);
   const atoms = parser.parseAtoms();
