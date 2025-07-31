@@ -115,7 +115,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ onEvent }) => {
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="liquid-glass-card p-4 bg-gradient-to-br from-white/10 to-white/3 backdrop-blur-2xl border border-white/20">
+        <Card className="liquid-glass-card p-4 bg-gradient-to-br from-white/[0.02] to-white/[0.01] backdrop-blur-2xl border border-white/[0.05]">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-white/70 text-sm">Photos Organized</p>
