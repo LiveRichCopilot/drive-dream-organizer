@@ -23,3 +23,9 @@ verify_jwt = false
 
 [functions.google-drive-upload]
 verify_jwt = false
+
+[functions.google-vision-video-analysis]
+verify_jwt = false
+
+[functions.video-metadata-deep-extract]
+verify_jwt = false

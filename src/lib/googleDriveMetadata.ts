@@ -20,6 +20,26 @@ export interface VideoMetadata {
   isEdited?: boolean;
   extractionMethod?: string;
   extractionStatus?: 'success' | 'failed' | 'partial';
+  // Google Vision analysis fields
+  description?: string;
+  videoType?: string;
+  labels?: Array<{
+    description: string;
+    score: number;
+    confidence: number;
+  }>;
+  objects?: Array<{
+    name: string;
+    score: number;
+    confidence: number;
+  }>;
+  colors?: Array<{
+    red: number;
+    green: number;
+    blue: number;
+    score: number;
+  }>;
+  analysisConfidence?: number;
 }
 
 export class GoogleDriveMetadataExtractor {
@@ -58,6 +78,24 @@ export class GoogleDriveMetadataExtractor {
         console.warn(`❌ Metadata extraction strategy ${strategy.name || 'unknown'} failed:`, error);
         // Continue to next strategy
       }
+    }
+
+    // After metadata extraction, analyze video content with Google Vision
+    try {
+      console.log(`🎬 Starting video content analysis for ${fileName || fileId}...`);
+      const analysisResult = await this.analyzeVideoContent(fileId, fileName);
+      if (analysisResult.success) {
+        metadata.description = analysisResult.analysis.description;
+        metadata.videoType = analysisResult.analysis.videoType;
+        metadata.labels = analysisResult.analysis.labels;
+        metadata.objects = analysisResult.analysis.objects;
+        metadata.colors = analysisResult.analysis.colors;
+        metadata.analysisConfidence = analysisResult.analysis.confidence;
+        console.log(`✅ Video analysis complete: ${analysisResult.analysis.description}`);
+      }
+    } catch (error) {
+      console.warn(`⚠️ Video analysis failed for ${fileName || fileId}:`, error);
+      // Don't fail the entire process if analysis fails
     }
 
     return {
@@ -233,6 +271,33 @@ export class GoogleDriveMetadataExtractor {
     }
 
     return undefined;
+  }
+
+  private async analyzeVideoContent(fileId: string, fileName?: string): Promise<any> {
+    try {
+      const response = await fetch('https://iffvjtfrqaesoehbwtgi.supabase.co/functions/v1/google-vision-video-analysis', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlmZnZqdGZycWFlc29laGJ3dGdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM0NTI2MDgsImV4cCI6MjA2OTAyODYwOH0.ARZz7L06Y5xkfd-2hkRbvDrqermx88QSittVq27sw88`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          fileId, 
+          fileName,
+          accessToken: this.accessToken 
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Video analysis failed: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.warn('Video analysis failed:', error);
+      return { success: false, error: error.message };
+    }
+
   }
 
   // Static utility methods
