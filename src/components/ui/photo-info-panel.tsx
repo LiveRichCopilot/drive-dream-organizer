@@ -20,8 +20,13 @@ import {
   Sparkles,
   X,
   Loader,
-  Plus
+  Plus,
+  Video,
+  FileVideo,
+  Clapperboard,
+  Play
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface PhotoAnalysis {
   categories: string[];
@@ -32,6 +37,28 @@ interface PhotoAnalysis {
   scene: string;
   confidence: number;
   prompt?: string;
+}
+
+interface VideoAnalysis {
+  description?: string;
+  detailedDescription?: string;
+  videoType?: string;
+  scenes?: string[];
+  visualStyle?: {
+    lighting: string;
+    colorPalette: string[];
+    mood: string;
+  };
+  subjects?: string[];
+  cameraWork?: string;
+  veo3Prompts?: {
+    professional: string;
+    creative: string;
+    technical: string;
+    short: string;
+    detailed: string;
+  };
+  analysisConfidence?: number;
 }
 
 interface PhotoInfoPanelProps {
@@ -45,6 +72,7 @@ interface PhotoInfoPanelProps {
     createdTime: string;
     modifiedTime: string;
     analysis?: PhotoAnalysis;
+    videoAnalysis?: VideoAnalysis;
   };
   children: React.ReactNode;
   onAnalyze?: () => void;
@@ -65,6 +93,8 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
   const [isGeneratingCaption, setIsGeneratingCaption] = React.useState(false);
   const [generatedCaptions, setGeneratedCaptions] = React.useState<string[]>([]);
   const [captionStyle, setCaptionStyle] = React.useState<'instagram' | 'tiktok' | 'youtube' | 'x' | 'linkedin' | 'subs' | 'onlyfans' | 'fansly'>('instagram');
+  const [videoAnalysis, setVideoAnalysis] = React.useState<VideoAnalysis | null>(null);
+  const [isLoadingVideoAnalysis, setIsLoadingVideoAnalysis] = React.useState(false);
   
   // Get file size in MB for display
   const getFileSizeDisplay = (sizeString: string) => {
@@ -312,10 +342,60 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
     }
   };
 
+  // Load video analysis from cache
+  const loadVideoAnalysis = async () => {
+    if (videoAnalysis || isLoadingVideoAnalysis) return;
+    
+    setIsLoadingVideoAnalysis(true);
+    try {
+      const { data, error } = await supabase
+        .from('video_analysis_cache')
+        .select('*')
+        .eq('google_drive_file_id', photo.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error loading video analysis:', error);
+        return;
+      }
+
+      if (data) {
+        setVideoAnalysis({
+          description: data.description || undefined,
+          detailedDescription: data.detailed_description || undefined,
+          videoType: data.video_type || undefined,
+          scenes: (data.scenes as string[]) || [],
+          visualStyle: data.visual_style as any || undefined,
+          subjects: (data.subjects as string[]) || [],
+          cameraWork: data.camera_work || undefined,
+          veo3Prompts: data.veo3_prompts as any || undefined,
+          analysisConfidence: data.analysis_confidence || undefined,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load video analysis:', error);
+    } finally {
+      setIsLoadingVideoAnalysis(false);
+    }
+  };
+
+  // Check if this is a video file
+  const isVideoFile = (fileName: string) => {
+    const videoExtensions = ['.mov', '.mp4', '.avi', '.mkv', '.wmv', '.flv', '.webm'];
+    return videoExtensions.some(ext => fileName.toLowerCase().endsWith(ext));
+  };
+
   // Copy caption to clipboard
   const copyCaption = async (caption: string) => {
     await navigator.clipboard.writeText(caption);
   };
+
+  // Load video analysis when component mounts (for video files)
+  React.useEffect(() => {
+    if (isVideoFile(photo.name)) {
+      loadVideoAnalysis();
+    }
+  }, [photo.id]);
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -719,6 +799,187 @@ export const PhotoInfoPanel: React.FC<PhotoInfoPanelProps> = ({
             </div>
 
             <Separator className="bg-white/10" />
+
+            {/* Video Analysis Section - Only show for video files */}
+            {isVideoFile(photo.name) && (
+              <>
+                <div className="px-4 py-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Video className="w-4 h-4 text-white/70" />
+                      <h3 className="text-xs font-medium text-white/90">Video Analysis</h3>
+                    </div>
+                    {isLoadingVideoAnalysis && (
+                      <div className="w-3 h-3 border-2 border-white/30 border-t-white/90 rounded-full animate-spin" />
+                    )}
+                  </div>
+
+                  {videoAnalysis ? (
+                    <div className="space-y-3 ml-5">
+                      {/* Main Description */}
+                      {videoAnalysis.description && (
+                        <div className="space-y-1">
+                          <span className="text-xs text-white/60">Description:</span>
+                          <div className="p-2 bg-white/5 rounded-lg border border-white/10">
+                            <p className="text-xs text-white/90 leading-relaxed">
+                              {videoAnalysis.description}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Detailed Description */}
+                      {videoAnalysis.detailedDescription && (
+                        <div className="space-y-1">
+                          <span className="text-xs text-white/60">Detailed Analysis:</span>
+                          <div className="p-2 bg-white/5 rounded-lg border border-white/10">
+                            <p className="text-xs text-white/90 leading-relaxed">
+                              {videoAnalysis.detailedDescription}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Video Type */}
+                      {videoAnalysis.videoType && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-white/60">Setting/Type:</span>
+                          <Badge variant="secondary" className="bg-white/10 border-white/20 text-white/90 text-xs">
+                            {videoAnalysis.videoType}
+                          </Badge>
+                        </div>
+                      )}
+
+                      {/* Scenes */}
+                      {videoAnalysis.scenes && videoAnalysis.scenes.length > 0 && (
+                        <div className="space-y-1">
+                          <span className="text-xs text-white/60">Scenes:</span>
+                          <div className="flex flex-wrap gap-1">
+                            {videoAnalysis.scenes.map((scene, index) => (
+                              <div key={index} className="flex items-center gap-1 bg-white/10 px-2 py-1 rounded-full border border-white/20">
+                                <Clapperboard className="w-3 h-3 text-white/70" />
+                                <span className="text-xs text-white/80">{scene}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Subjects */}
+                      {videoAnalysis.subjects && videoAnalysis.subjects.length > 0 && (
+                        <div className="space-y-1">
+                          <span className="text-xs text-white/60">Subjects:</span>
+                          <div className="flex flex-wrap gap-1">
+                            {videoAnalysis.subjects.map((subject, index) => (
+                              <div key={index} className="flex items-center gap-1 bg-white/10 px-2 py-1 rounded-full border border-white/20">
+                                <Users className="w-3 h-3 text-white/70" />
+                                <span className="text-xs text-white/80">{subject}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Camera Work */}
+                      {videoAnalysis.cameraWork && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-white/60">Camera Work:</span>
+                          <Badge variant="secondary" className="bg-white/10 border-white/20 text-white/90 text-xs">
+                            {videoAnalysis.cameraWork}
+                          </Badge>
+                        </div>
+                      )}
+
+                      {/* Visual Style */}
+                      {videoAnalysis.visualStyle && (
+                        <div className="space-y-1">
+                          <span className="text-xs text-white/60">Visual Style:</span>
+                          <div className="space-y-1">
+                            {videoAnalysis.visualStyle.lighting && (
+                              <div className="flex justify-between">
+                                <span className="text-xs text-white/50">Lighting:</span>
+                                <span className="text-xs text-white/80">{videoAnalysis.visualStyle.lighting}</span>
+                              </div>
+                            )}
+                            {videoAnalysis.visualStyle.mood && (
+                              <div className="flex justify-between">
+                                <span className="text-xs text-white/50">Mood:</span>
+                                <span className="text-xs text-white/80">{videoAnalysis.visualStyle.mood}</span>
+                              </div>
+                            )}
+                            {videoAnalysis.visualStyle.colorPalette && videoAnalysis.visualStyle.colorPalette.length > 0 && (
+                              <div className="space-y-1">
+                                <span className="text-xs text-white/50">Color Palette:</span>
+                                <div className="flex flex-wrap gap-1">
+                                  {videoAnalysis.visualStyle.colorPalette.map((color, index) => (
+                                    <div key={index} className="flex items-center gap-1 bg-white/10 px-2 py-1 rounded-full border border-white/20">
+                                      <Palette className="w-3 h-3 text-white/70" />
+                                      <span className="text-xs text-white/80">{color}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* VEO 3 Prompts */}
+                      {videoAnalysis.veo3Prompts && (
+                        <div className="space-y-2">
+                          <span className="text-xs text-white/60">VEO 3 AI Prompts:</span>
+                          <div className="space-y-2">
+                            {videoAnalysis.veo3Prompts.short && (
+                              <div className="space-y-1">
+                                <span className="text-xs text-white/50">Short Prompt:</span>
+                                <div 
+                                  className="p-2 bg-neutral-800/50 rounded-lg border border-white/10 cursor-pointer hover:bg-neutral-800/70 transition-colors"
+                                  onClick={() => navigator.clipboard.writeText(videoAnalysis.veo3Prompts!.short)}
+                                  title="Click to copy"
+                                >
+                                  <p className="text-xs text-white/80 font-mono leading-relaxed">
+                                    {videoAnalysis.veo3Prompts.short}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+                            {videoAnalysis.veo3Prompts.professional && (
+                              <div className="space-y-1">
+                                <span className="text-xs text-white/50">Professional Prompt:</span>
+                                <div 
+                                  className="p-2 bg-neutral-800/50 rounded-lg border border-white/10 cursor-pointer hover:bg-neutral-800/70 transition-colors"
+                                  onClick={() => navigator.clipboard.writeText(videoAnalysis.veo3Prompts!.professional)}
+                                  title="Click to copy"
+                                >
+                                  <p className="text-xs text-white/80 font-mono leading-relaxed">
+                                    {videoAnalysis.veo3Prompts.professional}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Analysis Confidence */}
+                      {videoAnalysis.analysisConfidence && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-white/60">Analysis Confidence:</span>
+                          <span className="text-xs text-white/90">
+                            {Math.round(videoAnalysis.analysisConfidence * 100)}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="ml-6 text-xs text-white/60">
+                      {isLoadingVideoAnalysis ? 'Loading video analysis...' : 'No video analysis available. Process the video to generate AI descriptions.'}
+                    </div>
+                  )}
+                </div>
+                <Separator className="bg-white/10" />
+              </>
+            )}
 
             {/* Actions */}
             <div className="px-6 py-4">
