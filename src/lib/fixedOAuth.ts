@@ -129,6 +129,7 @@ export class FixedGoogleOAuth {
         `response_type=code&` +
         `scope=${encodeURIComponent(scopes)}&` +
         `state=${state}&` +
+        `prompt=select_account consent&` +
         `include_granted_scopes=true`;
       
       console.log('🔗 Opening OAuth popup...');
