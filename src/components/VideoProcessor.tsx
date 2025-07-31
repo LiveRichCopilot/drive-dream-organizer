@@ -357,8 +357,8 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
           const metadata = response;
           
           // ONLY use extracted original date if available - never use upload dates
-          if (metadata.originalDate) {
-            originalDate = new Date(metadata.originalDate);
+          if (metadata.metadata?.originalDate) {
+            originalDate = new Date(metadata.metadata.originalDate);
             console.log(`✓ SUCCESS: Using extracted original date for ${video.name}: ${originalDate.toISOString()}`);
           } else {
             console.log(`✗ FAILED: No original shooting date found for ${video.name} - SKIPPING video as it has no valid metadata`);
