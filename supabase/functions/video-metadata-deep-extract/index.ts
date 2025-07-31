@@ -187,6 +187,8 @@ class MOVParser {
 }
 
 async function extractMetadataFromFile(fileId: string, accessToken: string) {
+  console.log(`🔍 Starting atom parsing for file ${fileId}`);
+  
   // Download file in chunks to parse atoms
   const downloadUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
   
@@ -198,13 +200,19 @@ async function extractMetadataFromFile(fileId: string, accessToken: string) {
   });
 
   if (!response.ok) {
+    console.error(`❌ Failed to download file: ${response.status} ${response.statusText}`);
     throw new Error(`Failed to download file: ${response.status}`);
   }
 
   const buffer = await response.arrayBuffer();
+  console.log(`📊 Downloaded ${buffer.byteLength} bytes for parsing`);
+  
   const parser = new MOVParser(buffer);
   const atoms = parser.parseAtoms();
+  console.log(`🔬 Found ${atoms.length} top-level atoms:`, atoms.map(a => a.type));
+  
   const metadata = parser.extractMetadata(atoms);
+  console.log(`📋 Extracted metadata:`, metadata);
 
   return metadata;
 }
