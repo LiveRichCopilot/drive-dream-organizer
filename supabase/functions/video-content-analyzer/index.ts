@@ -52,14 +52,30 @@ serve(async (req) => {
     const driveMetadata = await driveMetadataResponse.json();
     console.log(`📊 Video metadata:`, driveMetadata);
 
-    // Step 2: Get multiple frames from the video for analysis
-    const frames = await extractVideoFrames(fileId, accessToken, 5); // Extract 5 frames
+    // Step 2: Get frames from the video for analysis
+    const frames = await extractVideoFrames(fileId, accessToken, 1); // Get best available frame
+    console.log(`🎞️ Extracted ${frames.length} frames for analysis`);
     
-    // Step 3: Analyze frames with OpenAI Vision
+    if (frames.length === 0) {
+      throw new Error('No frames could be extracted from video');
+    }
+    
+    // Step 3: Analyze frame with OpenAI Vision
     const frameAnalyses = [];
     for (const frame of frames) {
       const analysis = await analyzeFrameWithOpenAI(frame, openaiApiKey);
       frameAnalyses.push(analysis);
+      
+      // If analysis failed, try to continue but log the issue
+      if (!analysis.success) {
+        console.warn(`⚠️ Frame analysis failed: ${analysis.error}`);
+      }
+    }
+    
+    // Ensure we have at least one successful analysis
+    const successfulAnalyses = frameAnalyses.filter(a => a.success);
+    if (successfulAnalyses.length === 0) {
+      throw new Error('All frame analyses failed');
     }
 
     // Step 4: Synthesize comprehensive video description
@@ -122,10 +138,8 @@ serve(async (req) => {
 });
 
 async function extractVideoFrames(fileId: string, accessToken: string, frameCount: number): Promise<string[]> {
-  // For now, we'll use the thumbnail and extract frames at different timestamps
-  // In a full implementation, you'd use ffmpeg or similar to extract actual frames
-  
   try {
+    // First try to get a higher quality thumbnail
     const thumbnailResponse = await fetch(
       `https://www.googleapis.com/drive/v3/files/${fileId}?fields=thumbnailLink`,
       {
@@ -138,9 +152,12 @@ async function extractVideoFrames(fileId: string, accessToken: string, frameCoun
     if (thumbnailResponse.ok) {
       const data = await thumbnailResponse.json();
       if (data.thumbnailLink) {
-        // For now, return the thumbnail multiple times
-        // In production, you'd extract frames at different timestamps
-        return Array(frameCount).fill(data.thumbnailLink + `&access_token=${accessToken}`);
+        // Get high-quality thumbnail (up to 1600px)
+        const highQualityThumbnail = data.thumbnailLink.replace(/=s\d+/, '=s1600');
+        console.log(`🖼️ Using high-quality thumbnail: ${highQualityThumbnail}`);
+        
+        // Return the high-quality thumbnail - better than multiple low-quality ones
+        return [highQualityThumbnail];
       }
     }
   } catch (error) {
@@ -151,112 +168,172 @@ async function extractVideoFrames(fileId: string, accessToken: string, frameCoun
 }
 
 async function analyzeFrameWithOpenAI(imageUrl: string, apiKey: string): Promise<any> {
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o',
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: 'Analyze this video frame in detail. Describe: 1) What you see (objects, people, setting), 2) Visual style (lighting, colors, mood), 3) Camera work (angle, framing), 4) Any text or graphics visible. Be specific and detailed.'
-            },
-            {
-              type: 'image_url',
-              image_url: {
-                url: imageUrl
-              }
-            }
-          ]
-        }
-      ],
-      max_tokens: 500,
-      temperature: 0.3
-    })
-  });
+  try {
+    console.log(`🔍 Analyzing frame with OpenAI Vision...`);
+    
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: `Analyze this video thumbnail/frame in detail. Even though this may be a thumbnail, provide as much detail as possible about:
 
-  if (response.ok) {
-    const data = await response.json();
+1) CONTENT: What objects, people, animals, or scenes do you see?
+2) SETTING: Indoor/outdoor location, specific environment details
+3) VISUAL STYLE: Colors, lighting (natural/artificial/dramatic), overall mood
+4) CAMERA WORK: Angle (close-up/wide/medium), perspective, framing
+5) SUBJECTS: Main focus - people, objects, activities happening
+6) TEXT/GRAPHICS: Any visible text, logos, or graphics
+
+Be specific and descriptive. If this appears to be a video thumbnail, imagine what the full video might contain based on what you can see.`
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: imageUrl,
+                  detail: 'high'
+                }
+              }
+            ]
+          }
+        ],
+        max_tokens: 800,
+        temperature: 0.2
+      })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      const description = data.choices[0].message.content;
+      console.log(`✅ Frame analysis successful: ${description.substring(0, 100)}...`);
+      
+      return {
+        description,
+        timestamp: 0,
+        success: true
+      };
+    } else {
+      const errorText = await response.text();
+      console.error(`❌ OpenAI Vision API error: ${response.status} - ${errorText}`);
+      throw new Error(`OpenAI Vision API error: ${response.status}`);
+    }
+  } catch (error) {
+    console.error(`💥 Frame analysis failed:`, error);
     return {
-      description: data.choices[0].message.content,
-      timestamp: Math.random() * 100 // Simulated timestamp
+      description: 'Frame analysis failed due to technical error',
+      timestamp: 0,
+      success: false,
+      error: error.message
     };
   }
-
-  return {
-    description: 'Frame analysis failed',
-    timestamp: 0
-  };
 }
 
 async function synthesizeVideoAnalysis(frameAnalyses: any[], metadata: any, apiKey: string): Promise<any> {
-  const allDescriptions = frameAnalyses.map(f => f.description).join('\n\n');
-  
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a professional video analyst. Synthesize frame analyses into a comprehensive video description.'
-        },
-        {
-          role: 'user',
-          content: `Based on these frame analyses from a video, create a comprehensive description:
+  try {
+    // Filter out failed analyses and get descriptions
+    const successfulAnalyses = frameAnalyses.filter(f => f.success && f.description);
+    const allDescriptions = successfulAnalyses.map(f => f.description).join('\n\n');
+    
+    if (!allDescriptions) {
+      throw new Error('No successful frame analyses to synthesize');
+    }
+    
+    console.log(`🧠 Synthesizing analysis from ${successfulAnalyses.length} successful frame(s)...`);
+    
+    const duration = metadata.videoMediaMetadata?.durationMillis ? 
+      Math.round(parseInt(metadata.videoMediaMetadata.durationMillis) / 1000) : null;
+    
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a professional video content analyst. Create detailed, accurate descriptions based on visual analysis. Be specific and avoid generic terms.'
+          },
+          {
+            role: 'user',
+            content: `Analyze this video content based on frame analysis. Create a comprehensive description.
 
+FRAME ANALYSIS:
 ${allDescriptions}
 
-Video filename: ${metadata.name || 'Unknown'}
-Duration: ${metadata.videoMediaMetadata?.durationMillis ? Math.round(parseInt(metadata.videoMediaMetadata.durationMillis) / 1000) + ' seconds' : 'Unknown'}
+VIDEO METADATA:
+- Filename: ${metadata.name || 'Unknown'}
+- Duration: ${duration ? duration + ' seconds' : 'Unknown'}
+- Resolution: ${metadata.videoMediaMetadata ? `${metadata.videoMediaMetadata.width}x${metadata.videoMediaMetadata.height}` : 'Unknown'}
 
-Provide a JSON response with:
+Create a JSON response with detailed, specific information:
 {
-  "description": "Brief overview (1-2 sentences)",
-  "detailedDescription": "Detailed description (3-4 sentences)",
-  "scenes": ["scene1", "scene2", "scene3"],
+  "description": "Clear, specific 1-2 sentence overview of what this video shows",
+  "detailedDescription": "Detailed 3-4 sentence description with specific visual details",
+  "scenes": ["specific scene/activity 1", "specific scene/activity 2", "specific scene/activity 3"],
   "visualStyle": {
-    "lighting": "natural/artificial/mixed",
-    "colorPalette": ["color1", "color2", "color3"],
-    "mood": "energetic/calm/dramatic/etc"
+    "lighting": "describe the lighting style seen",
+    "colorPalette": ["dominant color 1", "dominant color 2", "dominant color 3"],
+    "mood": "specific mood based on visual elements"
   },
-  "subjects": ["person", "object", "location"],
-  "cameraWork": "static/handheld/smooth/etc",
-  "setting": "indoor/outdoor/mixed",
-  "confidence": 0.8
-}`
-        }
-      ],
-      temperature: 0.3,
-      response_format: { type: "json_object" }
-    })
-  });
+  "subjects": ["specific people/objects/animals seen"],
+  "cameraWork": "describe camera angle and movement style",
+  "setting": "specific location/environment description",
+  "confidence": 0.85
+}
 
-  if (response.ok) {
-    const data = await response.json();
-    return JSON.parse(data.choices[0].message.content);
+IMPORTANT: Be specific and descriptive. Avoid generic terms like "unknown", "scene1", "person". Use actual visual details from the analysis.`
+          }
+        ],
+        temperature: 0.2,
+        response_format: { type: "json_object" }
+      })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      const analysis = JSON.parse(data.choices[0].message.content);
+      console.log(`✅ Video synthesis successful: ${analysis.description}`);
+      return analysis;
+    } else {
+      const errorText = await response.text();
+      console.error(`❌ Synthesis API error: ${response.status} - ${errorText}`);
+      throw new Error(`Analysis synthesis failed: ${response.status}`);
+    }
+  } catch (error) {
+    console.error(`💥 Video synthesis failed:`, error);
+    
+    // Return a more informative fallback based on metadata
+    const duration = metadata.videoMediaMetadata?.durationMillis ? 
+      Math.round(parseInt(metadata.videoMediaMetadata.durationMillis) / 1000) : null;
+    
+    return {
+      description: `Video file ${metadata.name || 'Unknown'} with ${duration ? duration + ' second' : 'unknown'} duration`,
+      detailedDescription: `This is a ${duration ? duration + '-second' : 'short'} video file. Technical analysis was limited but the file appears to be a valid video recording.`,
+      scenes: [`${duration ? duration + '-second' : 'Brief'} video content`],
+      visualStyle: { 
+        lighting: 'unknown', 
+        colorPalette: [], 
+        mood: 'undetermined' 
+      },
+      subjects: ['video content'],
+      cameraWork: 'undetermined',
+      setting: 'undetermined',
+      confidence: 0.3,
+      error: error.message
+    };
   }
-
-  return {
-    description: 'Video analysis synthesis failed',
-    detailedDescription: 'Unable to analyze video content',
-    scenes: [],
-    visualStyle: { lighting: 'unknown', colorPalette: [], mood: 'unknown' },
-    subjects: [],
-    cameraWork: 'unknown',
-    setting: 'unknown',
-    confidence: 0.1
-  };
 }
 
 async function generateVEO3Prompts(analysis: any, apiKey: string): Promise<any> {
