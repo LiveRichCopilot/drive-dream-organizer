@@ -613,7 +613,7 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
     }));
 
     try {
-      // For now, skip organization since we're using only fixedGoogleOAuth
+      console.log('Starting Google Drive organization...');
       
       // Get all video IDs for organization
       const videoIds = results.downloadedVideos.map(video => video.id);
@@ -621,15 +621,34 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
       setProcessingState(prev => ({
         ...prev,
         progress: 92,
-        currentFile: `Uploading ${videoIds.length} videos with organized structure...`
+        currentFile: `Organizing ${videoIds.length} videos by date in Google Drive...`
       }));
       
       // Get existing folders from project memory
       const project = projectId ? loadProject(projectId) : currentProject;
       const existingFolders = project ? Object.fromEntries(project.dateFolders) : {};
       
-      // For now, skip organization since we're using only fixedGoogleOAuth
-      const organizeResult = { success: false, results: [] };
+      // Call the Google Drive organize function
+      console.log('Calling google-drive-organize function with video IDs:', videoIds);
+      
+      const { supabase } = await import('@/integrations/supabase/client');
+      
+      const organizeResponse = await supabase.functions.invoke('google-drive-organize', {
+        body: {
+          fileIds: videoIds,
+          sourceFolderId: folderId,
+          existingFolders: existingFolders
+        },
+        headers: {
+          'Authorization': `Bearer ${fixedGoogleOAuth.getCurrentAccessToken()}`
+        }
+      });
+      
+      if (organizeResponse.error) {
+        throw new Error(`Organization failed: ${organizeResponse.error.message}`);
+      }
+      
+      const organizeResult = organizeResponse.data;
       
       // Update project memory with organized videos
       if (project && organizeResult.results) {
@@ -645,17 +664,15 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
         addProcessedFiles(processedVideos);
       }
       
-      // For now, skip upload since we're using only fixedGoogleOAuth
-      const uploadResult = { success: false, folderId: '', message: 'Feature disabled' };
-
+      
       setProcessingState(prev => ({
         ...prev,
         progress: 98,
-        currentFile: `All ${videoIds.length} videos successfully organized! Check "${settings.destinationFolderName || 'Organized_Videos'}" folder in Google Drive.`
+        currentFile: `All ${videoIds.length} videos successfully organized! Check your Google Drive for organized folders.`
       }));
 
-      console.log('Google Drive organization completed successfully:', uploadResult);
-      return uploadResult;
+      console.log('Google Drive organization completed successfully:', organizeResult);
+      return organizeResult;
 
     } catch (error) {
       console.error('Failed to organize videos in Google Drive:', error);
