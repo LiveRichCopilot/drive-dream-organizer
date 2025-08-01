@@ -12,6 +12,9 @@ verify_jwt = false
 [functions.google-drive-organize]
 verify_jwt = false
 
+[functions.google-drive-photo-organize]
+verify_jwt = false
+
 [functions.google-drive-rename]
 verify_jwt = false
 
@@ -31,4 +34,16 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.video-content-analyzer]
+verify_jwt = false
+
+[functions.batch-photo-processor]
+verify_jwt = false
+
+[functions.video-frame-extractor]
+verify_jwt = false
+
+[functions.openai-assistant-chat]
+verify_jwt = false
+
+[functions.get-openai-key]
 verify_jwt = false

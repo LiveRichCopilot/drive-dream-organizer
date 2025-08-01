@@ -644,22 +644,75 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
       
       const { supabase } = await import('@/integrations/supabase/client');
       
-      const organizeResponse = await supabase.functions.invoke('google-drive-organize', {
-        body: {
-          fileIds: videoIds,
-          sourceFolderId: folderId,
-          existingFolders: existingFolders
-        },
-        headers: {
-          'Authorization': `Bearer ${fixedGoogleOAuth.getCurrentAccessToken()}`
-        }
-      });
-      
-      if (organizeResponse.error) {
-        throw new Error(`Organization failed: ${organizeResponse.error.message}`);
+      // Process in smaller batches to avoid timeouts
+      const BATCH_SIZE = 20;
+      const batches = [];
+      for (let i = 0; i < videoIds.length; i += BATCH_SIZE) {
+        batches.push(videoIds.slice(i, i + BATCH_SIZE));
       }
       
-      const organizeResult = organizeResponse.data;
+      console.log(`Processing ${videoIds.length} videos in ${batches.length} batches of ${BATCH_SIZE}`);
+      
+      const allResults = [];
+      
+      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+        const batch = batches[batchIndex];
+        const retryCount = 3;
+        
+        setProcessingState(prev => ({
+          ...prev,
+          currentFile: `Organizing batch ${batchIndex + 1}/${batches.length} (${batch.length} videos)...`
+        }));
+        
+        for (let attempt = 1; attempt <= retryCount; attempt++) {
+          try {
+            console.log(`Processing batch ${batchIndex + 1}/${batches.length}, attempt ${attempt}/${retryCount}`);
+            
+            const organizeResponse = await supabase.functions.invoke('google-drive-organize', {
+              body: {
+                fileIds: batch,
+                sourceFolderId: folderId,
+                existingFolders: existingFolders
+              },
+              headers: {
+                'Authorization': `Bearer ${fixedGoogleOAuth.getCurrentAccessToken()}`
+              }
+            });
+            
+            if (organizeResponse.error) {
+              throw new Error(`Organization failed: ${organizeResponse.error.message}`);
+            }
+            
+            // Success - add results and break retry loop
+            if (organizeResponse.data?.results) {
+              allResults.push(...organizeResponse.data.results);
+            }
+            break;
+            
+          } catch (error) {
+            console.error(`Batch ${batchIndex + 1} attempt ${attempt} failed:`, error);
+            
+            if (attempt === retryCount) {
+              // Final attempt failed - add failed results
+              batch.forEach(fileId => {
+                allResults.push({ fileId, success: false, error: error.message });
+              });
+            } else {
+              // Wait before retry
+              await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
+            }
+          }
+        }
+        
+        // Update progress
+        const progressPercent = 80 + ((batchIndex + 1) / batches.length) * 18;
+        setProcessingState(prev => ({
+          ...prev,
+          progress: progressPercent
+        }));
+      }
+      
+      const organizeResult = { results: allResults };
       
       // Update project memory with organized videos
       if (project && organizeResult.results) {
