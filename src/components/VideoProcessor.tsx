@@ -423,23 +423,13 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
       currentStep: 2
     }));
 
-    // Simulate metadata extraction (realistic timing)
-    for (let i = 0; i < results.downloadedVideos.length; i++) {
-      if (isPaused) await waitForResume();
-      
-      const video = results.downloadedVideos[i];
-      
-      setProcessingState(prev => ({
-        ...prev,
-        currentFile: video.originalName,
-        progress: 20 + (i / results.downloadedVideos.length) * 20,
-        processedCount: i + 1
-      }));
-
-      // Realistic processing time - 500ms to 2s per video depending on size
-      const processingTime = Math.max(500, parseInt(String(video.metadata.fileSize)) / (1024 * 1024) * 100);
-      await new Promise(resolve => setTimeout(resolve, processingTime));
-    }
+    console.log('Metadata extraction already completed during download phase, proceeding to organization...');
+    
+    setProcessingState(prev => ({
+      ...prev,
+      progress: 40,
+      processedCount: results.downloadedVideos.length
+    }));
   };
 
   const organizeFiles = async (results: ProcessingResults) => {
@@ -736,7 +726,7 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
     }));
 
     try {
-      // Step 6: Upload organized videos back to Google Drive
+      // Step 6: Actually organize the videos in Google Drive
       if (settings.destinationFolderName) {
         await uploadToGoogleDrive(previewResults);
       }
