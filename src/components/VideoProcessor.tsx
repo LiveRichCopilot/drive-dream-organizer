@@ -66,6 +66,21 @@ interface VideoMetadata {
   codec: string;
   bitrate: number;
   fileSize: number;
+  aiAnalysis?: {
+    description?: string;
+    detailedDescription?: string;
+    veo3Prompts?: {
+      professional?: string;
+      creative?: string;
+      technical?: string;
+      short?: string;
+      detailed?: string;
+    };
+    scenes?: string[];
+    visualStyle?: string;
+    subjects?: string[];
+    confidence?: number;
+  };
 }
 
 interface FolderStructure {
@@ -411,7 +426,17 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
             fps: 30, // Default, would be extracted from actual file
             codec: 'h264',
             bitrate: 5000,
-            fileSize: parseInt(String(video.size || '0'))
+            fileSize: parseInt(String(video.size || '0')),
+            // Include AI analysis data if available
+            aiAnalysis: actualMetadata ? {
+              description: actualMetadata.description,
+              detailedDescription: actualMetadata.detailedDescription,
+              veo3Prompts: actualMetadata.veo3Prompts,
+              scenes: actualMetadata.scenes,
+              visualStyle: actualMetadata.visualStyle,
+              subjects: actualMetadata.subjects,
+              confidence: actualMetadata.analysisConfidence
+            } : undefined
           }
         });
       }

@@ -9,7 +9,11 @@ import {
   Clock, 
   CheckCircle, 
   FolderOpen,
-  Film
+  Film,
+  Brain,
+  Sparkles,
+  Eye,
+  Copy
 } from 'lucide-react';
 
 interface ProcessingResults {
@@ -35,6 +39,21 @@ interface VideoMetadata {
   codec: string;
   bitrate: number;
   fileSize: number;
+  aiAnalysis?: {
+    description?: string;
+    detailedDescription?: string;
+    veo3Prompts?: {
+      professional?: string;
+      creative?: string;
+      technical?: string;
+      short?: string;
+      detailed?: string;
+    };
+    scenes?: string[];
+    visualStyle?: string;
+    subjects?: string[];
+    confidence?: number;
+  };
 }
 
 interface FolderStructure {
@@ -62,6 +81,13 @@ const ProcessingResults: React.FC<ProcessingResultsProps> = ({ results, onStartN
   const totalVideos = results.downloadedVideos.length;
   const totalSize = results.downloadedVideos.reduce((sum, v) => sum + v.metadata.fileSize, 0);
   const totalDuration = results.downloadedVideos.reduce((sum, v) => sum + v.metadata.duration, 0);
+  const videosWithAI = results.downloadedVideos.filter(v => v.metadata.aiAnalysis);
+  
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    // In a real app, you'd show a toast here
+    alert('Copied to clipboard!');
+  };
 
   const downloadProjectFile = (projectFile: ProjectFile) => {
     // In a real implementation, this would trigger a download
@@ -108,6 +134,136 @@ const ProcessingResults: React.FC<ProcessingResultsProps> = ({ results, onStartN
           </div>
         </CardContent>
       </Card>
+
+      {/* AI Analysis Results */}
+      {videosWithAI.length > 0 && (
+        <Card className="border-gradient-to-r from-purple-500/20 to-cyan-500/20 bg-gradient-to-r from-purple-50/5 to-cyan-50/5">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Brain className="h-5 w-5 text-purple-400" />
+              AI Video Analysis
+              <Badge variant="secondary" className="ml-auto bg-purple-100/10 text-purple-300">
+                {videosWithAI.length} videos analyzed
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              {videosWithAI.map((video, index) => (
+                <div key={index} className="space-y-4 p-4 bg-gradient-to-r from-purple-50/5 to-cyan-50/5 rounded-lg border border-white/10">
+                  <div className="flex items-center gap-3">
+                    <Eye className="h-5 w-5 text-cyan-400" />
+                    <div className="flex-1">
+                      <h3 className="font-medium text-white">{video.newName}</h3>
+                      <p className="text-xs text-muted-foreground">{video.originalName}</p>
+                    </div>
+                    {video.metadata.aiAnalysis?.confidence && (
+                      <Badge variant="outline" className="text-green-300 border-green-300/30">
+                        {Math.round(video.metadata.aiAnalysis.confidence * 100)}% confidence
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Description */}
+                  {video.metadata.aiAnalysis?.description && (
+                    <div className="space-y-2">
+                      <h4 className="font-medium text-sm text-purple-300 flex items-center gap-2">
+                        <Sparkles className="h-4 w-4" />
+                        AI Description
+                      </h4>
+                      <div className="relative">
+                        <p className="text-sm text-white/90 bg-black/20 p-3 rounded border border-white/10">
+                          {video.metadata.aiAnalysis.description}
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="absolute top-2 right-2 h-6 w-6 p-0"
+                          onClick={() => copyToClipboard(video.metadata.aiAnalysis?.description || '')}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* VEO 3 Prompts */}
+                  {video.metadata.aiAnalysis?.veo3Prompts && Object.keys(video.metadata.aiAnalysis.veo3Prompts).length > 0 && (
+                    <div className="space-y-3">
+                      <h4 className="font-medium text-sm text-cyan-300 flex items-center gap-2">
+                        <Film className="h-4 w-4" />
+                        VEO 3 Generation Prompts
+                      </h4>
+                      <div className="grid gap-3">
+                        {Object.entries(video.metadata.aiAnalysis.veo3Prompts).map(([type, prompt]) => (
+                          prompt && (
+                            <div key={type} className="space-y-1">
+                              <div className="flex items-center justify-between">
+                                <Badge variant="outline" className="text-xs capitalize">
+                                  {type}
+                                </Badge>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 w-6 p-0"
+                                  onClick={() => copyToClipboard(prompt)}
+                                >
+                                  <Copy className="h-3 w-3" />
+                                </Button>
+                              </div>
+                              <p className="text-xs text-white/80 bg-black/20 p-2 rounded border border-white/10">
+                                {prompt}
+                              </p>
+                            </div>
+                          )
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Additional Analysis Data */}
+                  {(video.metadata.aiAnalysis?.scenes || video.metadata.aiAnalysis?.subjects || video.metadata.aiAnalysis?.visualStyle) && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                      {video.metadata.aiAnalysis.scenes && (
+                        <div>
+                          <h5 className="font-medium text-purple-300 mb-1">Scenes</h5>
+                          <div className="space-y-1">
+                            {video.metadata.aiAnalysis.scenes.map((scene, i) => (
+                              <Badge key={i} variant="secondary" className="text-xs">
+                                {scene}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {video.metadata.aiAnalysis.subjects && (
+                        <div>
+                          <h5 className="font-medium text-cyan-300 mb-1">Subjects</h5>
+                          <div className="space-y-1">
+                            {video.metadata.aiAnalysis.subjects.map((subject, i) => (
+                              <Badge key={i} variant="secondary" className="text-xs">
+                                {subject}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {video.metadata.aiAnalysis.visualStyle && (
+                        <div>
+                          <h5 className="font-medium text-green-300 mb-1">Visual Style</h5>
+                          <Badge variant="secondary" className="text-xs">
+                            {video.metadata.aiAnalysis.visualStyle}
+                          </Badge>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Folder Structure */}
       <Card>
