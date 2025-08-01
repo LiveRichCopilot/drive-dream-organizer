@@ -160,9 +160,20 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
   };
 
   const startProcessing = useCallback(async () => {
-    const videosToProcess = verifiedVideos.length > 0 ? verifiedVideos : videos;
+    const allVideos = verifiedVideos.length > 0 ? verifiedVideos : videos;
+    
+    // LIMIT TO 100 VIDEOS AT A TIME to manage costs and ensure completion
+    const videosToProcess = allVideos.slice(0, 100);
+    
     console.log('Starting processing with folderId:', folderId);
-    console.log('Processing videos:', videosToProcess.length);
+    console.log(`Processing videos: ${videosToProcess.length} (limited from ${allVideos.length} total)`);
+    
+    if (allVideos.length > 100) {
+      toast({
+        title: "Processing Limited",
+        description: `Processing first 100 of ${allVideos.length} videos. You can process more after this batch completes.`,
+      });
+    }
     
     // Load project if projectId is provided
     const project = projectId ? loadProject(projectId) : currentProject;
