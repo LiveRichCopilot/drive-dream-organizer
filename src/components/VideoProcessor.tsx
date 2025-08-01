@@ -4,7 +4,7 @@ import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Download, Play, Pause, RotateCcw, FileText, Clock, HardDrive, Search, Archive, Upload, RefreshCw } from 'lucide-react';
+import { Download, Play, Pause, RotateCcw, FileText, Clock, HardDrive, Search, Archive, Upload, RefreshCw, Cloud } from 'lucide-react';
 import { MediaFile } from '@/lib/api';
 import { fixedGoogleOAuth } from '@/lib/fixedOAuth';
 import { toast } from '@/hooks/use-toast';
@@ -1066,14 +1066,23 @@ const VideoProcessor: React.FC<VideoProcessorProps> = ({ videos, folderId, onPro
           )}
           
           {processingState.status === 'completed' && previewResults && (
-            <Button 
-              onClick={downloadAsZip} 
-              variant="outline"
-              className="glass text-white border-white/20 hover:bg-white/10 bg-white/5"
-            >
-              <Archive className="mr-2 h-4 w-4" />
-              Download as Zip
-            </Button>
+            <>
+              <Button 
+                onClick={retryUpload} 
+                className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white border-0"
+              >
+                <Cloud className="mr-2 h-4 w-4" />
+                Upload to Google Drive
+              </Button>
+              <Button 
+                onClick={downloadAsZip} 
+                variant="outline"
+                className="glass text-white border-white/20 hover:bg-white/10 bg-white/5"
+              >
+                <Archive className="mr-2 h-4 w-4" />
+                Download as Zip
+              </Button>
+            </>
           )}
           
           {(processingState.status === 'completed' || processingState.status === 'error') && (
