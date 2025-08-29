@@ -178,42 +178,42 @@ const ODriveApp = () => {
                   </Button>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-8">
-                    <div className="glass-card text-center p-4">
+                    <div className="glass-card text-center p-4 hover:border hover:border-white/20 transition-all duration-200">
                       <Camera className="h-8 w-8 mx-auto mb-3 text-primary" />
                       <h3 className="font-semibold mb-2">Photos & Videos</h3>
                        <p className="text-sm text-muted-foreground text-left">
                          Multi-Agent AI system using Claude, GPT-4, and Gemini to intelligently organize your entire media library. Supports ALL file types - photos, videos, documents.
                        </p>
                     </div>
-                    <div className="glass-card text-center p-4">
+                    <div className="glass-card text-center p-4 hover:border hover:border-white/20 transition-all duration-200">
                       <Mic className="h-8 w-8 mx-auto mb-3 text-secondary" />
                       <h3 className="font-semibold mb-2">Voice Assistant</h3>
                        <p className="text-sm text-muted-foreground text-left">
                          Powered by ElevenLabs AI voice. Ask "Why aren't my photos showing?" or "How do I organize by face?" Get instant help with natural conversation.
                        </p>
                     </div>
-                    <div className="glass-card text-center p-4">
+                    <div className="glass-card text-center p-4 hover:border hover:border-white/20 transition-all duration-200">
                       <Settings className="h-8 w-8 mx-auto mb-3 text-accent" />
                       <h3 className="font-semibold mb-2">Smart Analysis</h3>
                        <p className="text-sm text-muted-foreground text-left">
                          Three AI agents working together: Gemini for vision (detects faces, objects, scenes), GPT-4 for metadata extraction, Claude for intelligent organization strategies.
                        </p>
                     </div>
-                    <div className="glass-card text-center p-4">
+                    <div className="glass-card text-center p-4 hover:border hover:border-white/20 transition-all duration-200">
                       <Video className="h-8 w-8 mx-auto mb-3 text-primary" />
                       <h3 className="font-semibold mb-2">Super Vision Agents</h3>
                        <p className="text-sm text-muted-foreground text-left">
                          AI agents that can SEE inside your photos/videos: Detect clothes, colors, objects, red dresses, count people, identify beaches, recognize faces. Creates smart folders automatically.
                        </p>
                     </div>
-                    <div className="glass-card text-center p-4">
+                    <div className="glass-card text-center p-4 hover:border hover:border-white/20 transition-all duration-200">
                       <Camera className="h-8 w-8 mx-auto mb-3 text-secondary" />
                       <h3 className="font-semibold mb-2">Photo Categorization</h3>
                        <p className="text-sm text-muted-foreground text-left">
                          Permission-based AI organization: Automatically creates Google Sheets with your photo data, builds folder structures, tags by location/date/content. Your AI assistant working 24/7.
                        </p>
                     </div>
-                    <div className="glass-card text-center p-4">
+                    <div className="glass-card text-center p-4 hover:border hover:border-white/20 transition-all duration-200">
                       <Cog className="h-8 w-8 mx-auto mb-3 text-accent" />
                       <h3 className="font-semibold mb-2">Automated Organization</h3>
                        <p className="text-sm text-muted-foreground text-left">
